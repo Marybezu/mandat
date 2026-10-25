@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mandat</string>
+    <string name="tagline">Your private, encrypted organiser</string>
+    <string name="classified_notice">Not for classified information.</string>
+    <string name="unlock">Unlock</string>
+    <string name="unlock_title">Unlock Mandat</string>
+    <string name="unlock_subtitle">Use your fingerprint or phone PIN</string>
+    <string name="first_run_title">Welcome to Mandat</string>
+    <string name="first_run_text">Everything you add stays on this phone and is always encrypted. Mandat has no internet access. It opens with your fingerprint or the phone PIN.</string>
+    <string name="first_run_start">Start</string>
+    <string name="no_screen_lock">Set a screen lock (PIN or password) on the phone first. Mandat uses it to protect your data.</string>
+    <string name="key_lost">The encryption key is no longer available (for example, the screen lock was removed). The data cannot be opened. Restore from a backup once backups are available.</string>
+    <string name="unlock_failed">Could not unlock. Try again.</string>
+
+    <string name="tab_today">Today</string>
+    <string name="tab_matters">Matters</string>
+    <string name="tab_people">People</string>
+    <string name="tab_time">Time</string>
+    <string name="tab_review">Review</string>
+    <string name="coming_soon">Coming in the next versions.</string>
+
+    <string name="inbox">Inbox</string>
+    <string name="inbox_empty">Inbox is empty. Tap + to note anything that is on your mind.</string>
+    <string name="add">Add</string>
+    <string name="add_hint">What is on your mind?</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="lock_now">Lock</string>
+</resources>

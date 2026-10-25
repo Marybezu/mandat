@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Мандат</string>
+    <string name="tagline">Ваш приватний зашифрований органайзер</string>
+    <string name="classified_notice">Не для відомостей з грифом.</string>
+    <string name="unlock">Відкрити</string>
+    <string name="unlock_title">Відкрити Мандат</string>
+    <string name="unlock_subtitle">Відбиток пальця або PIN телефона</string>
+    <string name="first_run_title">Вітаємо в Мандаті</string>
+    <string name="first_run_text">Усе, що ви додаєте, залишається на цьому телефоні й завжди зашифроване. Мандат не має доступу до інтернету. Відкривається відбитком пальця або PIN телефона.</string>
+    <string name="first_run_start">Почати</string>
+    <string name="no_screen_lock">Спершу встановіть блокування екрана (PIN або пароль) на телефоні. Мандат використовує його для захисту даних.</string>
+    <string name="key_lost">Ключ шифрування більше недоступний (наприклад, блокування екрана вимкнули). Дані неможливо відкрити. Відновіть їх із резервної копії, коли копії з\'являться.</string>
+    <string name="unlock_failed">Не вдалося відкрити. Спробуйте ще раз.</string>
+
+    <string name="tab_today">Сьогодні</string>
+    <string name="tab_matters">Справи</string>
+    <string name="tab_people">Люди</string>
+    <string name="tab_time">Час</string>
+    <string name="tab_review">Огляд</string>
+    <string name="coming_soon">З\'явиться в наступних версіях.</string>
+
+    <string name="inbox">Вхідні</string>
+    <string name="inbox_empty">Вхідні порожні. Натисніть +, щоб записати все, що тримаєте в голові.</string>
+    <string name="add">Додати</string>
+    <string name="add_hint">Що у вас на думці?</string>
+    <string name="save">Зберегти</string>
+    <string name="cancel">Скасувати</string>
+    <string name="delete">Видалити</string>
+    <string name="lock_now">Закрити</string>
+</resources>
