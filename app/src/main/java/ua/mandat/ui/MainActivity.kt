@@ -31,7 +31,7 @@ class MainActivity : AppCompatActivity() {
         setRecentsScreenshotEnabled(false)
 
         vault = KeyVault(this)
-        if (session.state !is LockState.Open) session.setState(initialState())
+        if (session.state !is LockState.Open) session.moveTo(initialState())
 
         setContent {
             MandatTheme {
@@ -42,7 +42,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (session.state !is LockState.Open) session.setState(initialState())
+        if (session.state !is LockState.Open) session.moveTo(initialState())
         if (session.state == LockState.Locked && autoPrompt) {
             autoPrompt = false
             unlock()
@@ -78,7 +78,7 @@ class MainActivity : AppCompatActivity() {
                 vault.cipherForUnlock()
             }
         } catch (e: KeyPermanentlyInvalidatedException) {
-            session.setState(LockState.KeyLost)
+            session.moveTo(LockState.KeyLost)
             return
         } catch (e: Exception) {
             session.lastError = true

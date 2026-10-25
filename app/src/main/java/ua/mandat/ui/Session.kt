@@ -28,7 +28,7 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     var lastError by mutableStateOf(false)
 
-    fun setState(newState: LockState) {
+    fun moveTo(newState: LockState) {
         state = newState
     }
 
