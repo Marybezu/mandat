@@ -56,7 +56,7 @@
     <string name="notice_restore_failed">Could not restore. Nothing was changed.</string>
     <string name="ok">OK</string>
     <string name="security_title">Security</string>
-    <string name="security_text">Mandat opens with your fingerprint or the phone PIN, locks when you leave it, blocks screenshots and has no internet access. If the phone\'s screen lock is removed, the data on this phone can no longer be opened: keep a recent backup.</string>
+    <string name="security_text">Mandat opens with your fingerprint or the phone PIN, locks when you leave it, blocks screenshots and has no internet access. You can change the phone PIN or password, but never turn the screen lock off completely: Android then destroys the key, and the data on this phone can no longer be opened, even if the lock is turned on again. Make a fresh backup before changing the screen lock.</string>
     <string name="about_title">About</string>
     <string name="about_text">Version %1$s. Not for classified information. Open source (GPL-3.0). Written with AI assistance (Claude, Anthropic), directed and tested by the author.</string>
     <string name="start_over">Start over and restore from a backup</string>

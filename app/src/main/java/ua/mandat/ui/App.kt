@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -149,12 +151,13 @@ private fun Locked(failed: Boolean, onUnlock: () -> Unit) = Centered {
     Notice()
 }
 
-private enum class Tab(val title: Int, val icon: ImageVector) {
+// "Review" sits in the middle and stands out: the place to step back and see the whole picture
+private enum class Tab(val title: Int, val icon: ImageVector, val central: Boolean = false) {
     Today(R.string.tab_today, Icons.Filled.Home),
     Matters(R.string.tab_matters, Icons.Filled.List),
+    Review(R.string.tab_review, Icons.Filled.CheckCircle, central = true),
     People(R.string.tab_people, Icons.Filled.Person),
     Time(R.string.tab_time, Icons.Filled.DateRange),
-    Review(R.string.tab_review, Icons.Filled.CheckCircle),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -189,7 +192,22 @@ private fun Main(db: MandatDb, session: Session) {
                     NavigationBarItem(
                         selected = t == tab,
                         onClick = { tab = t },
-                        icon = { Icon(t.icon, contentDescription = null) },
+                        icon = {
+                            if (t.central) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(48.dp),
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(t.icon, contentDescription = null, modifier = Modifier.size(28.dp))
+                                    }
+                                }
+                            } else {
+                                Icon(t.icon, contentDescription = null)
+                            }
+                        },
                         label = { Text(stringResource(t.title), style = MaterialTheme.typography.labelMedium) },
                     )
                 }
