@@ -112,7 +112,7 @@
     <string name="focus_empty">Nothing in focus. Choose up to five matters you live with this week.</string>
     <string name="to_matter">Make a matter</string>
     <string name="roles_title">Your roles</string>
-    <string name="roles_text">Roles are your "hats": positions and lines of work. Matters are grouped by them, so no role is forgotten. Choose yours; you can change them any time in Options.</string>
+    <string name="roles_text">Roles are your "hats": positions and lines of work. Matters are grouped by them, so no role is forgotten. Pick a body and a position (optionally a name or topic) and tap \"Add this role\"; repeat for each. You can change roles any time in Options.</string>
     <string name="roles_add">Add a role</string>
     <string name="roles_add_hint">Your own role</string>
     <string name="roles_done">Done</string>
