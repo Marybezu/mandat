@@ -2,9 +2,6 @@ package ua.mandat.backup
 
 import org.bouncycastle.crypto.generators.Argon2BytesGenerator
 import org.bouncycastle.crypto.params.Argon2Parameters
-import java.io.ByteArrayOutputStream
-import java.io.DataInputStream
-import java.io.DataOutputStream
 import java.security.SecureRandom
 import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
@@ -12,13 +9,13 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * The backup file: a small readable header, then the data encrypted with AES-256-GCM.
- * The key comes from the owner's password through Argon2id, which is deliberately slow and
- * memory-hungry so that guessing passwords is very expensive. The header is authenticated
- * too, so any change to the file is detected.
+ * The backup file. It has no readable header or marker at all: to anyone without the password
+ * it looks like random bytes, so it does not reveal that it comes from Mandat.
  *
- * Layout: "MANDATBK" | version u8 | kdf u8 | memoryKiB i32 | iterations i32 | parallelism u8 |
- *         salt len u8 | salt | nonce len u8 | nonce | ciphertext with 16-byte tag
+ * Layout: salt (16) | nonce (12) | AES-256-GCM ciphertext with 16-byte tag.
+ * The key comes from the password through Argon2id with fixed settings (see [PROFILES]);
+ * salt and nonce are authenticated as associated data, so any change to the file is detected.
+ * If the settings ever change, a new profile is added and old files still open.
  */
 object BackupCrypto {
 
@@ -27,31 +24,31 @@ object BackupCrypto {
     /** 64 MiB, 3 passes: a few seconds on a phone, very costly for an attacker. */
     val DEFAULT = KdfParams(memoryKiB = 64 * 1024, iterations = 3, parallelism = 1)
 
-    const val MIN_PASSWORD_LENGTH = 12
+    /** Settings tried when opening a file, newest first. Only fixed values: nothing is read from the file. */
+    internal val PROFILES = listOf(DEFAULT)
 
-    private val MAGIC = "MANDATBK".toByteArray(Charsets.US_ASCII)
-    private const val VERSION = 1
-    private const val KDF_ARGON2ID = 1
+    const val MIN_PASSWORD_LENGTH = 12
+    const val MAX_FILE_BYTES = 64L * 1024 * 1024
+
     private const val SALT_BYTES = 16
     private const val NONCE_BYTES = 12
-    private const val TAG_BITS = 128
-    private const val MAX_FILE_BYTES = 256L * 1024 * 1024
+    private const val TAG_BYTES = 16
 
     /** The password or the file is wrong; deliberately the same for both. */
     class WrongPasswordOrDamaged : Exception()
 
-    /** Not a Mandat backup, or made by a newer version. */
+    /** Too small or too large to be a backup. */
     class NotABackup : Exception()
 
     fun encrypt(plain: ByteArray, password: String, params: KdfParams = DEFAULT): ByteArray {
         val random = SecureRandom()
         val salt = ByteArray(SALT_BYTES).also { random.nextBytes(it) }
         val nonce = ByteArray(NONCE_BYTES).also { random.nextBytes(it) }
-        val header = header(params, salt, nonce)
+        val header = salt + nonce
         val key = deriveKey(password, salt, params)
         try {
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(TAG_BITS, nonce))
+            cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(TAG_BYTES * 8, nonce))
             cipher.updateAAD(header)
             return header + cipher.doFinal(plain)
         } finally {
@@ -59,67 +56,25 @@ object BackupCrypto {
         }
     }
 
-    fun decrypt(file: ByteArray, password: String): ByteArray {
-        if (file.size > MAX_FILE_BYTES) throw NotABackup()
-        val parsed = parse(file)
-        val key = deriveKey(password, parsed.salt, parsed.params)
-        try {
-            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(TAG_BITS, parsed.nonce))
-            cipher.updateAAD(file, 0, parsed.headerSize)
-            return cipher.doFinal(file, parsed.headerSize, file.size - parsed.headerSize)
-        } catch (e: AEADBadTagException) {
-            throw WrongPasswordOrDamaged()
-        } finally {
-            key.fill(0)
+    fun decrypt(file: ByteArray, password: String, profiles: List<KdfParams> = PROFILES): ByteArray {
+        val headerSize = SALT_BYTES + NONCE_BYTES
+        if (file.size < headerSize + TAG_BYTES || file.size > MAX_FILE_BYTES) throw NotABackup()
+        val salt = file.copyOfRange(0, SALT_BYTES)
+        val nonce = file.copyOfRange(SALT_BYTES, headerSize)
+        for (params in profiles) {
+            val key = deriveKey(password, salt, params)
+            try {
+                val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+                cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(TAG_BYTES * 8, nonce))
+                cipher.updateAAD(file, 0, headerSize)
+                return cipher.doFinal(file, headerSize, file.size - headerSize)
+            } catch (e: AEADBadTagException) {
+                // Try the next profile
+            } finally {
+                key.fill(0)
+            }
         }
-    }
-
-    private class Parsed(val params: KdfParams, val salt: ByteArray, val nonce: ByteArray, val headerSize: Int)
-
-    private fun parse(file: ByteArray): Parsed {
-        try {
-            val input = DataInputStream(file.inputStream())
-            val magic = ByteArray(MAGIC.size).also { input.readFully(it) }
-            if (!magic.contentEquals(MAGIC)) throw NotABackup()
-            if (input.readUnsignedByte() != VERSION) throw NotABackup()
-            if (input.readUnsignedByte() != KDF_ARGON2ID) throw NotABackup()
-            val params = KdfParams(input.readInt(), input.readInt(), input.readUnsignedByte())
-            // Refuse absurd settings, so a crafted file cannot freeze or crash the phone
-            if (params.memoryKiB !in 8 * 1024..1024 * 1024 ||
-                params.iterations !in 1..20 ||
-                params.parallelism !in 1..8
-            ) throw NotABackup()
-            val saltSize = input.readUnsignedByte()
-            if (saltSize != SALT_BYTES) throw NotABackup()
-            val salt = ByteArray(saltSize).also { input.readFully(it) }
-            val nonceSize = input.readUnsignedByte()
-            if (nonceSize != NONCE_BYTES) throw NotABackup()
-            val nonce = ByteArray(nonceSize).also { input.readFully(it) }
-            val headerSize = MAGIC.size + 1 + 1 + 4 + 4 + 1 + 1 + saltSize + 1 + nonceSize
-            if (file.size < headerSize + TAG_BITS / 8) throw NotABackup()
-            return Parsed(params, salt, nonce, headerSize)
-        } catch (e: java.io.EOFException) {
-            throw NotABackup()
-        }
-    }
-
-    private fun header(params: KdfParams, salt: ByteArray, nonce: ByteArray): ByteArray {
-        val bytes = ByteArrayOutputStream()
-        DataOutputStream(bytes).apply {
-            write(MAGIC)
-            writeByte(VERSION)
-            writeByte(KDF_ARGON2ID)
-            writeInt(params.memoryKiB)
-            writeInt(params.iterations)
-            writeByte(params.parallelism)
-            writeByte(salt.size)
-            write(salt)
-            writeByte(nonce.size)
-            write(nonce)
-            flush()
-        }
-        return bytes.toByteArray()
+        throw WrongPasswordOrDamaged()
     }
 
     internal fun deriveKey(password: String, salt: ByteArray, params: KdfParams): ByteArray {
@@ -139,5 +94,23 @@ object BackupCrypto {
         generator.generateBytes(passwordBytes, key)
         passwordBytes.fill(0)
         return key
+    }
+
+    /**
+     * A password of six random words from the EFF list (about 77 bits): strong, and easy to
+     * write down and type. [words] is the list; every word is equally likely.
+     */
+    fun suggestPassword(words: List<String>, count: Int = 6): String {
+        require(words.size >= 1024)
+        val random = SecureRandom()
+        return (1..count).joinToString("-") { words[random.nextInt(words.size)] }
+    }
+
+    /** Refuses passwords that are long but obviously weak, such as "aaaaaaaaaaaa" or "123456789012". */
+    fun isTooSimple(password: String): Boolean {
+        if (password.length < MIN_PASSWORD_LENGTH) return true
+        if (password.toSet().size < 6) return true
+        val digitsOnly = password.all { it.isDigit() }
+        return digitsOnly && password.length < 20
     }
 }

@@ -40,7 +40,7 @@
     <string name="backup_password_hint">Щонайменше 12 символів. Найкраще — кілька випадкових слів. Зберігайте пароль окремо від файлу: без нього копію не відкриє ніхто, навіть ви.</string>
     <string name="password">Пароль</string>
     <string name="password_repeat">Повторіть пароль</string>
-    <string name="password_too_short">Щонайменше 12 символів.</string>
+    <string name="password_too_short">Щонайменше 12 символів, і не надто простий.</string>
     <string name="password_mismatch">Паролі не збігаються.</string>
     <string name="continue_">Далі</string>
     <string name="restore_password_title">Пароль цієї копії</string>
@@ -63,4 +63,7 @@
     <string name="start_over_title">Почати заново?</string>
     <string name="start_over_text">Дані на цьому телефоні більше неможливо відкрити. Якщо почати заново, їх буде остаточно видалено з цього телефона. Потім відновіть дані з резервної копії: Опції → Резервна копія → Відновити з копії.</string>
     <string name="start_over_confirm">Видалити й почати заново</string>
+    <string name="restore_save_first">Спершу зберегти поточні</string>
+    <string name="suggest_password">Запропонувати пароль</string>
+    <string name="suggested_note">Запишіть цей пароль зараз і зберігайте окремо від файлу копії:</string>
 </resources>

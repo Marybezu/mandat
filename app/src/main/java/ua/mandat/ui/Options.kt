@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -105,7 +106,11 @@ fun Options(session: Session, onBack: () -> Unit) {
                 OutlinedButton(
                     onClick = {
                         session.pickingFile = true
-                        openFile.launch(arrayOf("*/*"))
+                        try {
+                            openFile.launch(arrayOf("*/*"))
+                        } catch (e: Exception) {
+                            session.pickingFile = false
+                        }
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(stringResource(R.string.backup_restore)) }
@@ -124,12 +129,19 @@ fun Options(session: Session, onBack: () -> Unit) {
 
     if (askNewPassword) {
         NewPasswordDialog(
+            words = backups.words,
             onDone = { password ->
                 askNewPassword = false
                 if (password != null) {
                     newPassword = password
                     session.pickingFile = true
-                    saveFile.launch("mandat-backup-${java.time.LocalDate.now()}.mandat")
+                    try {
+                        // A neutral name: the file itself does not say where it comes from
+                        saveFile.launch("archive-${java.time.LocalDate.now()}.bin")
+                    } catch (e: Exception) {
+                        session.pickingFile = false
+                        newPassword = null
+                    }
                 }
             },
         )
@@ -141,22 +153,6 @@ fun Options(session: Session, onBack: () -> Unit) {
             onDone = { password ->
                 askRestorePassword = null
                 if (password != null) backups.open(uri, password)
-            },
-        )
-    }
-
-    backups.pending?.let { pending ->
-        val date = DateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.SHORT)
-            .format(Date(pending.summary.createdAt))
-        AlertDialog(
-            onDismissRequest = { backups.cancelRestore() },
-            title = { Text(stringResource(R.string.restore_confirm_title)) },
-            text = { Text(stringResource(R.string.restore_confirm_text, date, pending.summary.rows)) },
-            confirmButton = {
-                TextButton(onClick = { backups.confirmRestore() }) { Text(stringResource(R.string.restore_replace)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { backups.cancelRestore() }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -175,6 +171,26 @@ fun Options(session: Session, onBack: () -> Unit) {
             onDismissRequest = { backups.notice = null },
             text = { Text(text, style = MaterialTheme.typography.bodyLarge) },
             confirmButton = { TextButton(onClick = { backups.notice = null }) { Text(stringResource(R.string.ok)) } },
+        )
+    }
+
+    if (backups.notice == null && !askNewPassword && !backups.busy) backups.pending?.let { pending ->
+        val date = DateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.SHORT)
+            .format(Date(pending.summary.createdAt))
+        AlertDialog(
+            onDismissRequest = { backups.cancelRestore() },
+            title = { Text(stringResource(R.string.restore_confirm_title)) },
+            text = { Text(stringResource(R.string.restore_confirm_text, date, pending.summary.rows)) },
+            confirmButton = {
+                TextButton(onClick = { backups.confirmRestore() }) { Text(stringResource(R.string.restore_replace)) }
+            },
+            dismissButton = {
+                Row {
+                    // Save what is in Mandat now, then come back to this question
+                    TextButton(onClick = { askNewPassword = true }) { Text(stringResource(R.string.restore_save_first)) }
+                    TextButton(onClick = { backups.cancelRestore() }) { Text(stringResource(R.string.cancel)) }
+                }
+            },
         )
     }
 }
@@ -199,11 +215,13 @@ private fun appVersion(): String {
 private val passwordKeyboard = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false)
 
 @Composable
-private fun NewPasswordDialog(onDone: (String?) -> Unit) {
+private fun NewPasswordDialog(words: List<String>, onDone: (String?) -> Unit) {
     var first by remember { mutableStateOf("") }
     var second by remember { mutableStateOf("") }
     var tried by remember { mutableStateOf(false) }
-    val tooShort = first.length < BackupCrypto.MIN_PASSWORD_LENGTH
+    // Shown in clear text only when Mandat suggested it, so it can be written down
+    var suggested by remember { mutableStateOf(false) }
+    val tooShort = BackupCrypto.isTooSimple(first)
     val mismatch = first != second
     AlertDialog(
         onDismissRequest = { onDone(null) },
@@ -211,9 +229,21 @@ private fun NewPasswordDialog(onDone: (String?) -> Unit) {
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.widthIn(max = 480.dp)) {
                 Text(stringResource(R.string.backup_password_hint), style = MaterialTheme.typography.bodyMedium)
+                TextButton(onClick = {
+                    first = BackupCrypto.suggestPassword(words)
+                    second = first
+                    suggested = true
+                }) { Text(stringResource(R.string.suggest_password)) }
+                if (suggested) {
+                    Text(stringResource(R.string.suggested_note), style = MaterialTheme.typography.bodyMedium)
+                    Text(first, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                }
                 OutlinedTextField(
                     value = first,
-                    onValueChange = { first = it },
+                    onValueChange = {
+                        first = it
+                        suggested = false
+                    },
                     label = { Text(stringResource(R.string.password)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
@@ -222,7 +252,10 @@ private fun NewPasswordDialog(onDone: (String?) -> Unit) {
                 )
                 OutlinedTextField(
                     value = second,
-                    onValueChange = { second = it },
+                    onValueChange = {
+                        second = it
+                        suggested = false
+                    },
                     label = { Text(stringResource(R.string.password_repeat)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),

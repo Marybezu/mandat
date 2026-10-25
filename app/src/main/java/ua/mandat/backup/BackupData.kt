@@ -68,8 +68,15 @@ object BackupData {
         val tables = root.getJSONObject("tables")
         tables.keys().forEach { if (it !in current) throw Incompatible() }
 
-        sql.beginTransaction()
-        try {
+        // Only columns that really exist in this version are accepted; anything else is refused
+        val known = current.associateWith { columnNames(sql, it) }
+        tables.keys().forEach { table ->
+            val columns = tables.getJSONObject(table).getJSONArray("columns")
+            for (i in 0 until columns.length()) if (columns.getString(i) !in known.getValue(table)) throw Incompatible()
+        }
+
+        // Room's own transaction: all or nothing, and the screens see the new data afterwards
+        db.runInTransaction(Runnable {
             for (table in current) sql.execSQL("DELETE FROM `$table`")
             tables.keys().forEach { table ->
                 val t = tables.getJSONObject(table)
@@ -83,10 +90,7 @@ object BackupData {
                     sql.insert(table, android.database.sqlite.SQLiteDatabase.CONFLICT_ABORT, values)
                 }
             }
-            sql.setTransactionSuccessful()
-        } finally {
-            sql.endTransaction()
-        }
+        })
     }
 
     private fun parse(json: ByteArray): JSONObject {
@@ -97,6 +101,15 @@ object BackupData {
         }
         if (root.optString("app") != "mandat" || root.optInt("format") != FORMAT) throw Incompatible()
         return root
+    }
+
+    private fun columnNames(sql: SupportSQLiteDatabase, table: String): Set<String> {
+        val names = mutableSetOf<String>()
+        sql.query("PRAGMA table_info(`$table`)").use { c ->
+            val nameIndex = c.getColumnIndexOrThrow("name")
+            while (c.moveToNext()) names += c.getString(nameIndex)
+        }
+        return names
     }
 
     private fun tableNames(sql: SupportSQLiteDatabase): List<String> {
@@ -114,7 +127,7 @@ object BackupData {
     private fun cell(c: Cursor, i: Int): Any = when (c.getType(i)) {
         Cursor.FIELD_TYPE_NULL -> JSONObject.NULL
         Cursor.FIELD_TYPE_INTEGER -> c.getLong(i)
-        Cursor.FIELD_TYPE_FLOAT -> c.getDouble(i)
+        Cursor.FIELD_TYPE_FLOAT -> c.getDouble(i).also { if (!it.isFinite()) throw Incompatible() }
         Cursor.FIELD_TYPE_BLOB -> JSONObject().put("b64", Base64.encodeToString(c.getBlob(i), Base64.NO_WRAP))
         else -> c.getString(i)
     }

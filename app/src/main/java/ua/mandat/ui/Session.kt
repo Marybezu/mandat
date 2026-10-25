@@ -1,6 +1,11 @@
 package ua.mandat.ui
 
 import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import androidx.core.content.ContextCompat
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -61,7 +66,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                 withContext(Dispatchers.Main) {
                     if (picking) {
                         picking = false
-                        lock()
+                        if (lock()) autoPrompt = true
                     }
                 }
             }
@@ -82,6 +87,26 @@ class Session(app: Application) : AndroidViewModel(app) {
     private val background = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     val backups = Backups(app, this)
+
+    // Turning the screen off always locks Mandat, even while the file picker is open
+    private val screenOff = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == Intent.ACTION_SCREEN_OFF) {
+                picking = false
+                pickerTimeout?.cancel()
+                if (lock()) autoPrompt = true
+            }
+        }
+    }
+
+    init {
+        ContextCompat.registerReceiver(
+            app,
+            screenOff,
+            IntentFilter(Intent.ACTION_SCREEN_OFF),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+    }
 
     fun moveTo(newState: LockState) {
         state = newState
@@ -176,10 +201,15 @@ class Session(app: Application) : AndroidViewModel(app) {
     }
 
     companion object {
-        private const val PICKER_TIMEOUT_MS = 3 * 60 * 1000L
+        private const val PICKER_TIMEOUT_MS = 90 * 1000L
     }
 
     override fun onCleared() {
+        try {
+            getApplication<Application>().unregisterReceiver(screenOff)
+        } catch (e: IllegalArgumentException) {
+            // Was not registered
+        }
         lock()
     }
 }

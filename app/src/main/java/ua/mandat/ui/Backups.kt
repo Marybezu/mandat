@@ -2,6 +2,7 @@ package ua.mandat.ui
 
 import android.content.Context
 import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -38,9 +39,22 @@ class Backups(private val context: Context, private val session: Session) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    /** The EFF long word list (7776 words) for suggested passwords. */
+    val words: List<String> by lazy {
+        context.assets.open("eff_large_wordlist.txt").bufferedReader().readLines().filter { it.isNotBlank() }
+    }
+
     /** Writes an encrypted copy of everything to [uri], then reads it back to check it. */
-    fun save(uri: Uri, password: String) = run {
-        val json = session.withOpenDb { BackupData.dump(it) } ?: return@run BackupNotice.SaveFailed
+    fun save(uri: Uri, password: String) = run(onCrash = { deleteQuietly(uri); BackupNotice.SaveFailed }) {
+        val json = try {
+            session.withOpenDb { BackupData.dump(it) }
+        } catch (e: Exception) {
+            null
+        }
+        if (json == null) {
+            deleteQuietly(uri)
+            return@run BackupNotice.SaveFailed
+        }
         try {
             val rows = BackupData.summary(json).rows
             val file = BackupCrypto.encrypt(json, password)
@@ -49,8 +63,15 @@ class Backups(private val context: Context, private val session: Session) {
             val check = BackupCrypto.decrypt(read(uri), password)
             val ok = check.contentEquals(json)
             check.fill(0)
-            if (ok) BackupNotice.Saved(rows) else BackupNotice.SaveFailed
+            if (ok) {
+                BackupNotice.Saved(rows)
+            } else {
+                deleteQuietly(uri)
+                BackupNotice.SaveFailed
+            }
         } catch (e: Exception) {
+            // A half-written file must not stay behind looking like a backup
+            deleteQuietly(uri)
             BackupNotice.SaveFailed
         } finally {
             json.fill(0)
@@ -58,7 +79,8 @@ class Backups(private val context: Context, private val session: Session) {
     }
 
     /** Opens a backup and shows what is in it; nothing is changed yet. */
-    fun open(uri: Uri, password: String) = run {
+    fun open(uri: Uri, password: String) = run(onCrash = { BackupNotice.NotABackup }) {
+        val startedAt = session.generationNow()
         try {
             val json = BackupCrypto.decrypt(read(uri), password)
             val summary = try {
@@ -67,7 +89,10 @@ class Backups(private val context: Context, private val session: Session) {
                 json.fill(0)
                 return@run BackupNotice.Incompatible
             }
-            withContext(Dispatchers.Main) { pending = PendingRestore(summary, json) }
+            withContext(Dispatchers.Main) {
+                // Locked meanwhile: drop the decrypted data instead of keeping it in memory
+                if (startedAt == session.generationNow()) pending = PendingRestore(summary, json) else json.fill(0)
+            }
             null
         } catch (e: BackupCrypto.WrongPasswordOrDamaged) {
             BackupNotice.WrongPassword
@@ -82,7 +107,7 @@ class Backups(private val context: Context, private val session: Session) {
     fun confirmRestore() {
         val restore = pending ?: return
         pending = null
-        run {
+        run(onCrash = { restore.json.fill(0); BackupNotice.RestoreFailed }) {
             try {
                 session.withOpenDb { BackupData.restore(it, restore.json) }
                     ?.let { BackupNotice.Restored(restore.summary.rows) }
@@ -102,11 +127,16 @@ class Backups(private val context: Context, private val session: Session) {
         pending = null
     }
 
-    private fun run(work: suspend () -> BackupNotice?) {
+    private fun run(onCrash: () -> BackupNotice, work: suspend () -> BackupNotice?) {
         if (busy) return
         busy = true
         scope.launch {
-            val result = work()
+            // Also catches out-of-memory and other errors, so the app never crashes here
+            val result = try {
+                work()
+            } catch (e: Throwable) {
+                onCrash()
+            }
             withContext(Dispatchers.Main) {
                 busy = false
                 if (result != null) notice = result
@@ -114,8 +144,26 @@ class Backups(private val context: Context, private val session: Session) {
         }
     }
 
+    private fun deleteQuietly(uri: Uri) {
+        try {
+            DocumentsContract.deleteDocument(context.contentResolver, uri)
+        } catch (e: Exception) {
+            // The file app may not allow it; nothing else to do
+        }
+    }
+
     private fun read(uri: Uri): ByteArray {
-        val limit = 256L * 1024 * 1024
+        val limit = BackupCrypto.MAX_FILE_BYTES
+        // Check the size first when the file app tells it, before reading anything
+        try {
+            context.contentResolver.openFileDescriptor(uri, "r")?.use {
+                if (it.statSize > limit) throw BackupCrypto.NotABackup()
+            }
+        } catch (e: BackupCrypto.NotABackup) {
+            throw e
+        } catch (e: Exception) {
+            // Size unknown; the limit below still applies while reading
+        }
         context.contentResolver.openInputStream(uri)!!.use { input ->
             val out = ByteArrayOutputStream()
             val buffer = ByteArray(64 * 1024)

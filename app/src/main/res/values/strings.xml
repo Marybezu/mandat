@@ -40,7 +40,7 @@
     <string name="backup_password_hint">At least 12 characters. A few random words work best. Keep the password separately from the file: without it nobody can open the backup, not even you.</string>
     <string name="password">Password</string>
     <string name="password_repeat">Repeat password</string>
-    <string name="password_too_short">At least 12 characters.</string>
+    <string name="password_too_short">At least 12 characters, and not too simple.</string>
     <string name="password_mismatch">The passwords do not match.</string>
     <string name="continue_">Continue</string>
     <string name="restore_password_title">Password of this backup</string>
@@ -63,4 +63,7 @@
     <string name="start_over_title">Start over?</string>
     <string name="start_over_text">The data on this phone cannot be opened any more. Starting over deletes it from this phone for good. Then restore your data from a backup: Options → Backup → Restore from a backup.</string>
     <string name="start_over_confirm">Delete and start over</string>
+    <string name="restore_save_first">Save current first</string>
+    <string name="suggest_password">Suggest a password</string>
+    <string name="suggested_note">Write this password down now and keep it apart from the backup file:</string>
 </resources>
