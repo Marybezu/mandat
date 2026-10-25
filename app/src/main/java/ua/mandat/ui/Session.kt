@@ -7,9 +7,13 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import ua.mandat.data.MandatDb
+import ua.mandat.data.sqlCipherRawKey
 
 sealed interface LockState {
     data object NeedsScreenLock : LockState
@@ -20,7 +24,10 @@ sealed interface LockState {
     data class Open(val db: MandatDb) : LockState
 }
 
-/** Holds the open database only while the app is in use; everything else stays encrypted. */
+/**
+ * Holds the open database only while the app is in use; everything else stays encrypted.
+ * Survives screen rotation, so the unlock prompt is not shown twice.
+ */
 class Session(app: Application) : AndroidViewModel(app) {
 
     var state by mutableStateOf<LockState>(LockState.Locked)
@@ -28,38 +35,92 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     var lastError by mutableStateOf(false)
 
+    /** An unlock prompt is on screen now. */
+    var prompting = false
+
+    /** The prompt on screen sets up a new key (first run) rather than opening the existing one. */
+    var pendingSetup = false
+
+    /** Show the unlock prompt by itself once after opening the app, not again after a cancel. */
+    var autoPrompt = true
+
+    // Every lock starts a new generation; a database that finishes opening for an old
+    // generation (the owner already left the app) is closed straight away.
+    private var generation = 0
+    private val writes = Mutex()
+    private var key: ByteArray? = null
+
     fun moveTo(newState: LockState) {
         state = newState
     }
 
-    fun open(passphrase: ByteArray) {
+    fun open(secret: ByteArray) {
+        val passphrase = sqlCipherRawKey(secret)
+        secret.fill(0)
+        val myGeneration = generation
         state = LockState.Opening
         viewModelScope.launch {
-            state = try {
-                val db = withContext(Dispatchers.IO) { MandatDb.open(getApplication(), passphrase) }
-                lastError = false
-                LockState.Open(db)
+            val db = try {
+                withContext(Dispatchers.IO) { MandatDb.open(getApplication(), passphrase) }
             } catch (e: Exception) {
-                lastError = true
-                LockState.Locked
+                passphrase.fill(0)
+                if (myGeneration == generation) {
+                    lastError = true
+                    state = LockState.Locked
+                }
+                return@launch
             }
-            // The passphrase is not wiped here on purpose: the database may open extra
-            // connections with it while unlocked. It is dropped with the database on lock.
+            if (myGeneration != generation) {
+                withContext(Dispatchers.IO + NonCancellable) { db.close() }
+                passphrase.fill(0)
+                return@launch
+            }
+            // Kept only while open: the database may open extra connections with it
+            key = passphrase
+            lastError = false
+            state = LockState.Open(db)
         }
     }
 
-    /** Closes the database and forgets the key until the next unlock. True if it was open. */
-    fun lock(): Boolean {
-        val current = state
-        if (current is LockState.Open) {
-            current.db.close()
-            state = LockState.Locked
-            return true
+    /** Saves a change in the background; a lock waits until it is written. */
+    fun write(block: suspend (MandatDb) -> Unit) {
+        val db = (state as? LockState.Open)?.db ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            writes.withLock {
+                if (db.isOpen) {
+                    try {
+                        block(db)
+                    } catch (e: Exception) {
+                        // Not written; nothing about the content is logged
+                    }
+                }
+            }
         }
-        return false
+    }
+
+    /** Closes the database and wipes the key until the next unlock. True if it was open or opening. */
+    fun lock(): Boolean {
+        generation++
+        val current = state
+        val wasInUse = current is LockState.Open || current == LockState.Opening
+        if (wasInUse) state = LockState.Locked
+        if (current is LockState.Open) {
+            val oldKey = key
+            key = null
+            viewModelScope.launch(Dispatchers.IO + NonCancellable) {
+                writes.withLock {
+                    current.db.close()
+                    oldKey?.fill(0)
+                }
+            }
+        }
+        return wasInUse
     }
 
     override fun onCleared() {
-        lock()
+        generation++
+        (state as? LockState.Open)?.db?.close()
+        key?.fill(0)
+        key = null
     }
 }

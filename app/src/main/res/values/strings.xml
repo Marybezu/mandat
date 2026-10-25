@@ -7,10 +7,10 @@
     <string name="unlock_title">Unlock Mandat</string>
     <string name="unlock_subtitle">Use your fingerprint or phone PIN</string>
     <string name="first_run_title">Welcome to Mandat</string>
-    <string name="first_run_text">Everything you add stays on this phone and is always encrypted. Mandat has no internet access. It opens with your fingerprint or the phone PIN.</string>
+    <string name="first_run_text">Everything you add stays on this phone and is always encrypted. Mandat has no internet access. It opens with your fingerprint or the phone PIN.\n\nImportant: if you remove the phone\'s screen lock, the data can no longer be opened. Encrypted backups will come in the next versions.</string>
     <string name="first_run_start">Start</string>
     <string name="no_screen_lock">Set a screen lock (PIN or password) on the phone first. Mandat uses it to protect your data.</string>
-    <string name="key_lost">The encryption key is no longer available (for example, the screen lock was removed). The data cannot be opened. Restore from a backup once backups are available.</string>
+    <string name="key_lost">The encryption key is no longer available (for example, the screen lock was removed or the app data was partly lost). Mandat will not delete anything by itself. Your data can be restored from an encrypted backup once backups are available.</string>
     <string name="unlock_failed">Could not unlock. Try again.</string>
 
     <string name="tab_today">Today</string>

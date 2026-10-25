@@ -1,6 +1,7 @@
 package ua.mandat.ui
 
 import android.app.KeyguardManager
+import android.os.Build
 import android.os.Bundle
 import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.view.WindowManager
@@ -20,18 +21,18 @@ class MainActivity : AppCompatActivity() {
 
     private val session: Session by viewModels()
     private lateinit var vault: KeyVault
-    private var prompting = false
-    // Show the unlock prompt by itself once after opening the app, not again after a cancel
-    private var autoPrompt = true
+    private lateinit var prompt: BiometricPrompt
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // No screenshots, no screen recording, no preview in the recent apps list
         window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
-        setRecentsScreenshotEnabled(false)
+        if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(false)
 
         vault = KeyVault(this)
-        if (session.state !is LockState.Open) session.moveTo(initialState())
+        // Created here (not on tap) so the prompt keeps working after the screen turns
+        prompt = BiometricPrompt(this, ContextCompat.getMainExecutor(this), callback)
+        refreshState()
 
         setContent {
             MandatTheme {
@@ -42,9 +43,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (session.state !is LockState.Open) session.moveTo(initialState())
-        if (session.state == LockState.Locked && autoPrompt) {
-            autoPrompt = false
+        refreshState()
+        if (session.state == LockState.Locked && session.autoPrompt) {
+            session.autoPrompt = false
             unlock()
         }
     }
@@ -52,32 +53,37 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         // Leaving the app locks it; turning the screen does not
-        if (!isChangingConfigurations && session.lock()) autoPrompt = true
+        if (!isChangingConfigurations && session.lock()) session.autoPrompt = true
     }
 
-    private fun initialState(): LockState {
+    private fun refreshState() {
+        val s = session.state
+        if (s is LockState.Open || s == LockState.Opening) return
         val keyguard = getSystemService(KeyguardManager::class.java)
-        return when {
-            !keyguard.isDeviceSecure -> LockState.NeedsScreenLock
-            vault.isKeyMissing() -> LockState.KeyLost
-            !vault.isSetUp() -> LockState.FirstRun
-            session.state == LockState.Opening -> LockState.Opening
-            else -> LockState.Locked
-        }
+        session.moveTo(
+            when {
+                !keyguard.isDeviceSecure -> LockState.NeedsScreenLock
+                vault.isInvalidated() || vault.isKeyMissing() -> LockState.KeyLost
+                // Data without a key: never start over silently, the owner must decide
+                !vault.isSetUp() && MandatDb.exists(this) -> LockState.KeyLost
+                !vault.isSetUp() -> LockState.FirstRun
+                else -> LockState.Locked
+            },
+        )
     }
 
     private fun unlock() {
-        if (prompting) return
+        if (session.prompting) return
         session.lastError = false
         val firstRun = !vault.isSetUp()
+        if (firstRun && MandatDb.exists(this)) {
+            session.moveTo(LockState.KeyLost)
+            return
+        }
         val cipher: Cipher = try {
-            if (firstRun) {
-                MandatDb.deleteFiles(this)
-                vault.cipherForSetup()
-            } else {
-                vault.cipherForUnlock()
-            }
+            if (firstRun) vault.cipherForSetup() else vault.cipherForUnlock()
         } catch (e: KeyPermanentlyInvalidatedException) {
+            vault.markInvalidated()
             session.moveTo(LockState.KeyLost)
             return
         } catch (e: Exception) {
@@ -85,39 +91,37 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val prompt = BiometricPrompt(
-            this,
-            ContextCompat.getMainExecutor(this),
-            object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    prompting = false
-                    val confirmed = result.cryptoObject?.cipher ?: return
-                    try {
-                        val passphrase =
-                            if (firstRun) vault.finishSetup(confirmed) else vault.finishUnlock(confirmed)
-                        session.open(passphrase)
-                    } catch (e: Exception) {
-                        session.lastError = true
-                    }
-                }
-
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    prompting = false
-                    // Cancelled: stay locked quietly; the owner can tap "Unlock" again
-                    val cancelled = errorCode == BiometricPrompt.ERROR_USER_CANCELED ||
-                        errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON ||
-                        errorCode == BiometricPrompt.ERROR_CANCELED
-                    if (!cancelled) session.lastError = true
-                }
-            },
-        )
+        session.pendingSetup = firstRun
         val info = BiometricPrompt.PromptInfo.Builder()
             .setTitle(getString(R.string.unlock_title))
             .setSubtitle(getString(R.string.unlock_subtitle))
             .setAllowedAuthenticators(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)
             .setConfirmationRequired(false)
             .build()
-        prompting = true
+        session.prompting = true
         prompt.authenticate(info, BiometricPrompt.CryptoObject(cipher))
+    }
+
+    private val callback = object : BiometricPrompt.AuthenticationCallback() {
+        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+            session.prompting = false
+            val confirmed = result.cryptoObject?.cipher ?: return
+            try {
+                val secret =
+                    if (session.pendingSetup) vault.finishSetup(confirmed) else vault.finishUnlock(confirmed)
+                session.open(secret)
+            } catch (e: Exception) {
+                session.lastError = true
+            }
+        }
+
+        override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+            session.prompting = false
+            // Cancelled: stay locked quietly; the owner can tap "Unlock" again
+            val cancelled = errorCode == BiometricPrompt.ERROR_USER_CANCELED ||
+                errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON ||
+                errorCode == BiometricPrompt.ERROR_CANCELED
+            if (!cancelled) session.lastError = true
+        }
     }
 }

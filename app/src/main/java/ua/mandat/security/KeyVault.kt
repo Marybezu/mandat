@@ -5,8 +5,11 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.security.keystore.StrongBoxUnavailableException
 import java.io.DataInputStream
+import android.system.Os
+import android.system.OsConstants
 import java.io.DataOutputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.security.KeyStore
 import java.security.SecureRandom
 import javax.crypto.Cipher
@@ -25,12 +28,13 @@ import javax.crypto.spec.GCMParameterSpec
 class KeyVault(context: Context) {
 
     private val file = File(context.noBackupFilesDir, WRAPPED_FILE)
+    private val invalidMarker = File(context.noBackupFilesDir, INVALID_MARKER)
     private val keyStore: KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
 
     /** True when a wrapped passphrase exists, i.e. the app was set up before. */
     fun isSetUp(): Boolean = file.exists() && keyStore.containsAlias(KEY_ALIAS)
 
-    /** True when the wrapped passphrase exists but its hardware key is gone. */
+    /** True when part of the key is gone, so the existing data cannot be opened. */
     fun isKeyMissing(): Boolean = file.exists() && !keyStore.containsAlias(KEY_ALIAS)
 
     /** Step 1 of first setup: a fresh hardware key and a cipher to be confirmed by the owner. */
@@ -45,17 +49,23 @@ class KeyVault(context: Context) {
         val passphrase = ByteArray(PASSPHRASE_BYTES).also { SecureRandom().nextBytes(it) }
         val wrapped = confirmed.doFinal(passphrase)
         val tmp = File(file.parentFile, "$WRAPPED_FILE.tmp")
-        DataOutputStream(tmp.outputStream()).use { out ->
+        FileOutputStream(tmp).use { stream ->
+            val out = DataOutputStream(stream)
             out.writeByte(FORMAT_VERSION)
             out.writeByte(confirmed.iv.size)
             out.write(confirmed.iv)
             out.writeInt(wrapped.size)
             out.write(wrapped)
+            out.flush()
+            // Make sure it is really on the disk before it replaces anything
+            stream.fd.sync()
         }
         if (!tmp.renameTo(file)) {
             tmp.delete()
             error("Could not save the wrapped key")
         }
+        syncDirectory(file.parentFile!!)
+        invalidMarker.delete()
         return passphrase
     }
 
@@ -74,6 +84,26 @@ class KeyVault(context: Context) {
 
     /** After confirmation: the database passphrase. */
     fun finishUnlock(confirmed: Cipher): ByteArray = confirmed.doFinal(readWrapped().second)
+
+    /** Remembers that the hardware key was invalidated, so the warning survives restarts. */
+    fun markInvalidated() {
+        invalidMarker.createNewFile()
+    }
+
+    fun isInvalidated(): Boolean = invalidMarker.exists()
+
+    private fun syncDirectory(dir: File) {
+        try {
+            val fd = Os.open(dir.path, OsConstants.O_RDONLY, 0)
+            try {
+                Os.fsync(fd)
+            } finally {
+                Os.close(fd)
+            }
+        } catch (e: Exception) {
+            // Best effort; the file itself is already synced
+        }
+    }
 
     private fun readWrapped(): Pair<ByteArray, ByteArray> =
         DataInputStream(file.inputStream()).use { input ->
@@ -120,6 +150,7 @@ class KeyVault(context: Context) {
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
         private const val KEY_ALIAS = "mandat_db_key_v1"
         private const val WRAPPED_FILE = "db_key.bin"
+        private const val INVALID_MARKER = "db_key.invalid"
         private const val TRANSFORMATION = "AES/GCM/NoPadding"
         private const val GCM_TAG_BITS = 128
         private const val PASSPHRASE_BYTES = 32

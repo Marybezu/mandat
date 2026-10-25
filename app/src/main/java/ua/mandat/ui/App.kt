@@ -1,6 +1,7 @@
 package ua.mandat.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -41,7 +42,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -51,7 +51,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.launch
 import ua.mandat.R
 import ua.mandat.data.InboxItem
 import ua.mandat.data.MandatDb
@@ -66,7 +65,7 @@ fun App(session: Session, onUnlock: () -> Unit) {
             LockState.FirstRun -> Welcome(onUnlock)
             LockState.Locked -> Locked(session.lastError, onUnlock)
             LockState.Opening -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
-            is LockState.Open -> Main(state.db, onLock = { session.lock() })
+            is LockState.Open -> PrivateKeyboard { Main(state.db, session) }
         }
     }
 }
@@ -135,17 +134,16 @@ private enum class Tab(val title: Int, val icon: ImageVector) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Main(db: MandatDb, onLock: () -> Unit) {
+private fun Main(db: MandatDb, session: Session) {
     var tab by rememberSaveable { mutableStateOf(Tab.Today) }
     var adding by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(tab.title)) },
                 actions = {
-                    IconButton(onClick = onLock) {
+                    IconButton(onClick = { session.lock() }) {
                         Icon(Icons.Filled.Lock, contentDescription = stringResource(R.string.lock_now))
                     }
                 },
@@ -171,7 +169,7 @@ private fun Main(db: MandatDb, onLock: () -> Unit) {
     ) { padding ->
         Box(Modifier.padding(padding).fillMaxSize()) {
             when (tab) {
-                Tab.Today -> Inbox(db)
+                Tab.Today -> Inbox(db, session)
                 else -> Centered {
                     Text(stringResource(R.string.coming_soon), style = MaterialTheme.typography.bodyLarge)
                 }
@@ -182,7 +180,7 @@ private fun Main(db: MandatDb, onLock: () -> Unit) {
     if (adding) {
         AddDialog(
             onSave = { clean ->
-                scope.launch { db.inbox().insert(InboxItem(text = clean, createdAt = System.currentTimeMillis())) }
+                session.write { it.inbox().insert(InboxItem(text = clean, createdAt = System.currentTimeMillis())) }
             },
             onDone = { adding = false },
         )
@@ -190,10 +188,9 @@ private fun Main(db: MandatDb, onLock: () -> Unit) {
 }
 
 @Composable
-private fun Inbox(db: MandatDb) {
+private fun Inbox(db: MandatDb, session: Session) {
     val flow = remember(db) { db.inbox().observeAll() }
     val items by flow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Text(
             stringResource(R.string.inbox),
@@ -211,7 +208,7 @@ private fun Inbox(db: MandatDb) {
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(item.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                            IconButton(onClick = { scope.launch { db.inbox().delete(item.id) } }) {
+                            IconButton(onClick = { session.write { it.inbox().delete(item.id) } }) {
                                 Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                             }
                         }
@@ -224,7 +221,8 @@ private fun Inbox(db: MandatDb) {
 
 @Composable
 private fun AddDialog(onSave: (String) -> Unit, onDone: () -> Unit) {
-    var text by rememberSaveable { mutableStateOf("") }
+    // Not saved into the system's screen state: the text stays only in memory
+    var text by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDone,
         title = { Text(stringResource(R.string.inbox)) },
@@ -234,6 +232,7 @@ private fun AddDialog(onSave: (String) -> Unit, onDone: () -> Unit) {
                 onValueChange = { text = it },
                 placeholder = { Text(stringResource(R.string.add_hint)) },
                 minLines = 3,
+                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
                 modifier = Modifier.fillMaxWidth(),
             )
         },

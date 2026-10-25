@@ -8,7 +8,6 @@ plugins {
 }
 
 val ciVersionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
-val keystorePath: String? = System.getenv("MANDAT_KEYSTORE")
 
 android {
     namespace = "ua.mandat"
@@ -22,21 +21,10 @@ android {
         versionName = "0.1.$ciVersionCode"
     }
 
-    signingConfigs {
-        if (keystorePath != null && file(keystorePath).exists()) {
-            create("release") {
-                storeFile = file(keystorePath)
-                storePassword = System.getenv("MANDAT_KEYSTORE_PASSWORD")
-                keyAlias = "mandat"
-                keyPassword = System.getenv("MANDAT_KEYSTORE_PASSWORD")
-            }
-        }
-    }
-
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            // Left unsigned here; signed later in a separate step that runs no build code
         }
     }
 

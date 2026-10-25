@@ -50,10 +50,8 @@ abstract class MandatDb : RoomDatabase() {
             return db
         }
 
-        /** Removes database files left from an earlier setup whose key no longer exists. */
-        fun deleteFiles(context: Context) {
-            context.deleteDatabase(FILE_NAME)
-        }
+        /** True if a database file exists on the phone. */
+        fun exists(context: Context): Boolean = context.getDatabasePath(FILE_NAME).exists()
     }
 }
 
