@@ -1,6 +1,14 @@
 package ua.mandat.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import kotlinx.coroutines.flow.map
+import ua.mandat.data.Matter
+import ua.mandat.data.SETTING_ROLES_ASKED
+import ua.mandat.data.matterFromNote
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -166,10 +174,29 @@ private fun Main(db: MandatDb, session: Session) {
     var tab by rememberSaveable { mutableStateOf(Tab.Today) }
     var adding by remember { mutableStateOf(false) }
     var options by rememberSaveable { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<EditRequest?>(null) }
 
+    val rolesAskedFlow = remember(db) { db.settings().observe(SETTING_ROLES_ASKED).map { it != null } }
+    val rolesAsked by rolesAskedFlow.collectAsStateWithLifecycle(initialValue = null)
+
+    when {
+        rolesAsked == null -> return
+        rolesAsked == false -> {
+            RolesSetup(session)
+            return
+        }
+    }
+    editing?.let { request ->
+        MatterEditor(db, session, request, onDone = { editing = null })
+        return
+    }
     if (options) {
         Options(session, onBack = { options = false })
         return
+    }
+
+    fun newMatter() {
+        editing = EditRequest(matterFromNote("", System.currentTimeMillis()), isNew = true)
     }
 
     Scaffold(
@@ -214,14 +241,22 @@ private fun Main(db: MandatDb, session: Session) {
             }
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { adding = true }) {
+            // On Matters "+" starts a matter; everywhere else it notes something into the Inbox
+            FloatingActionButton(onClick = { if (tab == Tab.Matters) newMatter() else adding = true }) {
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add))
             }
         },
     ) { padding ->
         Box(Modifier.padding(padding).fillMaxSize()) {
             when (tab) {
-                Tab.Today -> Inbox(db, session)
+                Tab.Today -> Today(
+                    db, session,
+                    onOpen = { editing = EditRequest(it, isNew = false) },
+                    onToMatter = { item ->
+                        editing = EditRequest(matterFromNote(item.text, System.currentTimeMillis()), isNew = true, fromInboxId = item.id)
+                    },
+                )
+                Tab.Matters -> MattersList(db, onOpen = { editing = EditRequest(it, isNew = false) })
                 else -> Centered {
                     Text(stringResource(R.string.coming_soon), style = MaterialTheme.typography.bodyLarge)
                 }
@@ -237,32 +272,81 @@ private fun Main(db: MandatDb, session: Session) {
             onDone = { adding = false },
         )
     }
+
+    session.sharedText?.let { shared ->
+        AlertDialog(
+            onDismissRequest = { session.sharedText = null },
+            title = { Text(stringResource(R.string.share_title)) },
+            text = {
+                Text(
+                    shared.take(600) + if (shared.length > 600) "…" else "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val clean = cleanInboxText(shared)
+                    if (clean != null) {
+                        session.write { it.inbox().insert(InboxItem(text = clean, createdAt = System.currentTimeMillis())) }
+                    }
+                    session.sharedText = null
+                }) { Text(stringResource(R.string.share_add)) }
+            },
+            dismissButton = { TextButton(onClick = { session.sharedText = null }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
 }
 
+/** Today: what is in focus, then the Inbox. */
 @Composable
-private fun Inbox(db: MandatDb, session: Session) {
-    val flow = remember(db) { db.inbox().observeAll() }
-    val items by flow.collectAsStateWithLifecycle(initialValue = emptyList())
-    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        Text(
-            stringResource(R.string.inbox),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(vertical = 12.dp),
-        )
-        if (items.isEmpty()) {
-            Text(stringResource(R.string.inbox_empty), style = MaterialTheme.typography.bodyLarge)
+private fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onToMatter: (InboxItem) -> Unit) {
+    val inboxFlow = remember(db) { db.inbox().observeAll() }
+    val focusFlow = remember(db) { db.matters().observeFocus() }
+    val rolesFlow = remember(db) { db.roles().observeAll() }
+    val items by inboxFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val focus by focusFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val roles by rolesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val roleNames = roles.associate { it.id to it.name }
+
+    LazyColumn(
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item(key = "focus_h") {
+            Text(stringResource(R.string.focus_title), style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+        }
+        if (focus.isEmpty()) {
+            item(key = "focus_empty") {
+                Text(stringResource(R.string.focus_empty), style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.secondary)
+            }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(items, key = { it.id }) { item ->
-                    Card(Modifier.fillMaxWidth()) {
-                        Row(
-                            Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(item.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                            IconButton(onClick = { session.write { it.inbox().delete(item.id) } }) {
-                                Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
-                            }
+            items(focus, key = { "m${it.id}" }) { m -> MatterCard(m, roleNames[m.roleId], onOpen) }
+        }
+        item(key = "inbox_h") {
+            Text(stringResource(R.string.inbox), style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 20.dp, bottom = 4.dp))
+        }
+        if (items.isEmpty()) {
+            item(key = "inbox_empty") {
+                Text(stringResource(R.string.inbox_empty), style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.secondary)
+            }
+        } else {
+            items(items, key = { "i${it.id}" }) { item ->
+                Card(Modifier.fillMaxWidth()) {
+                    Row(
+                        Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(item.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        IconButton(onClick = { onToMatter(item) }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = stringResource(R.string.to_matter))
+                        }
+                        IconButton(onClick = { session.write { it.inbox().delete(item.id) } }) {
+                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                         }
                     }
                 }

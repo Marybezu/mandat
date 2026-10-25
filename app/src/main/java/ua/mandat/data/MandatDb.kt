@@ -9,6 +9,8 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
@@ -32,9 +34,16 @@ interface InboxDao {
     suspend fun delete(id: Long)
 }
 
-@Database(entities = [InboxItem::class], version = 1, exportSchema = true)
+@Database(
+    entities = [InboxItem::class, Role::class, Matter::class, Setting::class],
+    version = 2,
+    exportSchema = true,
+)
 abstract class MandatDb : RoomDatabase() {
     abstract fun inbox(): InboxDao
+    abstract fun roles(): RoleDao
+    abstract fun matters(): MatterDao
+    abstract fun settings(): SettingDao
 
     companion object {
         const val FILE_NAME = "mandat.db"
@@ -44,6 +53,7 @@ abstract class MandatDb : RoomDatabase() {
             System.loadLibrary("sqlcipher")
             val db = Room.databaseBuilder(context.applicationContext, MandatDb::class.java, FILE_NAME)
                 .openHelperFactory(SupportOpenHelperFactory(passphrase))
+                .addMigrations(*MIGRATIONS)
                 .build()
             // Open now, so a wrong key fails here and not later in the interface
             db.openHelper.writableDatabase
@@ -68,3 +78,28 @@ fun cleanInboxText(raw: String): String? {
 }
 
 const val MAX_NOTE_LENGTH = 20_000
+
+/**
+ * Every change to the database layout gets a migration here, so data is never lost on update.
+ * The SQL must match the schema Room exports to app/schemas exactly.
+ */
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `roles` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`name` TEXT NOT NULL, `position` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `matters` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`title` TEXT NOT NULL, `type` TEXT NOT NULL, `roleId` INTEGER, `attention` TEXT NOT NULL, " +
+                "`nextStep` TEXT NOT NULL, `goal` TEXT NOT NULL, `description` TEXT NOT NULL, " +
+                "`status` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `settings` (`key` TEXT NOT NULL, `value` TEXT NOT NULL, " +
+                "PRIMARY KEY(`key`))",
+        )
+    }
+}
+
+val MIGRATIONS = arrayOf(MIGRATION_1_2)

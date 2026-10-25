@@ -63,7 +63,9 @@ object BackupData {
     fun restore(db: MandatDb, json: ByteArray) {
         val root = parse(json)
         val sql = db.openHelper.writableDatabase
-        if (root.getInt("schema") != sql.version) throw Incompatible()
+        // Older backups are fine: their tables and columns still exist (newer tables stay empty).
+        // A backup from a newer Mandat is refused.
+        if (root.getInt("schema") > sql.version) throw Incompatible()
         val current = tableNames(sql).toSet()
         val tables = root.getJSONObject("tables")
         tables.keys().forEach { if (it !in current) throw Incompatible() }

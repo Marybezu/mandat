@@ -1,6 +1,7 @@
 package ua.mandat.ui
 
 import android.app.KeyguardManager
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.security.keystore.KeyPermanentlyInvalidatedException
@@ -29,6 +30,7 @@ class MainActivity : AppCompatActivity() {
         window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(false)
 
+        takeShared(intent)
         vault = KeyVault(this)
         // Created here (not on tap) so the prompt keeps working after the screen turns
         prompt = BiometricPrompt(this, ContextCompat.getMainExecutor(this), callback)
@@ -39,6 +41,21 @@ class MainActivity : AppCompatActivity() {
                 App(session = session, onUnlock = ::unlock, onStartOver = ::startOver)
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        takeShared(intent)
+    }
+
+    /** Text from "Share" in another app; added to the Inbox only after the owner confirms. */
+    private fun takeShared(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_SEND) return
+        val subject = intent.getStringExtra(Intent.EXTRA_SUBJECT)?.trim().orEmpty()
+        val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.trim().orEmpty()
+        val combined = listOf(subject, text).filter { it.isNotEmpty() }.distinct().joinToString("\n")
+        if (combined.isNotEmpty()) session.sharedText = combined.take(ua.mandat.data.MAX_NOTE_LENGTH)
+        setIntent(Intent(Intent.ACTION_MAIN))
     }
 
     override fun onResume() {

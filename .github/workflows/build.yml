@@ -57,6 +57,8 @@ jobs:
           mkdir -p log
           { echo "run ${{ github.run_number }} ${{ job.status }}"; grep -E "^e: |error:|FAILED|What went wrong|Dependency verification" -A3 build.log | head -300; echo ----; tail -150 build.log; } > log/build.log || true
           find app/build/test-results -name "*.xml" -exec cp {} log/ \; 2>/dev/null || true
+          # Room's exported database layout, to check migrations against it
+          cp -r app/schemas log/schemas 2>/dev/null || true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()

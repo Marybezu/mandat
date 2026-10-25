@@ -42,6 +42,9 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     var lastError by mutableStateOf(false)
 
+    /** Text shared from another app, waiting for the owner to confirm adding it to the Inbox. */
+    var sharedText by mutableStateOf<String?>(null)
+
     /** An unlock prompt is on screen now. */
     var prompting = false
 

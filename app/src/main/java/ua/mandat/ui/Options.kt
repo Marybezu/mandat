@@ -124,6 +124,12 @@ fun Options(session: Session, onBack: () -> Unit) {
                 ) { Text(stringResource(R.string.backup_restore)) }
             }
 
+            (session.state as? LockState.Open)?.db?.let { db ->
+                Spacer(Modifier.height(8.dp))
+                Section(stringResource(R.string.roles_manage))
+                RolesManager(db, session)
+            }
+
             Spacer(Modifier.height(8.dp))
             Section(stringResource(R.string.security_title))
             Text(stringResource(R.string.security_text), style = MaterialTheme.typography.bodyLarge)
