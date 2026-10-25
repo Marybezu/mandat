@@ -5,9 +5,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -41,6 +41,9 @@ class Session(app: Application) : AndroidViewModel(app) {
     /** The prompt on screen sets up a new key (first run) rather than opening the existing one. */
     var pendingSetup = false
 
+    /** The lock generation when the current prompt was shown. */
+    var promptGeneration = 0
+
     /** Show the unlock prompt by itself once after opening the app, not again after a cancel. */
     var autoPrompt = true
 
@@ -50,42 +53,63 @@ class Session(app: Application) : AndroidViewModel(app) {
     private val writes = Mutex()
     private var key: ByteArray? = null
 
+    // Not tied to the screen's lifetime: opening and closing always run to the end
+    private val background = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     fun moveTo(newState: LockState) {
         state = newState
     }
 
-    fun open(secret: ByteArray) {
+    /** The current lock generation; taken before the unlock prompt is shown. */
+    fun generationNow(): Int = generation
+
+    /**
+     * Opens the database with the key from the unlock prompt. If the owner left the app in the
+     * meantime (the generation changed), the database is closed again straight away.
+     * Runs in its own scope, so leaving the app can never cancel it halfway and leave it open.
+     */
+    fun open(secret: ByteArray, startedAt: Int) {
         val passphrase = sqlCipherRawKey(secret)
         secret.fill(0)
-        val myGeneration = generation
+        if (startedAt != generation) {
+            passphrase.fill(0)
+            return
+        }
         state = LockState.Opening
-        viewModelScope.launch {
+        background.launch {
             val db = try {
-                withContext(Dispatchers.IO) { MandatDb.open(getApplication(), passphrase) }
+                MandatDb.open(getApplication(), passphrase)
             } catch (e: Exception) {
-                passphrase.fill(0)
-                if (myGeneration == generation) {
-                    lastError = true
-                    state = LockState.Locked
+                null
+            }
+            withContext(Dispatchers.Main) {
+                when {
+                    db == null -> {
+                        passphrase.fill(0)
+                        if (startedAt == generation) {
+                            lastError = true
+                            state = LockState.Locked
+                        }
+                    }
+                    startedAt != generation -> background.launch {
+                        db.close()
+                        passphrase.fill(0)
+                    }
+                    else -> {
+                        // Kept only while open: the database may open extra connections with it
+                        key = passphrase
+                        lastError = false
+                        state = LockState.Open(db)
+                    }
                 }
-                return@launch
             }
-            if (myGeneration != generation) {
-                withContext(Dispatchers.IO + NonCancellable) { db.close() }
-                passphrase.fill(0)
-                return@launch
-            }
-            // Kept only while open: the database may open extra connections with it
-            key = passphrase
-            lastError = false
-            state = LockState.Open(db)
         }
     }
 
     /** Saves a change in the background; a lock waits until it is written. */
     fun write(block: suspend (MandatDb) -> Unit) {
         val db = (state as? LockState.Open)?.db ?: return
-        viewModelScope.launch(Dispatchers.IO) {
+        background.launch {
             writes.withLock {
                 if (db.isOpen) {
                     try {
@@ -107,7 +131,7 @@ class Session(app: Application) : AndroidViewModel(app) {
         if (current is LockState.Open) {
             val oldKey = key
             key = null
-            viewModelScope.launch(Dispatchers.IO + NonCancellable) {
+            background.launch {
                 writes.withLock {
                     current.db.close()
                     oldKey?.fill(0)
@@ -118,9 +142,6 @@ class Session(app: Application) : AndroidViewModel(app) {
     }
 
     override fun onCleared() {
-        generation++
-        (state as? LockState.Open)?.db?.close()
-        key?.fill(0)
-        key = null
+        lock()
     }
 }

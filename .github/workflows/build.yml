@@ -98,7 +98,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     permissions:
-      contents: write
+      contents: read
+    outputs:
+      signed: ${{ steps.secrets.outputs.ready }}
     steps:
       - name: Check that signing secrets exist
         id: secrets
@@ -152,15 +154,33 @@ jobs:
         if: always()
         run: rm -f "$RUNNER_TEMP/mandat.jks" "$RUNNER_TEMP/p"
 
-      - name: Publish release
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: steps.secrets.outputs.ready == 'true'
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          tag_name: v0.1.${{ github.run_number }}
-          name: Mandat 0.1.${{ github.run_number }}
-          files: out/*.apk
-          make_latest: true
-          body: |
-            **Тестова версія.** Завантажте .apk нижче на телефоні й відкрийте його, або додайте репозиторій в Obtainium. Не для відомостей з грифом.
+          name: mandat-signed
+          path: out/*.apk
 
-            **Test version.** Download the .apk below on your phone and open it, or add this repository to Obtainium. Not for classified information.
+  # Publishes the signed APK. Never sees the signing key; uses only GitHub's own gh tool.
+  publish:
+    needs: release
+    if: needs.release.outputs.signed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: mandat-signed
+          path: out
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat > notes.md <<'NOTES'
+          **Тестова версія.** Завантажте .apk нижче на телефоні й відкрийте його, або додайте репозиторій в Obtainium. Не для відомостей з грифом.
+
+          **Test version.** Download the .apk below on your phone and open it, or add this repository to Obtainium. Not for classified information.
+          NOTES
+          gh release create "v0.1.${{ github.run_number }}" out/*.apk \
+            --repo "${{ github.repository }}" --target "${{ github.sha }}" \
+            --title "Mandat 0.1.${{ github.run_number }}" --notes-file notes.md --latest

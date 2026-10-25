@@ -56,6 +56,17 @@ class MainActivity : AppCompatActivity() {
         if (!isChangingConfigurations && session.lock()) session.autoPrompt = true
     }
 
+    override fun onDestroy() {
+        // Closed with the prompt still on screen (for example with Back): the prompt is gone,
+        // so it must not stay "in progress". Not on rotation, where the prompt survives.
+        // (Not cancelled in onStop: entering the phone PIN may briefly stop this screen.)
+        if (isFinishing && session.prompting) {
+            prompt.cancelAuthentication()
+            session.prompting = false
+        }
+        super.onDestroy()
+    }
+
     private fun refreshState() {
         val s = session.state
         if (s is LockState.Open || s == LockState.Opening) return
@@ -92,6 +103,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         session.pendingSetup = firstRun
+        session.promptGeneration = session.generationNow()
         val info = BiometricPrompt.PromptInfo.Builder()
             .setTitle(getString(R.string.unlock_title))
             .setSubtitle(getString(R.string.unlock_subtitle))
@@ -109,7 +121,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 val secret =
                     if (session.pendingSetup) vault.finishSetup(confirmed) else vault.finishUnlock(confirmed)
-                session.open(secret)
+                session.open(secret, session.promptGeneration)
             } catch (e: Exception) {
                 session.lastError = true
             }
