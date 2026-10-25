@@ -50,6 +50,11 @@ abstract class MandatDb : RoomDatabase() {
             return db
         }
 
+        /** Deletes the database files; only after the owner explicitly confirmed a fresh start. */
+        fun deleteFiles(context: Context) {
+            context.deleteDatabase(FILE_NAME)
+        }
+
         /** True if a database file exists on the phone. */
         fun exists(context: Context): Boolean = context.getDatabasePath(FILE_NAME).exists()
     }

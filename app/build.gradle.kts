@@ -78,5 +78,8 @@ dependencies {
     implementation("net.zetetic:sqlcipher-android:4.19.1@aar")
     implementation("androidx.sqlite:sqlite:2.5.2")
 
+    // Argon2id for backup passwords (Bouncy Castle, a widely audited crypto library)
+    implementation("org.bouncycastle:bcprov-jdk18on:1.79")
+
     testImplementation("junit:junit:4.13.2")
 }

@@ -7,10 +7,10 @@
     <string name="unlock_title">Unlock Mandat</string>
     <string name="unlock_subtitle">Use your fingerprint or phone PIN</string>
     <string name="first_run_title">Welcome to Mandat</string>
-    <string name="first_run_text">Everything you add stays on this phone and is always encrypted. Mandat has no internet access. It opens with your fingerprint or the phone PIN.\n\nImportant: if you remove the phone\'s screen lock, the data can no longer be opened. Encrypted backups will come in the next versions.</string>
+    <string name="first_run_text">Everything you add stays on this phone and is always encrypted. Mandat has no internet access. It opens with your fingerprint or the phone PIN.\n\nImportant: if you remove the phone\'s screen lock, the data can no longer be opened. Keep an encrypted backup (Options → Backup).</string>
     <string name="first_run_start">Start</string>
     <string name="no_screen_lock">Set a screen lock (PIN or password) on the phone first. Mandat uses it to protect your data.</string>
-    <string name="key_lost">The encryption key is no longer available (for example, the screen lock was removed or the app data was partly lost). Mandat will not delete anything by itself. Your data can be restored from an encrypted backup once backups are available.</string>
+    <string name="key_lost">The encryption key is no longer available (for example, the screen lock was removed or the app data was partly lost). Mandat will not delete anything by itself. Your data can be restored from an encrypted backup.</string>
     <string name="unlock_failed">Could not unlock. Try again.</string>
 
     <string name="tab_today">Today</string>
@@ -28,4 +28,39 @@
     <string name="cancel">Cancel</string>
     <string name="delete">Delete</string>
     <string name="lock_now">Lock</string>
+
+    <string name="options">Options</string>
+    <string name="back">Back</string>
+    <string name="backup_title">Backup</string>
+    <string name="backup_text">One file with all your data, encrypted with your password. Save it wherever you like: a USB stick, a computer, your own cloud. Use it to restore data or move to a new phone or tablet.</string>
+    <string name="backup_make">Make a backup</string>
+    <string name="backup_restore">Restore from a backup</string>
+    <string name="backup_working">Working… this takes a few seconds.</string>
+    <string name="backup_password_title">Backup password</string>
+    <string name="backup_password_hint">At least 12 characters. A few random words work best. Keep the password separately from the file: without it nobody can open the backup, not even you.</string>
+    <string name="password">Password</string>
+    <string name="password_repeat">Repeat password</string>
+    <string name="password_too_short">At least 12 characters.</string>
+    <string name="password_mismatch">The passwords do not match.</string>
+    <string name="continue_">Continue</string>
+    <string name="restore_password_title">Password of this backup</string>
+    <string name="restore_confirm_title">Replace current data?</string>
+    <string name="restore_confirm_text">Backup from %1$s, records: %2$d. All data now in Mandat will be replaced by it. Make a fresh backup first if you may need the current data.</string>
+    <string name="restore_replace">Replace</string>
+    <string name="notice_saved">Backup saved and checked. Records: %1$d.</string>
+    <string name="notice_save_failed">The backup could not be saved. Nothing was changed.</string>
+    <string name="notice_wrong_password">Wrong password, or the file is damaged.</string>
+    <string name="notice_not_backup">This is not a Mandat backup, or it was made by a newer version.</string>
+    <string name="notice_incompatible">This backup does not fit this version of Mandat. Nothing was changed.</string>
+    <string name="notice_restored">Data restored. Records: %1$d.</string>
+    <string name="notice_restore_failed">Could not restore. Nothing was changed.</string>
+    <string name="ok">OK</string>
+    <string name="security_title">Security</string>
+    <string name="security_text">Mandat opens with your fingerprint or the phone PIN, locks when you leave it, blocks screenshots and has no internet access. If the phone\'s screen lock is removed, the data on this phone can no longer be opened: keep a recent backup.</string>
+    <string name="about_title">About</string>
+    <string name="about_text">Version %1$s. Not for classified information. Open source (GPL-3.0). Written with AI assistance (Claude, Anthropic), directed and tested by the author.</string>
+    <string name="start_over">Start over and restore from a backup</string>
+    <string name="start_over_title">Start over?</string>
+    <string name="start_over_text">The data on this phone cannot be opened any more. Starting over deletes it from this phone for good. Then restore your data from a backup: Options → Backup → Restore from a backup.</string>
+    <string name="start_over_confirm">Delete and start over</string>
 </resources>

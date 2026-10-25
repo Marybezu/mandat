@@ -1,0 +1,270 @@
+package ua.mandat.ui
+
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import ua.mandat.R
+import ua.mandat.backup.BackupCrypto
+import java.text.DateFormat
+import java.util.Date
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun Options(session: Session, onBack: () -> Unit) {
+    val backups = session.backups
+    BackHandler(onBack = onBack)
+
+    // Passwords live only in memory, never in the saved screen state
+    var askNewPassword by remember { mutableStateOf(false) }
+    var newPassword by remember { mutableStateOf<String?>(null) }
+    var askRestorePassword by remember { mutableStateOf<android.net.Uri?>(null) }
+
+    val saveFile = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream"),
+    ) { uri ->
+        session.pickingFile = false
+        val password = newPassword
+        newPassword = null
+        if (uri != null && password != null) backups.save(uri, password)
+    }
+    val openFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        session.pickingFile = false
+        if (uri != null) askRestorePassword = uri
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.options)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Section(stringResource(R.string.backup_title))
+            Text(stringResource(R.string.backup_text), style = MaterialTheme.typography.bodyLarge)
+            if (backups.busy) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    CircularProgressIndicator()
+                    Spacer(Modifier.height(8.dp))
+                    Text(stringResource(R.string.backup_working))
+                }
+            } else {
+                Button(onClick = { askNewPassword = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.backup_make))
+                }
+                OutlinedButton(
+                    onClick = {
+                        session.pickingFile = true
+                        openFile.launch(arrayOf("*/*"))
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.backup_restore)) }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            Section(stringResource(R.string.security_title))
+            Text(stringResource(R.string.security_text), style = MaterialTheme.typography.bodyLarge)
+
+            Spacer(Modifier.height(8.dp))
+            Section(stringResource(R.string.about_title))
+            Text(stringResource(R.string.about_text, appVersion()), style = MaterialTheme.typography.bodyLarge)
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+
+    if (askNewPassword) {
+        NewPasswordDialog(
+            onDone = { password ->
+                askNewPassword = false
+                if (password != null) {
+                    newPassword = password
+                    session.pickingFile = true
+                    saveFile.launch("mandat-backup-${java.time.LocalDate.now()}.mandat")
+                }
+            },
+        )
+    }
+
+    askRestorePassword?.let { uri ->
+        PasswordDialog(
+            title = stringResource(R.string.restore_password_title),
+            onDone = { password ->
+                askRestorePassword = null
+                if (password != null) backups.open(uri, password)
+            },
+        )
+    }
+
+    backups.pending?.let { pending ->
+        val date = DateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.SHORT)
+            .format(Date(pending.summary.createdAt))
+        AlertDialog(
+            onDismissRequest = { backups.cancelRestore() },
+            title = { Text(stringResource(R.string.restore_confirm_title)) },
+            text = { Text(stringResource(R.string.restore_confirm_text, date, pending.summary.rows)) },
+            confirmButton = {
+                TextButton(onClick = { backups.confirmRestore() }) { Text(stringResource(R.string.restore_replace)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { backups.cancelRestore() }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+    }
+
+    backups.notice?.let { notice ->
+        val text = when (notice) {
+            is BackupNotice.Saved -> stringResource(R.string.notice_saved, notice.rows)
+            BackupNotice.SaveFailed -> stringResource(R.string.notice_save_failed)
+            BackupNotice.WrongPassword -> stringResource(R.string.notice_wrong_password)
+            BackupNotice.NotABackup -> stringResource(R.string.notice_not_backup)
+            BackupNotice.Incompatible -> stringResource(R.string.notice_incompatible)
+            is BackupNotice.Restored -> stringResource(R.string.notice_restored, notice.rows)
+            BackupNotice.RestoreFailed -> stringResource(R.string.notice_restore_failed)
+        }
+        AlertDialog(
+            onDismissRequest = { backups.notice = null },
+            text = { Text(text, style = MaterialTheme.typography.bodyLarge) },
+            confirmButton = { TextButton(onClick = { backups.notice = null }) { Text(stringResource(R.string.ok)) } },
+        )
+    }
+}
+
+@Composable
+private fun Section(title: String) {
+    Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+}
+
+@Composable
+private fun appVersion(): String {
+    val context = LocalContext.current
+    return remember {
+        try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
+        } catch (e: Exception) {
+            ""
+        }
+    }
+}
+
+private val passwordKeyboard = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false)
+
+@Composable
+private fun NewPasswordDialog(onDone: (String?) -> Unit) {
+    var first by remember { mutableStateOf("") }
+    var second by remember { mutableStateOf("") }
+    var tried by remember { mutableStateOf(false) }
+    val tooShort = first.length < BackupCrypto.MIN_PASSWORD_LENGTH
+    val mismatch = first != second
+    AlertDialog(
+        onDismissRequest = { onDone(null) },
+        title = { Text(stringResource(R.string.backup_password_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.widthIn(max = 480.dp)) {
+                Text(stringResource(R.string.backup_password_hint), style = MaterialTheme.typography.bodyMedium)
+                OutlinedTextField(
+                    value = first,
+                    onValueChange = { first = it },
+                    label = { Text(stringResource(R.string.password)) },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = passwordKeyboard,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = second,
+                    onValueChange = { second = it },
+                    label = { Text(stringResource(R.string.password_repeat)) },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = passwordKeyboard,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (tried && tooShort) Text(stringResource(R.string.password_too_short), color = MaterialTheme.colorScheme.error)
+                if (tried && !tooShort && mismatch) Text(stringResource(R.string.password_mismatch), color = MaterialTheme.colorScheme.error)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                tried = true
+                if (!tooShort && !mismatch) onDone(first)
+            }) { Text(stringResource(R.string.continue_)) }
+        },
+        dismissButton = { TextButton(onClick = { onDone(null) }) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+@Composable
+private fun PasswordDialog(title: String, onDone: (String?) -> Unit) {
+    var password by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = { onDone(null) },
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text(stringResource(R.string.password)) },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = passwordKeyboard,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { if (password.isNotEmpty()) onDone(password) }) {
+                Text(stringResource(R.string.continue_))
+            }
+        },
+        dismissButton = { TextButton(onClick = { onDone(null) }) { Text(stringResource(R.string.cancel)) } },
+    )
+}

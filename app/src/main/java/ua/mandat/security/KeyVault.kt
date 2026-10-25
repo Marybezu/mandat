@@ -85,6 +85,13 @@ class KeyVault(context: Context) {
     /** After confirmation: the database passphrase. */
     fun finishUnlock(confirmed: Cipher): ByteArray = confirmed.doFinal(readWrapped().second)
 
+    /** Forgets the old key completely, for a fresh start after the owner confirmed it. */
+    fun reset() {
+        if (keyStore.containsAlias(KEY_ALIAS)) keyStore.deleteEntry(KEY_ALIAS)
+        file.delete()
+        invalidMarker.delete()
+    }
+
     /** Remembers that the hardware key was invalidated, so the warning survives restarts. */
     fun markInvalidated() {
         invalidMarker.createNewFile()

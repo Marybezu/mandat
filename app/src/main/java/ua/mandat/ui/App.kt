@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -57,11 +58,11 @@ import ua.mandat.data.MandatDb
 import ua.mandat.data.cleanInboxText
 
 @Composable
-fun App(session: Session, onUnlock: () -> Unit) {
+fun App(session: Session, onUnlock: () -> Unit, onStartOver: () -> Unit) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         when (val state = session.state) {
             LockState.NeedsScreenLock -> Message(stringResource(R.string.no_screen_lock))
-            LockState.KeyLost -> Message(stringResource(R.string.key_lost))
+            LockState.KeyLost -> KeyLost(onStartOver)
             LockState.FirstRun -> Welcome(onUnlock)
             LockState.Locked -> Locked(session.lastError, onUnlock)
             LockState.Opening -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
@@ -93,6 +94,30 @@ private fun Notice() {
 @Composable
 private fun Message(text: String) = Centered {
     Text(text, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
+}
+
+@Composable
+private fun KeyLost(onStartOver: () -> Unit) {
+    var asking by remember { mutableStateOf(false) }
+    Centered {
+        Text(stringResource(R.string.key_lost), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(32.dp))
+        TextButton(onClick = { asking = true }) { Text(stringResource(R.string.start_over)) }
+    }
+    if (asking) {
+        AlertDialog(
+            onDismissRequest = { asking = false },
+            title = { Text(stringResource(R.string.start_over_title)) },
+            text = { Text(stringResource(R.string.start_over_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    asking = false
+                    onStartOver()
+                }) { Text(stringResource(R.string.start_over_confirm)) }
+            },
+            dismissButton = { TextButton(onClick = { asking = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
 }
 
 @Composable
@@ -137,12 +162,21 @@ private enum class Tab(val title: Int, val icon: ImageVector) {
 private fun Main(db: MandatDb, session: Session) {
     var tab by rememberSaveable { mutableStateOf(Tab.Today) }
     var adding by remember { mutableStateOf(false) }
+    var options by rememberSaveable { mutableStateOf(false) }
+
+    if (options) {
+        Options(session, onBack = { options = false })
+        return
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(tab.title)) },
                 actions = {
+                    IconButton(onClick = { options = true }) {
+                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.options))
+                    }
                     IconButton(onClick = { session.lock() }) {
                         Icon(Icons.Filled.Lock, contentDescription = stringResource(R.string.lock_now))
                     }

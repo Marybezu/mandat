@@ -36,7 +36,7 @@ class MainActivity : AppCompatActivity() {
 
         setContent {
             MandatTheme {
-                App(session = session, onUnlock = ::unlock)
+                App(session = session, onUnlock = ::unlock, onStartOver = ::startOver)
             }
         }
     }
@@ -53,7 +53,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         // Leaving the app locks it; turning the screen does not
-        if (!isChangingConfigurations && session.lock()) session.autoPrompt = true
+        if (!isChangingConfigurations && !session.pickingFile && session.lock()) session.autoPrompt = true
     }
 
     override fun onDestroy() {
@@ -81,6 +81,14 @@ class MainActivity : AppCompatActivity() {
                 else -> LockState.Locked
             },
         )
+    }
+
+    /** The owner confirmed: forget the unreadable data and set up again (then restore a backup). */
+    private fun startOver() {
+        vault.reset()
+        MandatDb.deleteFiles(this)
+        session.autoPrompt = false
+        refreshState()
     }
 
     private fun unlock() {

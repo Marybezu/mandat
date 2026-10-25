@@ -7,7 +7,9 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -44,6 +46,29 @@ class Session(app: Application) : AndroidViewModel(app) {
     /** The lock generation when the current prompt was shown. */
     var promptGeneration = 0
 
+    /**
+     * The system file picker is on screen (to save or open a backup). Leaving for it must not
+     * lock Mandat, or the backup could not be made. Cleared as soon as the picker returns.
+     */
+    var pickingFile: Boolean
+        get() = picking
+        set(value) {
+            picking = value
+            pickerTimeout?.cancel()
+            // Safety net: if the owner never comes back from the picker, lock anyway
+            if (value) pickerTimeout = background.launch {
+                delay(PICKER_TIMEOUT_MS)
+                withContext(Dispatchers.Main) {
+                    if (picking) {
+                        picking = false
+                        lock()
+                    }
+                }
+            }
+        }
+    private var picking = false
+    private var pickerTimeout: Job? = null
+
     /** Show the unlock prompt by itself once after opening the app, not again after a cancel. */
     var autoPrompt = true
 
@@ -55,6 +80,8 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     // Not tied to the screen's lifetime: opening and closing always run to the end
     private val background = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    val backups = Backups(app, this)
 
     fun moveTo(newState: LockState) {
         state = newState
@@ -106,6 +133,12 @@ class Session(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Runs [block] with the open database, never at the same time as a write or a lock. */
+    suspend fun <T> withOpenDb(block: (MandatDb) -> T): T? = writes.withLock {
+        val db = (state as? LockState.Open)?.db
+        if (db == null || !db.isOpen) null else block(db)
+    }
+
     /** Saves a change in the background; a lock waits until it is written. */
     fun write(block: suspend (MandatDb) -> Unit) {
         val db = (state as? LockState.Open)?.db ?: return
@@ -125,6 +158,7 @@ class Session(app: Application) : AndroidViewModel(app) {
     /** Closes the database and wipes the key until the next unlock. True if it was open or opening. */
     fun lock(): Boolean {
         generation++
+        backups.cancelRestore()
         val current = state
         val wasInUse = current is LockState.Open || current == LockState.Opening
         if (wasInUse) state = LockState.Locked
@@ -139,6 +173,10 @@ class Session(app: Application) : AndroidViewModel(app) {
             }
         }
         return wasInUse
+    }
+
+    companion object {
+        private const val PICKER_TIMEOUT_MS = 3 * 60 * 1000L
     }
 
     override fun onCleared() {

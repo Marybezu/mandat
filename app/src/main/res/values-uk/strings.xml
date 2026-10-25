@@ -7,10 +7,10 @@
     <string name="unlock_title">Відкрити Мандат</string>
     <string name="unlock_subtitle">Відбиток пальця або PIN телефона</string>
     <string name="first_run_title">Вітаємо в Мандаті</string>
-    <string name="first_run_text">Усе, що ви додаєте, залишається на цьому телефоні й завжди зашифроване. Мандат не має доступу до інтернету. Відкривається відбитком пальця або PIN телефона.\n\nВажливо: якщо вимкнути блокування екрана телефона, дані більше не відкриються. Зашифровані резервні копії з\'являться в наступних версіях.</string>
+    <string name="first_run_text">Усе, що ви додаєте, залишається на цьому телефоні й завжди зашифроване. Мандат не має доступу до інтернету. Відкривається відбитком пальця або PIN телефона.\n\nВажливо: якщо вимкнути блокування екрана телефона, дані більше не відкриються. Тримайте зашифровану резервну копію (Опції → Резервна копія).</string>
     <string name="first_run_start">Почати</string>
     <string name="no_screen_lock">Спершу встановіть блокування екрана (PIN або пароль) на телефоні. Мандат використовує його для захисту даних.</string>
-    <string name="key_lost">Ключ шифрування більше недоступний (наприклад, вимкнули блокування екрана або частину даних застосунку втрачено). Мандат нічого не видаляє сам. Дані можна буде відновити із зашифрованої резервної копії, коли копії з\'являться.</string>
+    <string name="key_lost">Ключ шифрування більше недоступний (наприклад, вимкнули блокування екрана або частину даних застосунку втрачено). Мандат нічого не видаляє сам. Дані можна відновити із зашифрованої резервної копії.</string>
     <string name="unlock_failed">Не вдалося відкрити. Спробуйте ще раз.</string>
 
     <string name="tab_today">Сьогодні</string>
@@ -28,4 +28,39 @@
     <string name="cancel">Скасувати</string>
     <string name="delete">Видалити</string>
     <string name="lock_now">Закрити</string>
+
+    <string name="options">Опції</string>
+    <string name="back">Назад</string>
+    <string name="backup_title">Резервна копія</string>
+    <string name="backup_text">Один файл з усіма вашими даними, зашифрований вашим паролем. Зберігайте де зручно: на флешці, комп\'ютері, у власній хмарі. Через нього можна відновити дані або перейти на новий телефон чи планшет.</string>
+    <string name="backup_make">Створити копію</string>
+    <string name="backup_restore">Відновити з копії</string>
+    <string name="backup_working">Працюю… це займе кілька секунд.</string>
+    <string name="backup_password_title">Пароль копії</string>
+    <string name="backup_password_hint">Щонайменше 12 символів. Найкраще — кілька випадкових слів. Зберігайте пароль окремо від файлу: без нього копію не відкриє ніхто, навіть ви.</string>
+    <string name="password">Пароль</string>
+    <string name="password_repeat">Повторіть пароль</string>
+    <string name="password_too_short">Щонайменше 12 символів.</string>
+    <string name="password_mismatch">Паролі не збігаються.</string>
+    <string name="continue_">Далі</string>
+    <string name="restore_password_title">Пароль цієї копії</string>
+    <string name="restore_confirm_title">Замінити поточні дані?</string>
+    <string name="restore_confirm_text">Копія від %1$s, записів: %2$d. Усі дані, що зараз є в Мандаті, буде замінено нею. Якщо поточні дані можуть знадобитися, спершу створіть свіжу копію.</string>
+    <string name="restore_replace">Замінити</string>
+    <string name="notice_saved">Копію збережено й перевірено. Записів: %1$d.</string>
+    <string name="notice_save_failed">Не вдалося зберегти копію. Нічого не змінено.</string>
+    <string name="notice_wrong_password">Неправильний пароль або файл пошкоджено.</string>
+    <string name="notice_not_backup">Це не копія Мандата або її створено новішою версією.</string>
+    <string name="notice_incompatible">Ця копія не підходить для цієї версії Мандата. Нічого не змінено.</string>
+    <string name="notice_restored">Дані відновлено. Записів: %1$d.</string>
+    <string name="notice_restore_failed">Не вдалося відновити. Нічого не змінено.</string>
+    <string name="ok">Гаразд</string>
+    <string name="security_title">Безпека</string>
+    <string name="security_text">Мандат відкривається відбитком пальця або PIN телефона, закривається, коли ви з нього виходите, забороняє знімки екрана і не має доступу до інтернету. Якщо вимкнути блокування екрана телефона, дані на цьому телефоні більше не відкриються, тож тримайте свіжу резервну копію.</string>
+    <string name="about_title">Про застосунок</string>
+    <string name="about_text">Версія %1$s. Не для відомостей з грифом. Відкритий код (GPL-3.0). Створено за допомогою ШІ (Claude, Anthropic) під керівництвом і з тестуванням автора.</string>
+    <string name="start_over">Почати заново й відновити з копії</string>
+    <string name="start_over_title">Почати заново?</string>
+    <string name="start_over_text">Дані на цьому телефоні більше неможливо відкрити. Якщо почати заново, їх буде остаточно видалено з цього телефона. Потім відновіть дані з резервної копії: Опції → Резервна копія → Відновити з копії.</string>
+    <string name="start_over_confirm">Видалити й почати заново</string>
 </resources>
