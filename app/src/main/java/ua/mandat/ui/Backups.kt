@@ -45,20 +45,24 @@ class Backups(private val context: Context, private val session: Session) {
     }
 
     /** Writes an encrypted copy of everything to [uri], then reads it back to check it. */
-    fun save(uri: Uri, password: String) = run(onCrash = { deleteQuietly(uri); BackupNotice.SaveFailed }) {
+    fun save(uri: Uri, password: String) {
+        // Delete the file after a failure only if we already started writing into it:
+        // the owner may have chosen an existing file to replace, which must stay intact.
+        var touched = false
+        run(onCrash = { if (touched) deleteQuietly(uri); BackupNotice.SaveFailed }) {
         val json = try {
             session.withOpenDb { BackupData.dump(it) }
         } catch (e: Exception) {
             null
         }
-        if (json == null) {
-            deleteQuietly(uri)
-            return@run BackupNotice.SaveFailed
-        }
+        if (json == null) return@run BackupNotice.SaveFailed
         try {
             val rows = BackupData.summary(json).rows
             val file = BackupCrypto.encrypt(json, password)
-            context.contentResolver.openOutputStream(uri, "wt")!!.use { it.write(file) }
+            context.contentResolver.openOutputStream(uri, "wt")!!.use {
+                touched = true
+                it.write(file)
+            }
             // Check what actually landed on the storage, not what we meant to write
             val check = BackupCrypto.decrypt(read(uri), password)
             val ok = check.contentEquals(json)
@@ -71,16 +75,17 @@ class Backups(private val context: Context, private val session: Session) {
             }
         } catch (e: Exception) {
             // A half-written file must not stay behind looking like a backup
-            deleteQuietly(uri)
+            if (touched) deleteQuietly(uri)
             BackupNotice.SaveFailed
         } finally {
             json.fill(0)
         }
+        }
     }
 
     /** Opens a backup and shows what is in it; nothing is changed yet. */
-    fun open(uri: Uri, password: String) = run(onCrash = { BackupNotice.NotABackup }) {
-        val startedAt = session.generationNow()
+    /** [startedAt]: the lock generation read on the main thread when the owner chose the file. */
+    fun open(uri: Uri, password: String, startedAt: Int) = run(onCrash = { BackupNotice.NotABackup }) {
         try {
             val json = BackupCrypto.decrypt(read(uri), password)
             val summary = try {

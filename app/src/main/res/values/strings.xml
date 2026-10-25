@@ -37,10 +37,10 @@
     <string name="backup_restore">Restore from a backup</string>
     <string name="backup_working">Working… this takes a few seconds.</string>
     <string name="backup_password_title">Backup password</string>
-    <string name="backup_password_hint">At least 12 characters. A few random words work best. Keep the password separately from the file: without it nobody can open the backup, not even you.</string>
+    <string name="backup_password_hint">At least 16 characters. A few random words work best. Keep the password separately from the file: without it nobody can open the backup, not even you.</string>
     <string name="password">Password</string>
     <string name="password_repeat">Repeat password</string>
-    <string name="password_too_short">At least 12 characters, and not too simple.</string>
+    <string name="password_too_short">At least 16 characters, and not too simple.</string>
     <string name="password_mismatch">The passwords do not match.</string>
     <string name="continue_">Continue</string>
     <string name="restore_password_title">Password of this backup</string>

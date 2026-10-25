@@ -79,6 +79,9 @@ class BackupCryptoTest {
         assertTrue(BackupCrypto.isTooSimple("aaaaaaaaaaaa"))
         assertTrue(BackupCrypto.isTooSimple("123456789012"))
         assertTrue(BackupCrypto.isTooSimple("short"))
+        assertTrue(BackupCrypto.isTooSimple("password12345678"))
+        assertTrue(BackupCrypto.isTooSimple("qwertyuiop123456"))
+        assertTrue(BackupCrypto.isTooSimple("1234567890123456"))
         assertFalse(BackupCrypto.isTooSimple("три слова разом добре"))
     }
 }

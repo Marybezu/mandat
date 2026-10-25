@@ -79,7 +79,7 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     // Every lock starts a new generation; a database that finishes opening for an old
     // generation (the owner already left the app) is closed straight away.
-    private var generation = 0
+    @Volatile private var generation = 0
     private val writes = Mutex()
     private var key: ByteArray? = null
 

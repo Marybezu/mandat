@@ -22,7 +22,7 @@ PROFILES = [(64 * 1024, 3, 1)]  # (memory KiB, passes, lanes), newest first; sam
 
 
 def decrypt(data: bytes, password: str, profiles=PROFILES) -> bytes:
-    if len(data) < 16 + 12 + 16 or len(data) > 64 * 1024 * 1024:
+    if len(data) < 16 + 12 + 16 or len(data) > 16 * 1024 * 1024:
         raise SystemExit("Not a Mandat backup")
     salt, nonce, header = data[:16], data[16:28], data[:28]
     secret = unicodedata.normalize("NFC", password).encode("utf-8")
@@ -43,6 +43,7 @@ def main() -> None:
         data = f.read()
     plain = decrypt(data, getpass.getpass("Password: "))
     fd = os.open(sys.argv[2], os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.fchmod(fd, 0o600)  # also if the file already existed with wider permissions
     with os.fdopen(fd, "wb") as f:
         f.write(plain)
     print("Done:", sys.argv[2])

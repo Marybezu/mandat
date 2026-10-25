@@ -27,8 +27,8 @@ object BackupCrypto {
     /** Settings tried when opening a file, newest first. Only fixed values: nothing is read from the file. */
     internal val PROFILES = listOf(DEFAULT)
 
-    const val MIN_PASSWORD_LENGTH = 12
-    const val MAX_FILE_BYTES = 64L * 1024 * 1024
+    const val MIN_PASSWORD_LENGTH = 16
+    const val MAX_FILE_BYTES = 16L * 1024 * 1024
 
     private const val SALT_BYTES = 16
     private const val NONCE_BYTES = 12
@@ -106,11 +106,24 @@ object BackupCrypto {
         return (1..count).joinToString("-") { words[random.nextInt(words.size)] }
     }
 
-    /** Refuses passwords that are long but obviously weak, such as "aaaaaaaaaaaa" or "123456789012". */
+    /**
+     * Refuses passwords that are obviously weak: too short, too few different characters,
+     * only digits, or built from common words and keyboard rows ("password1234", "qwertyuiop12").
+     * A self-made password needs [MIN_PASSWORD_LENGTH] characters; the suggested one is always fine.
+     */
     fun isTooSimple(password: String): Boolean {
         if (password.length < MIN_PASSWORD_LENGTH) return true
         if (password.toSet().size < 6) return true
-        val digitsOnly = password.all { it.isDigit() }
-        return digitsOnly && password.length < 20
+        if (password.all { it.isDigit() } && password.length < 24) return true
+        val lower = password.lowercase()
+        val withoutCommon = COMMON_PARTS.fold(lower) { acc, part -> acc.replace(part, "") }
+        // What is left after removing common parts and digits must still be substantial
+        return withoutCommon.filterNot { it.isDigit() }.length < 8
     }
+
+    private val COMMON_PARTS = listOf(
+        "password", "passw0rd", "qwertyuiop", "asdfghjkl", "zxcvbnm", "йцукенгшщзхї", "фівапролджє",
+        "ячсмитьбю", "1234567890", "0987654321", "admin", "welcome", "letmein", "iloveyou",
+        "пароль", "mandat", "мандат",
+    )
 }

@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,6 +58,11 @@ fun Options(session: Session, onBack: () -> Unit) {
     var askNewPassword by remember { mutableStateOf(false) }
     var newPassword by remember { mutableStateOf<String?>(null) }
     var askRestorePassword by remember { mutableStateOf<android.net.Uri?>(null) }
+    // The lock generation when a file picker was opened; results from before a lock are ignored
+    var pickedAt by remember { mutableStateOf(-1) }
+
+    // Leaving Options drops a decrypted backup that is still waiting for confirmation
+    DisposableEffect(Unit) { onDispose { backups.cancelRestore() } }
 
     val saveFile = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream"),
@@ -64,11 +70,12 @@ fun Options(session: Session, onBack: () -> Unit) {
         session.pickingFile = false
         val password = newPassword
         newPassword = null
-        if (uri != null && password != null) backups.save(uri, password)
+        val fresh = pickedAt == session.generationNow()
+        if (uri != null && password != null && fresh) backups.save(uri, password)
     }
     val openFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         session.pickingFile = false
-        if (uri != null) askRestorePassword = uri
+        if (uri != null && pickedAt == session.generationNow()) askRestorePassword = uri
     }
 
     Scaffold(
@@ -106,6 +113,7 @@ fun Options(session: Session, onBack: () -> Unit) {
                 OutlinedButton(
                     onClick = {
                         session.pickingFile = true
+                        pickedAt = session.generationNow()
                         try {
                             openFile.launch(arrayOf("*/*"))
                         } catch (e: Exception) {
@@ -135,6 +143,7 @@ fun Options(session: Session, onBack: () -> Unit) {
                 if (password != null) {
                     newPassword = password
                     session.pickingFile = true
+                    pickedAt = session.generationNow()
                     try {
                         // A neutral name: the file itself does not say where it comes from
                         saveFile.launch("archive-${java.time.LocalDate.now()}.bin")
@@ -152,7 +161,7 @@ fun Options(session: Session, onBack: () -> Unit) {
             title = stringResource(R.string.restore_password_title),
             onDone = { password ->
                 askRestorePassword = null
-                if (password != null) backups.open(uri, password)
+                if (password != null) backups.open(uri, password, session.generationNow())
             },
         )
     }

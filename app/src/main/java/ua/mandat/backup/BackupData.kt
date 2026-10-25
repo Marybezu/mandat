@@ -87,7 +87,9 @@ object BackupData {
                     if (row.length() != columns.length()) throw Incompatible()
                     val values = ContentValues()
                     for (i in 0 until columns.length()) put(values, columns.getString(i), row.get(i))
-                    sql.insert(table, android.database.sqlite.SQLiteDatabase.CONFLICT_ABORT, values)
+                    if (sql.insert(table, android.database.sqlite.SQLiteDatabase.CONFLICT_ABORT, values) < 0) {
+                        throw Incompatible()
+                    }
                 }
             }
         })
