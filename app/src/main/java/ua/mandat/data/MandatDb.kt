@@ -36,7 +36,7 @@ interface InboxDao {
 
 @Database(
     entities = [InboxItem::class, Role::class, Matter::class, Setting::class],
-    version = 2,
+    version = DB_VERSION,
     exportSchema = true,
 )
 abstract class MandatDb : RoomDatabase() {
@@ -103,3 +103,6 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
 }
 
 val MIGRATIONS = arrayOf(MIGRATION_1_2)
+
+/** The current database layout version; raise it together with a new migration. */
+const val DB_VERSION = 2

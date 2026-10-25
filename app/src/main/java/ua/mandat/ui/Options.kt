@@ -195,7 +195,15 @@ fun Options(session: Session, onBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = { backups.cancelRestore() },
             title = { Text(stringResource(R.string.restore_confirm_title)) },
-            text = { Text(stringResource(R.string.restore_confirm_text, date, pending.summary.rows)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.restore_confirm_text, date, pending.summary.rows))
+                    // A backup from an earlier version has no data for newer parts (for example matters)
+                    if (pending.summary.schema < ua.mandat.data.DB_VERSION) {
+                        Text(stringResource(R.string.restore_older), color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            },
             confirmButton = {
                 TextButton(onClick = { backups.confirmRestore() }) { Text(stringResource(R.string.restore_replace)) }
             },

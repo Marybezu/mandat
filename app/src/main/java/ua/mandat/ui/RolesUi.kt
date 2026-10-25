@@ -15,10 +15,10 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -34,25 +34,77 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.room.withTransaction
 import ua.mandat.R
 import ua.mandat.data.MandatDb
 import ua.mandat.data.Role
 import ua.mandat.data.SETTING_ROLES_ASKED
 import ua.mandat.data.Setting
 
-/** Shown once after the first unlock: pick roles from common ones or add your own. */
+/** Builds a role from a body, a position and an optional name: "Secretary — Committee «…»". */
+@Composable
+fun RoleBuilder(onAdd: (String) -> Unit) {
+    val context = LocalContext.current
+    var body by remember { mutableStateOf(ROLE_BODIES.first()) }
+    var position by remember { mutableStateOf(ROLE_BODIES.first().positions.firstOrNull()) }
+    var name by remember { mutableStateOf("") }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Picker(
+            label = stringResource(R.string.role_body),
+            current = stringResource(body.name),
+            options = ROLE_BODIES.map { it to context.getString(it.name) },
+            onPick = {
+                body = it
+                position = it.positions.firstOrNull()
+            },
+        )
+        position?.let { current ->
+            Picker(
+                label = stringResource(R.string.role_position),
+                current = stringResource(current),
+                options = body.positions.map { it to context.getString(it) },
+                onPick = { position = it },
+            )
+        }
+        OutlinedTextField(
+            value = name, onValueChange = { name = it },
+            label = { Text(stringResource(R.string.role_name_hint)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedButton(
+            onClick = {
+                onAdd(composeRoleName(context.getString(body.name), position?.let { context.getString(it) }, name))
+                name = ""
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text(stringResource(R.string.role_add_button)) }
+    }
+}
+
+/** "Position — Body «name»", or just the body when it has no positions. */
+fun composeRoleName(body: String, position: String?, name: String): String {
+    val base = if (position == null) body else "$position — $body"
+    val extra = name.trim().take(100)
+    return if (extra.isEmpty()) base else "$base «$extra»"
+}
+
+/** Shown once after the first unlock: build your roles; they can be changed later in Options. */
 @Composable
 fun RolesSetup(session: Session) {
-    val context = LocalContext.current
-    val picked = remember { mutableStateListOf<String>() }
-    val own = remember { mutableStateListOf<String>() }
-    var newRole by remember { mutableStateOf("") }
+    val added = remember { mutableStateListOf<String>() }
+    var finished by remember { mutableStateOf(false) }
 
     fun finish(save: Boolean) {
-        val names = if (save) (ROLE_SUGGESTIONS.map { context.getString(it) }.filter { it in picked } + own) else emptyList()
+        if (finished) return
+        finished = true
+        val names = if (save) added.toList() else emptyList()
         session.write { db ->
-            names.forEachIndexed { i, name -> db.roles().insert(Role(name = name, position = i + 1)) }
-            db.settings().put(Setting(SETTING_ROLES_ASKED, "1"))
+            db.withTransaction {
+                names.forEachIndexed { i, name -> db.roles().insert(Role(name = name, position = i + 1)) }
+                db.settings().put(Setting(SETTING_ROLES_ASKED, "1"))
+            }
         }
     }
 
@@ -63,37 +115,24 @@ fun RolesSetup(session: Session) {
         Text(stringResource(R.string.roles_title), style = MaterialTheme.typography.titleLarge)
         Text(stringResource(R.string.roles_text), style = MaterialTheme.typography.bodyLarge)
         Spacer(Modifier.height(8.dp))
-        ROLE_SUGGESTIONS.forEach { id ->
-            val name = stringResource(id)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = name in picked, onCheckedChange = { if (it) picked += name else picked -= name })
-                Text(name, style = MaterialTheme.typography.bodyLarge)
+        RoleBuilder(onAdd = { if (it !in added) added += it })
+        if (added.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Text(stringResource(R.string.roles_added), style = MaterialTheme.typography.titleMedium)
+            added.forEach { name ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { added -= name }) {
+                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
+                    }
+                }
             }
-        }
-        own.forEach { name ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = true, onCheckedChange = { own -= name })
-                Text(name, style = MaterialTheme.typography.bodyLarge)
-            }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = newRole, onValueChange = { newRole = it },
-                label = { Text(stringResource(R.string.roles_add_hint)) },
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = {
-                val name = newRole.trim().take(100)
-                if (name.isNotEmpty() && name !in own) own += name
-                newRole = ""
-            }) { Text(stringResource(R.string.add)) }
         }
         Spacer(Modifier.height(16.dp))
-        Button(onClick = { finish(save = true) }, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = { finish(save = true) }, enabled = !finished, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.roles_done))
         }
-        TextButton(onClick = { finish(save = false) }, modifier = Modifier.fillMaxWidth()) {
+        TextButton(onClick = { finish(save = false) }, enabled = !finished, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.roles_skip))
         }
     }
@@ -104,7 +143,6 @@ fun RolesSetup(session: Session) {
 fun RolesManager(db: MandatDb, session: Session) {
     val rolesFlow = remember(db) { db.roles().observeAll() }
     val roles by rolesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    var newRole by remember { mutableStateOf("") }
     var renaming by remember { mutableStateOf<Role?>(null) }
     var deleting by remember { mutableStateOf<Role?>(null) }
 
@@ -120,19 +158,12 @@ fun RolesManager(db: MandatDb, session: Session) {
                 }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = newRole, onValueChange = { newRole = it },
-                label = { Text(stringResource(R.string.roles_add)) },
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = {
-                val name = newRole.trim().take(100)
-                newRole = ""
-                if (name.isNotEmpty()) session.write { it.roles().insert(Role(name = name, position = it.roles().maxPosition() + 1)) }
-            }) { Text(stringResource(R.string.add)) }
-        }
+        Spacer(Modifier.height(8.dp))
+        RoleBuilder(onAdd = { name ->
+            if (roles.none { it.name == name }) {
+                session.write { it.roles().insert(Role(name = name, position = it.roles().maxPosition() + 1)) }
+            }
+        })
     }
 
     renaming?.let { role ->
@@ -160,9 +191,11 @@ fun RolesManager(db: MandatDb, session: Session) {
             text = { Text(stringResource(R.string.role_delete_confirm, role.name)) },
             confirmButton = {
                 TextButton(onClick = {
-                    session.write {
-                        it.matters().clearRole(role.id)
-                        it.roles().delete(role.id)
+                    session.write { db ->
+                        db.withTransaction {
+                            db.matters().clearRole(role.id)
+                            db.roles().delete(role.id)
+                        }
                     }
                     deleting = null
                 }) { Text(stringResource(R.string.delete)) }

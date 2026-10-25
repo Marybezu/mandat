@@ -42,6 +42,26 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     var lastError by mutableStateOf(false)
 
+    /** The matter open in the editor, if any (memory only; survives turning the phone). */
+    var draft by mutableStateOf<MatterDraft?>(null)
+
+    /** The text of an open "add to Inbox" dialog; null when the dialog is closed. */
+    var inboxDraft by mutableStateOf<String?>(null)
+
+    /** Saves the open matter and closes the editor. */
+    fun saveDraft() {
+        val d = draft ?: return
+        draft = null
+        write { d.persist(it) }
+    }
+
+    /** Saves the open Inbox note and closes the dialog. */
+    fun saveInboxDraft() {
+        val text = inboxDraft
+        inboxDraft = null
+        write { persistInboxDraft(it, text) }
+    }
+
     /** Text shared from another app, waiting for the owner to confirm adding it to the Inbox. */
     var sharedText by mutableStateOf<String?>(null)
 
@@ -190,11 +210,25 @@ class Session(app: Application) : AndroidViewModel(app) {
         val current = state
         val wasInUse = current is LockState.Open || current == LockState.Opening
         if (wasInUse) state = LockState.Locked
+        // Anything still being typed is saved first, in the same step as closing,
+        // so leaving the app for a moment never loses it
+        val openDraft = draft
+        val openInbox = inboxDraft
+        draft = null
+        inboxDraft = null
         if (current is LockState.Open) {
             val oldKey = key
             key = null
             background.launch {
                 writes.withLock {
+                    try {
+                        if (current.db.isOpen) {
+                            openDraft?.persist(current.db)
+                            persistInboxDraft(current.db, openInbox)
+                        }
+                    } catch (e: Exception) {
+                        // Not saved; nothing about the content is logged
+                    }
                     current.db.close()
                     oldKey?.fill(0)
                 }

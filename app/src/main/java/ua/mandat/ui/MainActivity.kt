@@ -30,7 +30,9 @@ class MainActivity : AppCompatActivity() {
         window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(false)
 
-        takeShared(intent)
+        // Only a fresh share: not after turning the phone or reopening from recent apps
+        val fromHistory = intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0
+        if (savedInstanceState == null && !fromHistory) takeShared(intent)
         vault = KeyVault(this)
         // Created here (not on tap) so the prompt keeps working after the screen turns
         prompt = BiometricPrompt(this, ContextCompat.getMainExecutor(this), callback)

@@ -172,9 +172,7 @@ private enum class Tab(val title: Int, val icon: ImageVector, val central: Boole
 @Composable
 private fun Main(db: MandatDb, session: Session) {
     var tab by rememberSaveable { mutableStateOf(Tab.Today) }
-    var adding by remember { mutableStateOf(false) }
     var options by rememberSaveable { mutableStateOf(false) }
-    var editing by remember { mutableStateOf<EditRequest?>(null) }
 
     val rolesAskedFlow = remember(db) { db.settings().observe(SETTING_ROLES_ASKED).map { it != null } }
     val rolesAsked by rolesAskedFlow.collectAsStateWithLifecycle(initialValue = null)
@@ -186,8 +184,8 @@ private fun Main(db: MandatDb, session: Session) {
             return
         }
     }
-    editing?.let { request ->
-        MatterEditor(db, session, request, onDone = { editing = null })
+    session.draft?.let { draft ->
+        MatterEditor(db, session, draft)
         return
     }
     if (options) {
@@ -196,7 +194,7 @@ private fun Main(db: MandatDb, session: Session) {
     }
 
     fun newMatter() {
-        editing = EditRequest(matterFromNote("", System.currentTimeMillis()), isNew = true)
+        session.draft = MatterDraft(EditRequest(matterFromNote("", System.currentTimeMillis()), isNew = true))
     }
 
     Scaffold(
@@ -242,7 +240,7 @@ private fun Main(db: MandatDb, session: Session) {
         },
         floatingActionButton = {
             // On Matters "+" starts a matter; everywhere else it notes something into the Inbox
-            FloatingActionButton(onClick = { if (tab == Tab.Matters) newMatter() else adding = true }) {
+            FloatingActionButton(onClick = { if (tab == Tab.Matters) newMatter() else session.inboxDraft = "" }) {
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add))
             }
         },
@@ -251,12 +249,14 @@ private fun Main(db: MandatDb, session: Session) {
             when (tab) {
                 Tab.Today -> Today(
                     db, session,
-                    onOpen = { editing = EditRequest(it, isNew = false) },
+                    onOpen = { session.draft = MatterDraft(EditRequest(it, isNew = false)) },
                     onToMatter = { item ->
-                        editing = EditRequest(matterFromNote(item.text, System.currentTimeMillis()), isNew = true, fromInboxId = item.id)
+                        session.draft = MatterDraft(
+                            EditRequest(matterFromNote(item.text, System.currentTimeMillis()), isNew = true, fromInboxId = item.id),
+                        )
                     },
                 )
-                Tab.Matters -> MattersList(db, onOpen = { editing = EditRequest(it, isNew = false) })
+                Tab.Matters -> MattersList(db, onOpen = { session.draft = MatterDraft(EditRequest(it, isNew = false)) })
                 else -> Centered {
                     Text(stringResource(R.string.coming_soon), style = MaterialTheme.typography.bodyLarge)
                 }
@@ -264,16 +264,9 @@ private fun Main(db: MandatDb, session: Session) {
         }
     }
 
-    if (adding) {
-        AddDialog(
-            onSave = { clean ->
-                session.write { it.inbox().insert(InboxItem(text = clean, createdAt = System.currentTimeMillis())) }
-            },
-            onDone = { adding = false },
-        )
-    }
+    if (session.inboxDraft != null) AddDialog(session)
 
-    session.sharedText?.let { shared ->
+    if (session.inboxDraft == null) session.sharedText?.let { shared ->
         AlertDialog(
             onDismissRequest = { session.sharedText = null },
             title = { Text(stringResource(R.string.share_title)) },
@@ -356,29 +349,22 @@ private fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onTo
 }
 
 @Composable
-private fun AddDialog(onSave: (String) -> Unit, onDone: () -> Unit) {
-    // Not saved into the system's screen state: the text stays only in memory
-    var text by remember { mutableStateOf("") }
+private fun AddDialog(session: Session) {
+    // The text lives in the Session: it survives turning the phone and is saved on lock
     AlertDialog(
-        onDismissRequest = onDone,
+        onDismissRequest = { session.inboxDraft = null },
         title = { Text(stringResource(R.string.inbox)) },
         text = {
             OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
+                value = session.inboxDraft.orEmpty(),
+                onValueChange = { session.inboxDraft = it },
                 placeholder = { Text(stringResource(R.string.add_hint)) },
                 minLines = 3,
                 keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
                 modifier = Modifier.fillMaxWidth(),
             )
         },
-        confirmButton = {
-            TextButton(onClick = {
-                val clean = cleanInboxText(text)
-                if (clean != null) onSave(clean)
-                onDone()
-            }) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = onDone) { Text(stringResource(R.string.cancel)) } },
+        confirmButton = { TextButton(onClick = { session.saveInboxDraft() }) { Text(stringResource(R.string.save)) } },
+        dismissButton = { TextButton(onClick = { session.inboxDraft = null }) { Text(stringResource(R.string.cancel)) } },
     )
 }

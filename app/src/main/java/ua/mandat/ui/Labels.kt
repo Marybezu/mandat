@@ -36,15 +36,29 @@ fun MatterStatus.label(): Int = when (this) {
     MatterStatus.DROPPED -> R.string.status_DROPPED
 }
 
-/** Generic role names offered at first start; the owner picks any and can add their own. */
-val ROLE_SUGGESTIONS = listOf(
-    R.string.role_suggest_committee_member,
-    R.string.role_suggest_committee_chair,
-    R.string.role_suggest_subcommittee_chair,
-    R.string.role_suggest_commission_chair,
-    R.string.role_suggest_commission_member,
-    R.string.role_suggest_district,
-    R.string.role_suggest_faction,
-    R.string.role_suggest_delegation,
-    R.string.role_suggest_working_group,
+/**
+ * A body of the Rada (or a line of work) and the positions one can hold in it. A role is built
+ * as "position — body", optionally with a name or topic. Only generic names are in the code;
+ * the owner's actual choices live in the encrypted database.
+ */
+data class RoleBody(val name: Int, val positions: List<Int>)
+
+val ROLE_BODIES = listOf(
+    RoleBody(R.string.body_rada, listOf(R.string.pos_rada_chair, R.string.pos_rada_first_deputy, R.string.pos_rada_deputy)),
+    RoleBody(R.string.body_faction, listOf(R.string.pos_chair, R.string.pos_first_deputy, R.string.pos_deputy, R.string.pos_member)),
+    RoleBody(R.string.body_independent, listOf()),
+    RoleBody(R.string.body_committee, listOf(R.string.pos_chair, R.string.pos_first_deputy, R.string.pos_deputy, R.string.pos_secretary, R.string.pos_sub_chair, R.string.pos_member)),
+    RoleBody(R.string.body_tik, listOf(R.string.pos_chair, R.string.pos_deputy, R.string.pos_secretary, R.string.pos_member)),
+    RoleBody(R.string.body_tsk, listOf(R.string.pos_chair, R.string.pos_deputy, R.string.pos_secretary, R.string.pos_member)),
+    RoleBody(R.string.body_stik, listOf(R.string.pos_chair, R.string.pos_deputy, R.string.pos_secretary, R.string.pos_member)),
+    RoleBody(R.string.body_counting, listOf(R.string.pos_chair, R.string.pos_member)),
+    RoleBody(R.string.body_delegation, listOf(R.string.pos_chair, R.string.pos_deputy, R.string.pos_member)),
+    RoleBody(R.string.body_eu_committee, listOf(R.string.pos_cochair, R.string.pos_member)),
+    RoleBody(R.string.body_assembly, listOf(R.string.pos_cochair, R.string.pos_member)),
+    RoleBody(R.string.body_friendship, listOf(R.string.pos_head_cochair, R.string.pos_deputy_head, R.string.pos_secretary, R.string.pos_member)),
+    RoleBody(R.string.body_interfaction, listOf(R.string.pos_cochair, R.string.pos_member)),
+    RoleBody(R.string.body_working_group, listOf(R.string.pos_head, R.string.pos_member)),
+    RoleBody(R.string.body_district, listOf()),
+    RoleBody(R.string.body_region, listOf()),
+    RoleBody(R.string.body_other_body, listOf(R.string.pos_representative, R.string.pos_member)),
 )

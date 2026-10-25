@@ -43,6 +43,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,7 +56,6 @@ import ua.mandat.data.Matter
 import ua.mandat.data.MatterStatus
 import ua.mandat.data.MatterType
 import ua.mandat.data.Role
-import ua.mandat.data.cleanMatter
 
 /** What the matter editor should open: a matter, and the Inbox note it came from, if any. */
 data class EditRequest(val matter: Matter, val isNew: Boolean, val fromInboxId: Long? = null)
@@ -111,7 +111,7 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit) {
                 val group = active.filter { Attention.of(it.attention) == level && visible(it) }
                 if (group.isNotEmpty()) {
                     item(key = "h_$level") { SectionHeader(level) }
-                    items(group, key = { it.id }) { m -> MatterCard(m, roleNames[m.roleId], onOpen) }
+                    items(group, key = { "a${it.id}" }) { m -> MatterCard(m, roleNames[m.roleId], onOpen) }
                 }
             }
             val closedVisible = closed.filter { visible(it) }
@@ -121,7 +121,7 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit) {
                         Text("${stringResource(R.string.matters_closed)} (${closedVisible.size})")
                     }
                 }
-                if (showClosed) items(closedVisible, key = { it.id }) { m -> MatterCard(m, roleNames[m.roleId], onOpen) }
+                if (showClosed) items(closedVisible, key = { "c${it.id}" }) { m -> MatterCard(m, roleNames[m.roleId], onOpen) }
             }
         }
     }
@@ -158,46 +158,20 @@ fun MatterCard(m: Matter, roleName: String?, onOpen: (Matter) -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MatterEditor(db: MandatDb, session: Session, request: EditRequest, onDone: () -> Unit) {
+fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
+    val request = draft.request
+    // Back without saving discards the changes
+    val onDone = { session.draft = null }
     BackHandler(onBack = onDone)
     val rolesFlow = remember(db) { db.roles().observeAll() }
     val focusFlow = remember(db) { db.matters().observeFocus() }
     val roles by rolesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val focus by focusFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-
-    // Kept in memory only (not in the saved screen state)
-    var title by remember { mutableStateOf(request.matter.title) }
-    var type by remember { mutableStateOf(MatterType.of(request.matter.type)) }
-    var roleId by remember { mutableStateOf(request.matter.roleId) }
-    var attention by remember { mutableStateOf(Attention.of(request.matter.attention)) }
-    var nextStep by remember { mutableStateOf(request.matter.nextStep) }
-    var goal by remember { mutableStateOf(request.matter.goal) }
-    var description by remember { mutableStateOf(request.matter.description) }
-    var status by remember { mutableStateOf(MatterStatus.of(request.matter.status)) }
     var confirmDelete by remember { mutableStateOf(false) }
 
     val otherFocus = focus.count { it.id != request.matter.id }
 
-    fun save() {
-        val now = System.currentTimeMillis()
-        val edited = cleanMatter(
-            request.matter.copy(
-                title = title, type = type.name, roleId = roleId, attention = attention.name,
-                nextStep = nextStep, goal = goal, description = description, status = status.name,
-                updatedAt = now,
-            ),
-        ) ?: return
-        val fromInbox = request.fromInboxId
-        session.write {
-            if (request.isNew) {
-                it.matters().insert(edited.copy(id = 0, createdAt = now))
-                if (fromInbox != null) it.inbox().delete(fromInbox)
-            } else {
-                it.matters().update(edited)
-            }
-        }
-        onDone()
-    }
+    fun save() = session.saveDraft()
 
     Scaffold(
         topBar = {
@@ -209,7 +183,7 @@ fun MatterEditor(db: MandatDb, session: Session, request: EditRequest, onDone: (
                     }
                 },
                 actions = {
-                    TextButton(onClick = ::save, enabled = title.isNotBlank()) { Text(stringResource(R.string.save)) }
+                    TextButton(onClick = ::save, enabled = draft.title.isNotBlank()) { Text(stringResource(R.string.save)) }
                 },
             )
         },
@@ -220,53 +194,53 @@ fun MatterEditor(db: MandatDb, session: Session, request: EditRequest, onDone: (
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             OutlinedTextField(
-                value = title, onValueChange = { title = it },
+                value = draft.title, onValueChange = { draft.title = it },
                 label = { Text(stringResource(R.string.matter_title)) },
                 modifier = Modifier.fillMaxWidth(),
             )
             Picker(
                 label = stringResource(R.string.matter_type),
-                current = stringResource(type.label()),
+                current = stringResource(draft.type.label()),
                 options = MatterType.entries.map { it to stringResource(it.label()) },
-                onPick = { type = it },
+                onPick = { draft.type = it },
             )
             Picker(
                 label = stringResource(R.string.matter_role),
-                current = roles.firstOrNull { it.id == roleId }?.name ?: stringResource(R.string.matter_no_role),
+                current = roles.firstOrNull { it.id == draft.roleId }?.name ?: stringResource(R.string.matter_no_role),
                 options = listOf<Pair<Role?, String>>(null to stringResource(R.string.matter_no_role)) +
                     roles.map { it to it.name },
-                onPick = { roleId = it?.id },
+                onPick = { draft.roleId = it?.id },
             )
             Text(stringResource(R.string.matter_attention), style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Attention.entries.forEach { level ->
                     FilterChip(
-                        selected = attention == level,
-                        onClick = { attention = level },
+                        selected = draft.attention == level,
+                        onClick = { draft.attention = level },
                         label = { Text(stringResource(level.label())) },
                     )
                 }
             }
-            if (attention == Attention.FOCUS && otherFocus >= FOCUS_LIMIT) {
+            if (draft.attention == Attention.FOCUS && otherFocus >= FOCUS_LIMIT) {
                 Text(
-                    stringResource(R.string.focus_too_many, otherFocus, FOCUS_LIMIT),
+                    pluralStringResource(R.plurals.focus_too_many, otherFocus, otherFocus, FOCUS_LIMIT),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
             OutlinedTextField(
-                value = nextStep, onValueChange = { nextStep = it },
+                value = draft.nextStep, onValueChange = { draft.nextStep = it },
                 label = { Text(stringResource(R.string.matter_next_step)) },
                 placeholder = { Text(stringResource(R.string.matter_next_step_hint)) },
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
-                value = goal, onValueChange = { goal = it },
+                value = draft.goal, onValueChange = { draft.goal = it },
                 label = { Text(stringResource(R.string.matter_goal)) },
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
-                value = description, onValueChange = { description = it },
+                value = draft.description, onValueChange = { draft.description = it },
                 label = { Text(stringResource(R.string.matter_description)) },
                 minLines = 4,
                 modifier = Modifier.fillMaxWidth(),
@@ -274,9 +248,9 @@ fun MatterEditor(db: MandatDb, session: Session, request: EditRequest, onDone: (
             if (!request.isNew) {
                 Picker(
                     label = stringResource(R.string.matter_status),
-                    current = stringResource(status.label()),
+                    current = stringResource(draft.status.label()),
                     options = MatterStatus.entries.map { it to stringResource(it.label()) },
-                    onPick = { status = it },
+                    onPick = { draft.status = it },
                 )
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.matter_delete)) }
@@ -293,8 +267,8 @@ fun MatterEditor(db: MandatDb, session: Session, request: EditRequest, onDone: (
                 TextButton(onClick = {
                     confirmDelete = false
                     val id = request.matter.id
+                    session.draft = null
                     session.write { it.matters().delete(id) }
-                    onDone()
                 }) { Text(stringResource(R.string.delete)) }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },

@@ -42,3 +42,13 @@ class MattersTest {
         assertEquals(MatterStatus.ACTIVE, MatterStatus.of("?"))
     }
 }
+
+class RoleNameTest {
+    @Test fun positionAndBody() {
+        assertEquals("Секретар — Комітет", ua.mandat.ui.composeRoleName("Комітет", "Секретар", "  "))
+    }
+
+    @Test fun bodyWithoutPositionAndWithName() {
+        assertEquals("Регіон «Вигаданий»", ua.mandat.ui.composeRoleName("Регіон", null, "Вигаданий"))
+    }
+}
