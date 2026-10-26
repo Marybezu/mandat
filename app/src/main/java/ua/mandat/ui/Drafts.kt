@@ -26,6 +26,7 @@ class MatterDraft(val request: EditRequest) {
     var description by mutableStateOf(request.matter.description)
     var status by mutableStateOf(MatterStatus.of(request.matter.status))
     var sensitive by mutableStateOf(request.matter.sensitive)
+    var votesNeeded by mutableStateOf(request.matter.votesNeeded)
 
     /** Writes the draft in one transaction (with removing the Inbox note it came from). */
     suspend fun persist(db: MandatDb) {
@@ -34,7 +35,7 @@ class MatterDraft(val request: EditRequest) {
             request.matter.copy(
                 title = title, type = type.name, roleId = roleId, attention = attention.name,
                 nextStep = nextStep, goal = goal, description = description, status = status.name,
-                updatedAt = now, sensitive = sensitive,
+                updatedAt = now, sensitive = sensitive, votesNeeded = votesNeeded?.takeIf { it in 1..10_000 },
             ),
         ) ?: return
         val fromInbox = request.fromInboxId

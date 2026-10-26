@@ -926,4 +926,14 @@
     <string name="brief_last">Останні, з підсумком</string>
     <string name="brief_asked">Що ви доручили</string>
     <string name="brief_diary">Зі щоденника</string>
+    <string name="votes_title">Лічильник голосів</string>
+    <string name="votes_missing">«За»: %1$d з потрібних %2$d, бракує %3$d</string>
+    <string name="votes_enough">«За»: %1$d з потрібних %2$d — достатньо</string>
+    <string name="votes_hint">Вагаються: %1$d. Торкніться імені — бриф перед розмовою.</string>
+    <string name="votes_moved">Змінили позицію за 30 днів</string>
+    <string name="votes_set">Задати, скільки потрібно «за»</string>
+    <string name="votes_change">Змінити потрібну кількість</string>
+    <string name="votes_needed">Скільки потрібно «за»</string>
+    <string name="votes_needed_hint">Наприклад, більшість у комітеті чи раді. Рахуються люди з позицією в цій справі.</string>
+    <string name="votes_clear">Не рахувати</string>
 </resources>

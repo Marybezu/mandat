@@ -295,10 +295,19 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
     }
 }
 
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // A vote counter for a matter, and who changed their stance when
+        db.execSQL("ALTER TABLE `matters` ADD COLUMN `votesNeeded` INTEGER")
+        db.execSQL("ALTER TABLE `matter_people` ADD COLUMN `stanceSince` INTEGER")
+        db.execSQL("ALTER TABLE `matter_people` ADD COLUMN `previousStance` TEXT")
+    }
+}
+
 val MIGRATIONS = arrayOf(
     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
-    MIGRATION_10_11,
+    MIGRATION_10_11, MIGRATION_11_12,
 )
 
 /** The current database layout version; raise it together with a new migration. */
-const val DB_VERSION = 11
+const val DB_VERSION = 12

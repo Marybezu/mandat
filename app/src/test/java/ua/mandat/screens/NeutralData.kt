@@ -61,6 +61,7 @@ object NeutralData {
                     status = MatterStatus.ACTIVE.name,
                     createdAt = ms(-200L + i * 7),
                     updatedAt = ms(if (i % 4 == 0) -45L else -i.toLong()),
+                    votesNeeded = if (i == 1) 4 else null,
                 ),
             )
         }
@@ -101,7 +102,8 @@ object NeutralData {
         val stances = listOf("ALLY", "UNDECIDED", "OPPONENT", "NEUTRAL", null)
         matters.take(8).forEachIndexed { i, m ->
             people.drop(5).take(4).forEachIndexed { j, p ->
-                db.people().link(MatterPerson(m, p, stances[(i + j) % stances.size], ""))
+                db.people().link(MatterPerson(m, p, stances[(i + j) % stances.size], "",
+                    stanceSince = if (j == 0) today - 3 else null, previousStance = if (j == 0) "UNDECIDED" else null))
             }
         }
 

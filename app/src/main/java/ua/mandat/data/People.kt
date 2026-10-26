@@ -86,6 +86,9 @@ data class MatterPerson(
     val note: String,
     /** Who does what in this matter: a key of [Raci], or null. */
     val raci: String? = null,
+    /** The day the stance last changed, and what it was before (to see who moved). */
+    val stanceSince: Long? = null,
+    val previousStance: String? = null,
 )
 
 /** Something the owner handed to someone: what, to whom, by when. Seen from the owner's side. */
@@ -228,6 +231,8 @@ data class MatterPersonRow(
     val stance: String?,
     val note: String,
     val raci: String? = null,
+    val stanceSince: Long? = null,
+    val previousStance: String? = null,
 )
 
 /** A matter linked to a person, ready for display. */
@@ -258,7 +263,8 @@ interface PersonDao {
     suspend fun delete(id: Long)
 
     @Query(
-        "SELECT p.id AS personId, p.name AS name, p.teamRole AS teamRole, mp.stance AS stance, mp.note AS note, mp.raci AS raci " +
+        "SELECT p.id AS personId, p.name AS name, p.teamRole AS teamRole, mp.stance AS stance, mp.note AS note, mp.raci AS raci, " +
+            "mp.stanceSince AS stanceSince, mp.previousStance AS previousStance " +
             "FROM matter_people mp JOIN people p ON p.id = mp.personId WHERE mp.matterId = :matterId " +
             "ORDER BY p.name COLLATE NOCASE",
     )
@@ -278,8 +284,14 @@ interface PersonDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun link(link: MatterPerson)
 
-    @Query("UPDATE matter_people SET stance = :stance WHERE matterId = :matterId AND personId = :personId")
-    suspend fun setStance(matterId: Long, personId: Long, stance: String?)
+    /** Sets the stance; when it really changes, the old one and the day are kept. */
+    @Query(
+        "UPDATE matter_people SET " +
+            "previousStance = CASE WHEN IFNULL(stance, '') <> IFNULL(:stance, '') THEN stance ELSE previousStance END, " +
+            "stanceSince = CASE WHEN IFNULL(stance, '') <> IFNULL(:stance, '') THEN :day ELSE stanceSince END, " +
+            "stance = :stance WHERE matterId = :matterId AND personId = :personId",
+    )
+    suspend fun setStance(matterId: Long, personId: Long, stance: String?, day: Long)
 
     @Query("UPDATE matter_people SET raci = :raci WHERE matterId = :matterId AND personId = :personId")
     suspend fun setRaci(matterId: Long, personId: Long, raci: String?)

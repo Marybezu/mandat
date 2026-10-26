@@ -394,7 +394,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
             } else {
                 // A fundraising matter keeps its own ledger, apart from the personal budget
                 if (draft.type == MatterType.AID) AidLedger(db, session, request.matter.id)
-                MatterLinks(db, session, request.matter.id)
+                MatterLinks(db, session, request.matter.id, draft)
             }
             if (!request.isNew) {
                 Picker(
@@ -479,7 +479,7 @@ fun <T> Picker(label: String, current: String, options: List<Pair<T, String>>, o
 
 /** People in a matter (with their position on it), and its delegations and promises. */
 @Composable
-private fun MatterLinks(db: MandatDb, session: Session, matterId: Long) {
+private fun MatterLinks(db: MandatDb, session: Session, matterId: Long, draft: MatterDraft) {
     val linkedFlow = remember(db, matterId) { db.people().observeForMatter(matterId) }
     val peopleFlow = remember(db) { db.people().observeAll() }
     val delegationsFlow = remember(db, matterId) { db.delegations().observeForMatter(matterId).hiding(session) { it.matterId } }
@@ -516,6 +516,7 @@ private fun MatterLinks(db: MandatDb, session: Session, matterId: Long) {
             Text(stringResource(R.string.influence_map))
         }
     }
+    if (linked.any { it.stance != null } || draft.votesNeeded != null) VoteCounter(linked, draft, session)
 
     val deadlinesFlow = remember(db, matterId) { db.deadlines().observeForMatter(matterId).hiding(session) { it.matterId } }
     val deadlines by deadlinesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -555,7 +556,7 @@ private fun MatterLinks(db: MandatDb, session: Session, matterId: Long) {
                     (listOf<ua.mandat.data.Stance?>(null) + ua.mandat.data.Stance.entries).forEach { st ->
                         TextButton(onClick = {
                             stanceFor = null
-                            session.write { it.people().setStance(matterId, row.personId, st?.name) }
+                            session.write { it.people().setStance(matterId, row.personId, st?.name, Dates.today()) }
                         }) { Text(st?.let { stringResource(it.label()) } ?: stringResource(R.string.stance_none)) }
                     }
                     // Who does what (RACI); only one person leads
@@ -629,5 +630,87 @@ private fun MatterStrip(db: MandatDb, matter: Matter, session: Session) {
                 Slice("l", stringResource(R.string.stat_overdue), late, MaterialTheme.colorScheme.error),
             ))
         }
+    }
+}
+
+/**
+ * A vote counter for a matter that is decided by a vote: how many are for against how many
+ * are needed, who is still undecided, who is against, and who changed their stance lately.
+ * A name opens the brief before talking to them.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun VoteCounter(linked: List<ua.mandat.data.MatterPersonRow>, draft: MatterDraft, session: Session) {
+    val forThem = linked.filter { it.stance == "ALLY" }
+    val undecided = linked.filter { it.stance == "UNDECIDED" }
+    val against = linked.filter { it.stance == "OPPONENT" }
+    val needed = draft.votesNeeded
+    var editing by remember { mutableStateOf(false) }
+    val today = Dates.today()
+    LinkSection(stringResource(R.string.votes_title))
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (needed != null) {
+            val missing = (needed - forThem.size).coerceAtLeast(0)
+            Text(
+                if (missing == 0) stringResource(R.string.votes_enough, forThem.size, needed)
+                else stringResource(R.string.votes_missing, forThem.size, needed, missing),
+                style = MaterialTheme.typography.titleSmall,
+                color = if (missing == 0) ChartColors.teal else MaterialTheme.colorScheme.onSurface,
+            )
+            // For, then undecided, against the number needed
+            val total = maxOf(needed, forThem.size + undecided.size).coerceAtLeast(1)
+            Row(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
+                if (forThem.isNotEmpty()) Box(Modifier.weight(forThem.size.toFloat()).height(10.dp).background(ChartColors.teal))
+                if (undecided.isNotEmpty()) Box(Modifier.weight(undecided.size.toFloat()).height(10.dp).background(ChartColors.amberLight))
+                val rest = total - forThem.size - undecided.size
+                if (rest > 0) Box(Modifier.weight(rest.toFloat()).height(10.dp))
+            }
+            if (missing > 0 && undecided.isNotEmpty()) Text(stringResource(R.string.votes_hint, undecided.size), style = MaterialTheme.typography.labelSmall, color = Muted)
+        }
+        @Composable
+        fun Group(title: String, rows: List<ua.mandat.data.MatterPersonRow>, color: androidx.compose.ui.graphics.Color) {
+            if (rows.isEmpty()) return
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(color))
+                Spacer(Modifier.width(6.dp))
+                Text("$title · ${rows.size}", style = MaterialTheme.typography.labelLarge)
+            }
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                rows.forEach { r -> MiniChip(r.name + " →", onClick = { session.saveDraft(); session.oneOnOne = r.personId }) }
+            }
+        }
+        Group(stringResource(R.string.strip_allies), forThem, ChartColors.teal)
+        Group(stringResource(R.string.strip_undecided), undecided, ChartColors.amberLight)
+        Group(stringResource(R.string.strip_opponents), against, ChartColors.salmon)
+        // Who moved in the last 30 days
+        val moved = linked.filter { it.stanceSince != null && it.stanceSince > today - 30 && it.previousStance != null }
+        if (moved.isNotEmpty()) {
+            Text(stringResource(R.string.votes_moved), style = MaterialTheme.typography.labelLarge)
+            moved.sortedByDescending { it.stanceSince }.forEach { r ->
+                val from = ua.mandat.data.Stance.of(r.previousStance)?.let { stringResource(it.label()) } ?: stringResource(R.string.stance_none)
+                val to = ua.mandat.data.Stance.of(r.stance)?.let { stringResource(it.label()) } ?: stringResource(R.string.stance_none)
+                Text("${r.name}: $from → $to, ${Dates.format(r.stanceSince!!)}", style = MaterialTheme.typography.labelMedium, color = Muted)
+            }
+        }
+        TextButton(onClick = { editing = true }) {
+            Text(stringResource(if (needed == null) R.string.votes_set else R.string.votes_change))
+        }
+    }
+    if (editing) {
+        var text by remember { mutableStateOf(needed?.toString().orEmpty()) }
+        AlertDialog(
+            onDismissRequest = { editing = false },
+            title = { Text(stringResource(R.string.votes_needed)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(stringResource(R.string.votes_needed_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
+                    OutlinedTextField(text, { v -> text = v.filter { it.isDigit() }.take(5) }, singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth())
+                }
+            },
+            confirmButton = { TextButton(onClick = { draft.votesNeeded = text.toIntOrNull()?.takeIf { it in 1..10_000 }; editing = false }) { Text(stringResource(R.string.ok)) } },
+            dismissButton = { TextButton(onClick = { draft.votesNeeded = null; editing = false }) { Text(stringResource(R.string.votes_clear)) } },
+        )
     }
 }

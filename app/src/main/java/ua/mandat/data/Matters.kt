@@ -33,6 +33,8 @@ data class Matter(
     val updatedAt: Long,
     /** Kept off every screen while trip mode is on. */
     @androidx.room.ColumnInfo(defaultValue = "0") val sensitive: Boolean = false,
+    /** For a vote: how many "for" are needed to win it; null when not counted. */
+    val votesNeeded: Int? = null,
 )
 
 /** Small settings kept inside the encrypted database (not in plain app preferences). */

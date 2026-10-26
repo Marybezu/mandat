@@ -924,4 +924,14 @@
     <string name="brief_last">Last ones, with the outcome</string>
     <string name="brief_asked">What you asked of them</string>
     <string name="brief_diary">From the diary</string>
+    <string name="votes_title">Vote counter</string>
+    <string name="votes_missing">For: %1$d of %2$d needed, %3$d short</string>
+    <string name="votes_enough">For: %1$d of %2$d needed — enough</string>
+    <string name="votes_hint">Undecided: %1$d. Tap a name for a brief before talking.</string>
+    <string name="votes_moved">Changed their stance in 30 days</string>
+    <string name="votes_set">Set how many "for" are needed</string>
+    <string name="votes_change">Change the number needed</string>
+    <string name="votes_needed">How many "for" are needed</string>
+    <string name="votes_needed_hint">A majority in a committee or council, say. People with a stance in this matter are counted.</string>
+    <string name="votes_clear">Do not count</string>
 </resources>
