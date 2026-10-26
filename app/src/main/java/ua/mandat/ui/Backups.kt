@@ -71,13 +71,17 @@ class Backups(private val context: Context, private val session: Session) {
             return@run if (tooBig) BackupNotice.AutoTooBig else BackupNotice.AutoFailed
         }
         // Written without the database, then checked with the password the owner typed
-        val result = withTimeoutOrNull(60_000) { session.startAutoWrite(prepared).await() }
+        val job = session.startAutoWrite(prepared)
+        val result = withTimeoutOrNull(60_000) { job.await() }
         val ok = result?.ok == true && result.uri != null && auto.opensWith(context, result.uri, password)
         if (ok) {
             session.reconcileAuto(db)
         } else {
-            result?.uri?.let { auto.discard(context, it) }
+            // Off first, so nothing counts the discarded file as a good copy
             session.withOpenDb { auto.disable(context, it) }
+            if (result != null) result.uri?.let { auto.discard(context, it) }
+            // Still writing after a minute: remove the file once it is finished
+            else scope.launch { job.await().uri?.let { auto.discard(context, it) } }
         }
         refreshAuto()
         if (ok) BackupNotice.AutoOn else BackupNotice.AutoFailed

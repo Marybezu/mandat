@@ -234,8 +234,10 @@ class Session(app: Application) : AndroidViewModel(app) {
     @Volatile private var autoJob: kotlinx.coroutines.Deferred<ua.mandat.backup.AutoBackup.Result>? = null
 
     /** Writes prepared encrypted bytes to the folder, without the database. */
-    fun startAutoWrite(p: ua.mandat.backup.AutoBackup.Prepared): kotlinx.coroutines.Deferred<ua.mandat.backup.AutoBackup.Result> =
-        background.async { ua.mandat.backup.AutoBackup.writePrepared(getApplication(), p) }.also { autoJob = it }
+    fun startAutoWrite(p: ua.mandat.backup.AutoBackup.Prepared, lazy: Boolean = false): kotlinx.coroutines.Deferred<ua.mandat.backup.AutoBackup.Result> =
+        background.async(start = if (lazy) kotlinx.coroutines.CoroutineStart.LAZY else kotlinx.coroutines.CoroutineStart.DEFAULT) {
+            ua.mandat.backup.AutoBackup.writePrepared(getApplication(), p)
+        }.also { autoJob = it }
 
     /**
      * Records a pending automatic copy. Folder work happens outside the lock and is bounded in
@@ -244,19 +246,40 @@ class Session(app: Application) : AndroidViewModel(app) {
      */
     suspend fun reconcileAuto(db: MandatDb): Boolean? {
         val auto = ua.mandat.backup.AutoBackup
+        val app = getApplication<Application>()
+        // Old copies that were chosen for removal but not yet removed (Mandat stopped meanwhile)
+        val leftovers = writes.withLock { if (db.isOpen) try { auto.toDelete(db) } catch (e: Exception) { null } else null }
+        if (!leftovers.isNullOrEmpty()) finishDeleting(db, leftovers)
         val info = writes.withLock { if (db.isOpen) try { auto.pendingInfo(db) } catch (e: Exception) { null } else null } ?: return null
         val job = autoJob
-        val result = if (job == null) null else (withTimeoutOrNull(AUTO_WAIT_MS) { job.await() } ?: run { info.key?.fill(0); return null })
-        // A one-element list tells "checked, nothing accepted" apart from "took too long"
+        val result = if (job == null) null else withTimeoutOrNull(AUTO_WAIT_MS) { job.await() }
+        if (job != null && result == null) {
+            info.key?.fill(0)
+            // Still being written: try again next time, unless the folder has not answered for a day
+            if (System.currentTimeMillis() - info.createdAt > AUTO_STUCK_MS) {
+                writes.withLock { if (db.isOpen) try { auto.record(db, info, null, auto.REASON_STUCK) } catch (e: Exception) { null } }
+                return false
+            }
+            return null
+        }
         val checked = withTimeoutOrNull(AUTO_WAIT_MS) {
-            background.async { listOf(auto.check(getApplication(), info, result)) }.await()
+            background.async { auto.check(app, info, result) }.await()
         } ?: return null
-        val accepted = checked.first()
+        // The file could not be read just now: leave it pending, never delete a copy for that
+        if (checked.unknown) return null
         val toDelete = writes.withLock {
-            if (db.isOpen) try { auto.record(db, info, accepted) } catch (e: Exception) { null } else null
+            if (db.isOpen) try { auto.record(db, info, checked.accepted) } catch (e: Exception) { null } else null
         } ?: return null
-        background.launch { auto.deleteAll(getApplication(), toDelete) }
-        return accepted != null
+        if (toDelete.isNotEmpty()) finishDeleting(db, toDelete)
+        return checked.accepted != null
+    }
+
+    /** Deletes Mandat's own old copies outside the lock, then forgets them. */
+    private fun finishDeleting(db: MandatDb, uris: List<android.net.Uri>) {
+        background.launch {
+            ua.mandat.backup.AutoBackup.deleteAll(getApplication(), uris)
+            writes.withLock { if (db.isOpen) try { ua.mandat.backup.AutoBackup.clearToDelete(db, uris) } catch (e: Exception) { } }
+        }
     }
     private var key: ByteArray? = null
 
@@ -389,6 +412,7 @@ class Session(app: Application) : AndroidViewModel(app) {
             key = null
             background.launch {
                 var prepared: ua.mandat.backup.AutoBackup.Prepared? = null
+                var autoWrite: kotlinx.coroutines.Deferred<ua.mandat.backup.AutoBackup.Result>? = null
                 writes.withLock {
                     if (current.db.isOpen) {
                         // Each draft on its own: one failure must not lose the others
@@ -415,12 +439,14 @@ class Session(app: Application) : AndroidViewModel(app) {
                         } catch (e: Throwable) {
                             null
                         }
+                        // Registered before the lock is released, so the next unlock always waits for it
+                        prepared?.let { autoWrite = startAutoWrite(it, lazy = true) }
                     }
                     current.db.close()
                     oldKey?.fill(0)
                 }
                 // The database is closed: a slow folder can only delay writing encrypted bytes
-                prepared?.let { startAutoWrite(it) }
+                autoWrite?.start()
             }
         }
         return wasInUse
@@ -429,6 +455,7 @@ class Session(app: Application) : AndroidViewModel(app) {
     companion object {
         private const val PICKER_TIMEOUT_MS = 90 * 1000L
         private const val AUTO_WAIT_MS = 30 * 1000L
+        private const val AUTO_STUCK_MS = 24 * 60 * 60 * 1000L
     }
 
     override fun onCleared() {

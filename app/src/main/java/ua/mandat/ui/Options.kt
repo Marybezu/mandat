@@ -175,7 +175,11 @@ fun Options(session: Session, onBack: () -> Unit) {
                     style = MaterialTheme.typography.labelMedium, color = Muted,
                 )
                 if (auto.lastFail != null && (auto.lastOk == null || auto.lastFail > auto.lastOk)) {
-                    val reason = if (auto.failReason == ua.mandat.backup.AutoBackup.REASON_TOO_BIG) R.string.auto_fail_too_big else R.string.auto_last_fail
+                    val reason = when (auto.failReason) {
+                        ua.mandat.backup.AutoBackup.REASON_TOO_BIG -> R.string.auto_fail_too_big
+                        ua.mandat.backup.AutoBackup.REASON_STUCK -> R.string.auto_fail_stuck
+                        else -> R.string.auto_last_fail
+                    }
                     Text(stringResource(reason, fmt.format(Date(auto.lastFail))), style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.error)
                 }

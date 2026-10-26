@@ -482,4 +482,5 @@
     <string name="auto_fail_too_big">Last attempt failed: %1$s. The data is larger than a backup can be.</string>
     <string name="auto_use_anyway">Use this folder</string>
     <string name="notice_auto_too_big">The data is larger than a backup can be, so no automatic copy was made.</string>
+    <string name="auto_fail_stuck">Last attempt failed: %1$s. The folder did not answer; choose another folder or check the app it belongs to.</string>
 </resources>

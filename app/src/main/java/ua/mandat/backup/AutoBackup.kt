@@ -34,6 +34,7 @@ object AutoBackup {
     private const val KEY_FAIL_REASON = PREFIX + "fail_reason"
     private const val KEY_FILES = PREFIX + "files"
     private const val KEY_PENDING = PREFIX + "pending"
+    private const val KEY_TO_DELETE = PREFIX + "to_delete"
 
     const val KEEP = 7
     private const val INTERVAL_MS = 24L * 60 * 60 * 1000
@@ -42,6 +43,7 @@ object AutoBackup {
 
     const val REASON_TOO_BIG = "too_big"
     private const val REASON_WRITE = "write"
+    const val REASON_STUCK = "stuck"
 
     data class Status(val folder: Uri?, val lastOk: Long?, val lastFail: Long?, val failReason: String?) {
         val enabled get() = folder != null
@@ -177,24 +179,35 @@ object AutoBackup {
         )
     }
 
+    /** The outcome of [check]: the accepted copy, or none; [unknown] if the file could not be read now. */
+    class Checked(val accepted: Uri?, val unknown: Boolean = false)
+
     /**
-     * Step 3b, without the lock (it touches the folder and may be slow): the accepted copy, if any.
-     * With no known result (Mandat was stopped meanwhile) the file is found by name and checked
-     * with the key; a damaged file is removed.
+     * Step 3b, without the lock (it touches the folder and may be slow). With no known result
+     * (Mandat was stopped meanwhile) the file is found by name and checked with the key. Only a
+     * file that is really damaged is removed; a failure to read it now leaves it for next time.
      */
-    fun check(context: Context, info: PendingInfo, result: Result?): Uri? {
+    fun check(context: Context, info: PendingInfo, result: Result?): Checked {
         try {
-            if (result != null && result.name == info.name) return result.uri.takeIf { result.ok }
-            val uri = try { findByName(context, info.folder, info.name) } catch (e: Exception) { null } ?: return null
-            val key = info.key ?: return null
-            val ok = try {
+            if (result != null && result.name == info.name) return Checked(result.uri.takeIf { result.ok })
+            val uri = try {
+                findByName(context, info.folder, info.name)
+            } catch (e: Exception) {
+                return Checked(null, unknown = true)
+            } ?: return Checked(null)
+            val key = info.key ?: return Checked(null, unknown = true)
+            return try {
                 BackupCrypto.decryptWithKey(read(context, uri), key).fill(0)
-                true
+                Checked(uri)
+            } catch (e: BackupCrypto.WrongPasswordOrDamaged) {
+                deleteQuietly(context, uri)
+                Checked(null)
+            } catch (e: BackupCrypto.NotABackup) {
+                deleteQuietly(context, uri)
+                Checked(null)
             } catch (e: Throwable) {
-                false
+                Checked(null, unknown = true)
             }
-            if (!ok) deleteQuietly(context, uri)
-            return uri.takeIf { ok }
         } finally {
             info.key?.fill(0)
         }
@@ -204,7 +217,7 @@ object AutoBackup {
      * Step 3c, under the lock, in one transaction: records the result and decides which of Mandat's
      * own old copies to remove. Returns their addresses, to be deleted afterwards without the lock.
      */
-    suspend fun record(db: MandatDb, info: PendingInfo, accepted: Uri?): List<Uri> {
+    suspend fun record(db: MandatDb, info: PendingInfo, accepted: Uri?, reason: String = REASON_WRITE): List<Uri> {
         var toDelete = emptyList<Uri>()
         db.withTransaction {
             val s = db.settings()
@@ -212,17 +225,33 @@ object AutoBackup {
             if (s.get(KEY_PENDING)?.value?.substringBefore('\t') != info.name) return@withTransaction
             s.deletePrefix(KEY_PENDING)
             if (accepted == null) {
-                fail(db, REASON_WRITE, info.createdAt)
+                fail(db, reason, info.createdAt)
                 return@withTransaction
             }
             val files = files(s) + (accepted.toString() to info.createdAt)
             val kept = trimmed(files, keepNewest = accepted.toString())
             toDelete = files.filter { f -> kept.none { it.first == f.first } }.map { Uri.parse(it.first) }
             s.put(Setting(KEY_FILES, kept.joinToString("\n") { "${it.first}\t${it.second}" }))
+            // Remembered until really deleted, so nothing stays behind if Mandat stops meanwhile
+            val pendingDelete = (toDeleteList(s) + toDelete.map { it.toString() }).distinct()
+            if (pendingDelete.isNotEmpty()) s.put(Setting(KEY_TO_DELETE, pendingDelete.joinToString("\n")))
             s.put(Setting(KEY_LAST_OK, info.createdAt.toString()))
             s.deletePrefix(KEY_FAIL_REASON)
         }
         return toDelete
+    }
+
+    private suspend fun toDeleteList(s: ua.mandat.data.SettingDao): List<String> =
+        s.get(KEY_TO_DELETE)?.value.orEmpty().lines().filter { it.isNotBlank() }
+
+    /** Old copies chosen for removal and not yet removed. */
+    suspend fun toDelete(db: MandatDb): List<Uri> = toDeleteList(db.settings()).map(Uri::parse)
+
+    /** Forgets copies that have been removed. */
+    suspend fun clearToDelete(db: MandatDb, done: List<Uri>) {
+        val s = db.settings()
+        val left = toDeleteList(s) - done.map { it.toString() }.toSet()
+        if (left.isEmpty()) s.deletePrefix(KEY_TO_DELETE) else s.put(Setting(KEY_TO_DELETE, left.joinToString("\n")))
     }
 
     /** Removes old copies chosen by [record]; never fails the backup itself. */
