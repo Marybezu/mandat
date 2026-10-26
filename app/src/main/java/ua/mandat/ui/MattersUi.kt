@@ -385,6 +385,8 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                 Text(stringResource(R.string.save_matter_first), style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.secondary)
             } else {
+                // A fundraising matter keeps its own ledger, apart from the personal budget
+                if (draft.type == MatterType.AID) AidLedger(db, session, request.matter.id)
                 MatterLinks(db, session, request.matter.id)
             }
             if (!request.isNew) {
@@ -421,6 +423,9 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                             db.info().clearMatter(id)
                             db.info().clearMessageMatter(id)
                             db.info().clearAllianceMatter(id)
+                            db.money().clearMatter(id)
+                            db.money().deleteAidFor(id)
+                            db.reviews().unlinkRef("matter", id)
                             db.matters().delete(id)
                         }
                     }

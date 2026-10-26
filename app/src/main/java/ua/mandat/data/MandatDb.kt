@@ -39,7 +39,7 @@ interface InboxDao {
         InboxItem::class, Role::class, Matter::class, Setting::class,
         Person::class, MatterPerson::class, Delegation::class, Promise::class,
         Deadline::class, Review::class, Event::class, EventPerson::class, Contact::class,
-        InfoItem::class, KeyMessage::class, Alliance::class,
+        InfoItem::class, KeyMessage::class, Alliance::class, MoneyEntry::class, AidRecord::class, ReviewLink::class,
     ],
     version = DB_VERSION,
     exportSchema = true,
@@ -58,6 +58,7 @@ abstract class MandatDb : RoomDatabase() {
     abstract fun events(): EventDao
     abstract fun contacts(): ContactDao
     abstract fun info(): InfoDao
+    abstract fun money(): MoneyDao
 
     companion object {
         const val FILE_NAME = "mandat.db"
@@ -239,7 +240,35 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
     }
 }
 
-val MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // The owner's own budget, with personal charity
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `money` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `day` INTEGER NOT NULL, " +
+                "`kind` TEXT NOT NULL, `category` TEXT NOT NULL, `amount` INTEGER NOT NULL, `currency` TEXT NOT NULL, " +
+                "`uah` INTEGER NOT NULL, `note` TEXT NOT NULL, `matterId` INTEGER, `charityKind` TEXT, `toWhom` TEXT NOT NULL, " +
+                "`awaitingRefund` INTEGER NOT NULL, `refunded` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_money_day` ON `money` (`day`)")
+        // Aid the owner organises, kept apart from the personal budget
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `aid_records` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `matterId` INTEGER NOT NULL, " +
+                "`day` INTEGER NOT NULL, `collected` INTEGER NOT NULL, `amount` INTEGER NOT NULL, `currency` TEXT NOT NULL, " +
+                "`uah` INTEGER NOT NULL, `what` TEXT NOT NULL, `party` TEXT NOT NULL, `createdAt` INTEGER NOT NULL)",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_aid_records_matterId` ON `aid_records` (`matterId`)")
+        // Diary: energy and mood of the day, and what the day was about
+        db.execSQL("ALTER TABLE `reviews` ADD COLUMN `energy` INTEGER")
+        db.execSQL("ALTER TABLE `reviews` ADD COLUMN `mood` INTEGER")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `review_links` (`reviewId` INTEGER NOT NULL, `kind` TEXT NOT NULL, `refId` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`reviewId`, `kind`, `refId`))",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_review_links_refId` ON `review_links` (`refId`)")
+    }
+}
+
+val MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
 
 /** The current database layout version; raise it together with a new migration. */
-const val DB_VERSION = 8
+const val DB_VERSION = 9

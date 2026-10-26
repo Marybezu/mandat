@@ -41,7 +41,7 @@ data class Setting(
 )
 
 enum class MatterType {
-    CAMPAIGN, BILL, INVESTIGATION, COURT, DISTRICT, INTERNATIONAL, WORKING_GROUP, INQUIRY, PUBLIC_COMMS, OTHER;
+    CAMPAIGN, BILL, INVESTIGATION, COURT, DISTRICT, INTERNATIONAL, WORKING_GROUP, INQUIRY, PUBLIC_COMMS, AID, OTHER;
 
     companion object {
         fun of(key: String) = entries.firstOrNull { it.name == key } ?: OTHER
@@ -133,6 +133,10 @@ interface MatterDao {
 interface SettingDao {
     @Query("SELECT * FROM settings WHERE `key` = :key")
     fun observe(key: String): Flow<Setting?>
+
+    /** Only the budget settings (categories and limits); never the backup ones. */
+    @Query("SELECT * FROM settings WHERE substr(`key`, 1, 7) = 'budget_'")
+    fun observeBudget(): Flow<List<Setting>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun put(setting: Setting)

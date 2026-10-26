@@ -206,7 +206,32 @@ object NeutralData {
                     status = st.name, createdAt = ms(-40), updatedAt = ms(-4)))
             }
         }
-        (1..12).forEach { i -> db.reviews().insert(Review(day = today - i, progress = "Тестовий запис вечора $i", createdAt = ms(-i.toLong()))) }
+        (1..40).forEach { i ->
+            val id = db.reviews().insert(Review(day = today - i, progress = if (i % 6 == 0) "" else "Тестовий запис вечора $i", createdAt = ms(-i.toLong()),
+                energy = if (i % 4 == 0) null else 1 + i % 5, mood = if (i % 5 == 0) null else 1 + (i * 2) % 5))
+            if (i % 3 == 0) db.reviews().link(ua.mandat.data.ReviewLink(id, "matter", matters[i % matters.size]))
+            if (i % 4 == 0) db.reviews().link(ua.mandat.data.ReviewLink(id, "person", people[i % people.size]))
+        }
+        // Budget: made-up amounts over a year; charity; one compensation pending; organised aid
+        val inCats = ua.mandat.data.IncomeCategory.entries
+        val outCats = ua.mandat.data.ExpenseCategory.entries
+        (0..360 step 4).forEachIndexed { n, back ->
+            val income = n % 6 == 0
+            val cat = if (income) inCats[n % inCats.size].name else outCats[n % outCats.size].name
+            val amount = (if (income) 2_000_000L else 50_000L) + n * 1_000L
+            db.money().insert(ua.mandat.data.MoneyEntry(day = today - back, kind = if (income) "INCOME" else "EXPENSE", category = cat,
+                amount = amount, currency = "UAH", uah = amount, note = if (n % 3 == 0) "Тестова примітка" else "",
+                charityKind = if (cat == "CHARITY") ua.mandat.data.CharityKind.entries[n % 5].name else null,
+                awaitingRefund = cat == "TRIPS" && back < 40, createdAt = ms(-back.toLong()), updatedAt = ms(-back.toLong())))
+        }
+        db.money().insert(ua.mandat.data.MoneyEntry(day = today - 2, kind = "EXPENSE", category = "TRIPS", amount = 30_000, currency = "EUR", uah = 1_350_000,
+            note = "Тестова поїздка", awaitingRefund = true, createdAt = ms(-2), updatedAt = ms(-2)))
+        db.settings().put(Setting(ua.mandat.data.SETTING_LIMIT_PREFIX + "HOME", "1500000"))
+        db.settings().put(Setting(ua.mandat.data.SETTING_LIMIT_PREFIX + "OFFICE", "300000"))
+        (1..6).forEach { i ->
+            db.money().insertAid(ua.mandat.data.AidRecord(matterId = matters[1], day = today - i * 3, collected = i % 2 == 1, amount = 100_000L * i, currency = "UAH",
+                uah = 100_000L * i, what = "Тестова допомога $i", party = "Тестова сторона $i", createdAt = ms(-i.toLong())))
+        }
         (1..3).forEach { i -> db.inbox().insert(InboxItem(text = "Тестовий запис у вхідних $i", createdAt = ms(-i.toLong()))) }
     }
 }

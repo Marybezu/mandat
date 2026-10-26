@@ -122,5 +122,7 @@ class ScreensTest {
     @Test fun directory() = shot("15-directory") { ua.mandat.ui.DirectoryScreen(db, session) }
     @Test fun info() = shot("17-info") { ua.mandat.ui.InfoScreen(db, session) }
     @Test fun alliances() = shot("18-alliances") { ua.mandat.ui.AlliancesScreen(db, session) }
+    @Test fun budget() = shot("19-budget") { ua.mandat.ui.BudgetScreen(db, session) }
+    @Test fun diary() = shot("20-diary") { ua.mandat.ui.DiaryScreen(db, session) }
     @Test fun next() = shot("07-smart-next") { SmartListScreen(db, session, SmartList.NEXT) }
 }

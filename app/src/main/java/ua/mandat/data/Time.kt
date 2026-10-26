@@ -2,6 +2,8 @@ package ua.mandat.data
 
 import androidx.room.Dao
 import androidx.room.Entity
+import androidx.room.Index
+import androidx.room.OnConflictStrategy
 import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
@@ -39,6 +41,19 @@ data class Review(
     val day: Long,
     val progress: String,
     val createdAt: Long,
+    /** Diary: how much energy there was, 1 to 5; null when not noted. No scores, no advice. */
+    val energy: Int? = null,
+    /** Diary: the mood of the day, 1 to 5; null when not noted. */
+    val mood: Int? = null,
+)
+
+/** A diary day linked to a matter or a person it was about. */
+@Entity(tableName = "review_links", primaryKeys = ["reviewId", "kind", "refId"], indices = [Index("refId")])
+data class ReviewLink(
+    val reviewId: Long,
+    /** "matter" or "person". */
+    val kind: String,
+    val refId: Long,
 )
 
 enum class DeadlineKind {
@@ -93,6 +108,24 @@ interface ReviewDao {
     @Query("SELECT * FROM reviews WHERE day = :day LIMIT 1")
     suspend fun forDay(day: Long): Review?
 
+    @Query("SELECT * FROM reviews WHERE day = :day LIMIT 1")
+    fun observeDay(day: Long): Flow<Review?>
+
+    @Query("SELECT * FROM review_links")
+    fun observeLinks(): Flow<List<ReviewLink>>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun link(l: ReviewLink)
+
+    @Query("DELETE FROM review_links WHERE reviewId = :reviewId AND kind = :kind AND refId = :refId")
+    suspend fun unlink(reviewId: Long, kind: String, refId: Long)
+
+    @Query("DELETE FROM review_links WHERE reviewId = :reviewId")
+    suspend fun unlinkAll(reviewId: Long)
+
+    @Query("DELETE FROM review_links WHERE kind = :kind AND refId = :refId")
+    suspend fun unlinkRef(kind: String, refId: Long)
+
     @Insert
     suspend fun insert(r: Review): Long
 
@@ -121,6 +154,7 @@ interface SearchDao {
             "UNION ALL SELECT 'info', id, title, source, title || ' ' || source || ' ' || notes || ' ' || result FROM info_items " +
             "UNION ALL SELECT 'message', id, text, audience, text || ' ' || proof || ' ' || audience FROM key_messages " +
             "UNION ALL SELECT 'alliance', id, withWhom, about, withWhom || ' ' || about || ' ' || gives || ' ' || gets || ' ' || notes FROM alliances " +
+            "UNION ALL SELECT 'money', id, category, note, category || ' ' || note || ' ' || toWhom FROM money " +
             "UNION ALL SELECT 'contact', id, name, organization, name || ' ' || organization || ' ' || jobTitle || ' ' || phones || ' ' || emails || ' ' || label FROM contacts",
     )
     fun everything(): Flow<List<SearchRow>>

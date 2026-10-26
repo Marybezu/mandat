@@ -290,6 +290,7 @@ fun ReviewScreen(db: MandatDb, session: Session) {
                     if (session.reviewDraft != null) {
                         Button(onClick = { session.saveReviewDraft() }) { Text(stringResource(R.string.save)) }
                     }
+                    TodayFeel(db, session)
                     OutlinedTextField(
                         value = unload, onValueChange = { unload = it },
                         label = { Text(stringResource(R.string.evening_unload)) },
@@ -306,21 +307,10 @@ fun ReviewScreen(db: MandatDb, session: Session) {
             }
         }
         item(key = "promises") { ReputationTiles(db, session) }
-        val earlier = recent.filter { it.day != today }
-        if (earlier.isNotEmpty()) {
-            item(key = "earlier") {
-                SectionCard(Sym.calendar, stringResource(R.string.evening_earlier), count = earlier.size) {
-                    earlier.forEachIndexed { i, r ->
-                        if (i > 0) RowDivider()
-                        Column(
-                            Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)).padding(10.dp),
-                        ) {
-                            MiniChip(Dates.format(r.day))
-                            Text(r.progress, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
-                        }
-                    }
-                }
+        item(key = "budget") { BudgetCard(db, session) }
+        item(key = "diary") {
+            OutlinedButton(onClick = { session.showDiary = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.diary_open))
             }
         }
     }
@@ -391,6 +381,7 @@ private fun kindLabel(kind: String): Int = when (kind) {
     "info" -> R.string.info_title
     "message" -> R.string.message_box
     "alliance" -> R.string.alliances_title
+    "money" -> R.string.budget_title
     else -> R.string.tab_review
 }
 
@@ -405,6 +396,7 @@ private fun openHit(db: MandatDb, session: Session, kind: String, id: Long) {
         "contact" -> { session.searching = false; session.showDirectory = true }
         "info", "alliance" -> session.openInfoItem(kind, id)
         "message" -> { session.searching = false; session.showInfo = true }
+        "money" -> { session.searching = false; session.showBudget = true }
         else -> session.searching = false
     }
 }

@@ -371,3 +371,49 @@ fun newAlliance(matterId: Long? = null) = AllianceDraft(
     ua.mandat.data.Alliance(withWhom = "", about = "", matterId = matterId, status = ua.mandat.data.AllianceStatus.ACTIVE.name, createdAt = 0, updatedAt = 0),
     isNew = true,
 )
+
+/** A money entry being edited: the amount is kept as typed until it is saved. */
+class MoneyDraft(val entry: ua.mandat.data.MoneyEntry, val isNew: Boolean) {
+    var kind by mutableStateOf(entry.kind)
+    var day by mutableStateOf(entry.day)
+    var category by mutableStateOf(entry.category)
+    var amountText by mutableStateOf(if (entry.amount > 0) ua.mandat.data.formatAmount(entry.amount).replace(" ", "") else "")
+    var currency by mutableStateOf(entry.currency)
+    /** Hryvnias for one unit of the currency, as typed. */
+    var rateText by mutableStateOf(
+        if (entry.currency != "UAH" && entry.amount > 0) "%.4f".format(java.util.Locale.ROOT, entry.uah.toDouble() / entry.amount).trimEnd('0').trimEnd('.') else "",
+    )
+    var note by mutableStateOf(entry.note)
+    var matterId by mutableStateOf(entry.matterId)
+    var charityKind by mutableStateOf(ua.mandat.data.CharityKind.of(entry.charityKind))
+    var toWhom by mutableStateOf(entry.toWhom)
+    var awaitingRefund by mutableStateOf(entry.awaitingRefund)
+    var refunded by mutableStateOf(entry.refunded)
+
+    fun rate(): Double? = rateText.trim().replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 && it < 1_000_000 }
+    fun amount(): Long? = ua.mandat.data.parseAmount(amountText)
+    fun valid() = amount() != null && category.isNotBlank() && (currency == "UAH" || rate() != null)
+
+    suspend fun persist(db: MandatDb) {
+        val a = amount() ?: return
+        if (currency != "UAH" && rate() == null) return
+        val now = System.currentTimeMillis()
+        val edited = ua.mandat.data.cleanMoney(
+            entry.copy(
+                kind = kind, day = day, category = category, amount = a, currency = currency, uah = ua.mandat.data.toUah(a, currency, rate()),
+                note = note, matterId = matterId, charityKind = charityKind?.name, toWhom = toWhom,
+                awaitingRefund = awaitingRefund, refunded = refunded, updatedAt = now,
+            ),
+        ) ?: return
+        if (isNew) db.money().insert(edited.copy(id = 0, createdAt = now)) else db.money().update(edited)
+    }
+}
+
+fun newMoney(kind: ua.mandat.data.MoneyKind, category: String? = null) = MoneyDraft(
+    ua.mandat.data.MoneyEntry(
+        day = Dates.today(), kind = kind.name,
+        category = category ?: (if (kind == ua.mandat.data.MoneyKind.INCOME) ua.mandat.data.IncomeCategory.SALARY.name else ua.mandat.data.ExpenseCategory.HOME.name),
+        amount = 0, currency = "UAH", uah = 0, createdAt = 0, updatedAt = 0,
+    ),
+    isNew = true,
+)

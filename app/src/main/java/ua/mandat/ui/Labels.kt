@@ -15,6 +15,7 @@ fun MatterType.label(): Int = when (this) {
     MatterType.WORKING_GROUP -> R.string.type_WORKING_GROUP
     MatterType.INQUIRY -> R.string.type_INQUIRY
     MatterType.PUBLIC_COMMS -> R.string.type_PUBLIC_COMMS
+    MatterType.AID -> R.string.type_AID
     MatterType.OTHER -> R.string.type_OTHER
 }
 

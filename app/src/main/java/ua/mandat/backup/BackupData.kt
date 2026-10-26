@@ -102,6 +102,11 @@ object BackupData {
                     }
                 }
             }
+            // Backups from before schema 8 have no "publicity" for promises: public ones get it here,
+            // so the stored value always agrees with the older public/personal field
+            if ("promises" in current && "publicity" in known.getValue("promises")) {
+                sql.execSQL("UPDATE `promises` SET `publicity` = 'PUBLIC' WHERE `isPublic` = 1 AND `publicity` <> 'PUBLIC'")
+            }
         })
     }
 

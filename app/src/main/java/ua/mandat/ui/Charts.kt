@@ -380,6 +380,7 @@ fun ua.mandat.data.MatterType.chartColor(): Color = when (this) {
     ua.mandat.data.MatterType.WORKING_GROUP -> ChartColors.purpleLight
     ua.mandat.data.MatterType.INQUIRY -> ChartColors.pink
     ua.mandat.data.MatterType.PUBLIC_COMMS -> ChartColors.amber
+    ua.mandat.data.MatterType.AID -> ChartColors.salmon
     ua.mandat.data.MatterType.OTHER -> ChartColors.grayLight
 }
 
