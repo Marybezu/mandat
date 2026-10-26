@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package ua.mandat.ui
 
 import androidx.compose.foundation.clickable
@@ -467,7 +469,7 @@ fun PromiseDimensions(draft: PromiseDraft) {
     }
     draft.origin?.let { Text(stringResource(it.hint()), style = MaterialTheme.typography.labelSmall, color = Muted) }
     Text(stringResource(R.string.risk), style = MaterialTheme.typography.labelLarge)
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         listOf(1, 2, 3).forEach { r ->
             FilterChip(selected = draft.risk == r, onClick = { draft.risk = if (draft.risk == r) null else r }, label = { Text(stringResource(riskLabel(r))) })
         }

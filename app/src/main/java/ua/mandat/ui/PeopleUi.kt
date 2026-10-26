@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package ua.mandat.ui
 
 import androidx.activity.compose.BackHandler
@@ -408,7 +410,7 @@ fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
                 }
                 // Influence and stance: for the influence map; never for the team (no rating of people)
                 Text(stringResource(R.string.influence), style = MaterialTheme.typography.labelLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(1, 2, 3).forEach { lv ->
                         FilterChip(selected = draft.influence == lv, onClick = { draft.influence = if (draft.influence == lv) null else lv },
                             label = { Text(stringResource(influenceLabel(lv))) })

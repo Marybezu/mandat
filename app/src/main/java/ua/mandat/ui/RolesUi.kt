@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package ua.mandat.ui
 
 import androidx.compose.foundation.layout.Arrangement
@@ -213,7 +215,7 @@ fun RolesManager(db: MandatDb, session: Session) {
 @Composable
 fun ModePicker(session: Session) {
     Text(stringResource(R.string.mode_title), style = MaterialTheme.typography.titleMedium)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf(false to R.string.mode_rada, true to R.string.mode_council).forEach { (council, label) ->
             androidx.compose.material3.FilterChip(
                 selected = AppMode.council == council,

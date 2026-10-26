@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package ua.mandat.ui
 
 import androidx.activity.compose.BackHandler
@@ -346,7 +348,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                 onPick = { draft.roleId = it?.id },
             )
             Text(stringResource(R.string.matter_attention), style = MaterialTheme.typography.labelLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Attention.entries.forEach { level ->
                     FilterChip(
                         selected = draft.attention == level,

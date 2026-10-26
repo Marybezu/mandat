@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package ua.mandat.ui
 
 import androidx.activity.compose.BackHandler
@@ -389,7 +391,7 @@ fun MoneyDialog(db: MandatDb, session: Session, d: MoneyDraft) {
         title = { Text(stringResource(if (income) R.string.money_income else R.string.money_expense)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     FilterChip(selected = !income, onClick = { d.kind = MoneyKind.EXPENSE.name; d.category = ExpenseCategory.HOME.name }, label = { Text(stringResource(R.string.money_expense)) })
                     FilterChip(selected = income, onClick = { d.kind = MoneyKind.INCOME.name; d.category = IncomeCategory.SALARY.name }, label = { Text(stringResource(R.string.money_income)) })
                 }

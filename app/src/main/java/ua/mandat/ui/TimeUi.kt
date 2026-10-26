@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package ua.mandat.ui
 
 import androidx.activity.compose.BackHandler
@@ -103,7 +105,7 @@ fun DeadlineDialog(db: MandatDb, session: Session, draft: DeadlineDraft) {
                     value = draft.title, onValueChange = { draft.title = it },
                     label = { Text(stringResource(R.string.what)) }, minLines = 2, modifier = Modifier.fillMaxWidth(),
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(selected = draft.kind == DeadlineKind.SOFT, onClick = { draft.kind = DeadlineKind.SOFT },
                         label = { Text(stringResource(R.string.deadline_soft)) })
                     FilterChip(selected = draft.kind == DeadlineKind.HARD, onClick = { draft.kind = DeadlineKind.HARD },
@@ -127,7 +129,7 @@ fun DeadlineDialog(db: MandatDb, session: Session, draft: DeadlineDraft) {
                 MatterPicker(matters, allMatters, draft.matterId) { draft.matterId = it }
                 if (!draft.isNew) {
                     Text(stringResource(R.string.status), style = MaterialTheme.typography.labelLarge)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TASK_STATUSES.forEach { s ->
                             FilterChip(selected = draft.status == s, onClick = { draft.status = s },
                                 label = { Text(stringResource(s.delegationLabel())) })

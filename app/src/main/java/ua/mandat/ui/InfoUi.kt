@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package ua.mandat.ui
 
 import androidx.activity.compose.BackHandler
@@ -294,7 +296,7 @@ fun InfoDialog(db: MandatDb, session: Session, d: InfoDraft) {
                 )
                 MatterPicker(matters, allMatters, d.matterId) { d.matterId = it }
                 Text(stringResource(R.string.info_reach), style = MaterialTheme.typography.labelLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(1, 2, 3).forEach { r ->
                         FilterChip(selected = d.reach == r, onClick = { d.reach = if (d.reach == r) null else r }, label = { Text(stringResource(reachLabel(r))) })
                     }
@@ -520,7 +522,7 @@ fun AllianceDialog(db: MandatDb, session: Session, d: AllianceDraft) {
                 DueField(d.untilDay, label = R.string.alliance_until) { d.untilDay = it }
                 OutlinedTextField(d.gives, { d.gives = it }, label = { Text(stringResource(R.string.alliance_gives)) }, minLines = 1, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(d.gets, { d.gets = it }, label = { Text(stringResource(R.string.alliance_gets)) }, minLines = 1, modifier = Modifier.fillMaxWidth())
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     AllianceStatus.entries.forEach { s -> FilterChip(selected = d.status == s, onClick = { d.status = s }, label = { Text(stringResource(s.label())) }) }
                 }
                 OutlinedTextField(d.notes, { d.notes = it }, label = { Text(stringResource(R.string.person_notes)) }, minLines = 2, modifier = Modifier.fillMaxWidth())
