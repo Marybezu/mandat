@@ -152,7 +152,8 @@ class MainActivity : AppCompatActivity() {
         val info = BiometricPrompt.PromptInfo.Builder()
             .setTitle(getString(R.string.unlock_title))
             .setSubtitle(getString(R.string.unlock_subtitle))
-            .setAllowedAuthenticators(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)
+            // "PIN only" leaves out the fingerprint; the key itself accepts both
+            .setAllowedAuthenticators(if (Appearance.pinOnly(this)) DEVICE_CREDENTIAL else BIOMETRIC_STRONG or DEVICE_CREDENTIAL)
             .setConfirmationRequired(false)
             .build()
         session.prompting = true

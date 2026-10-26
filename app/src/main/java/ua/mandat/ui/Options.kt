@@ -214,6 +214,7 @@ fun Options(session: Session, onBack: () -> Unit) {
             Section(stringResource(R.string.security_title))
             Text(stringResource(R.string.security_text), style = MaterialTheme.typography.bodyLarge)
             ScreenshotsSwitch(session)
+            PinOnlySwitch()
 
             Spacer(Modifier.height(8.dp))
             Section(stringResource(R.string.about_title))
@@ -622,6 +623,25 @@ private fun DistrictSwitch(db: ua.mandat.data.MandatDb, session: Session) {
         }
         androidx.compose.material3.Switch(checked = on?.value == "1", onCheckedChange = { v ->
             session.write { it.settings().put(ua.mandat.data.Setting(ua.mandat.data.SETTING_DISTRICT, if (v) "1" else "0")) }
+        })
+    }
+}
+
+/** "PIN only": no fingerprint at the unlock prompt, for situations where a finger could be forced. */
+@Composable
+private fun PinOnlySwitch() {
+    val context = LocalContext.current
+    var on by remember { mutableStateOf(Appearance.pinOnly(context)) }
+    var failed by remember { mutableStateOf(false) }
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.pin_only), style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.pin_only_hint), style = MaterialTheme.typography.labelMedium, color = Muted)
+            if (failed) Text(stringResource(R.string.pin_only_failed), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+        }
+        androidx.compose.material3.Switch(checked = on, onCheckedChange = { v ->
+            failed = !Appearance.setPinOnly(context, v)
+            on = Appearance.pinOnly(context)
         })
     }
 }

@@ -824,4 +824,7 @@
     <string name="mode_hint">Змінює органи, посади й деякі назви; решта однакова. Можна змінити в «Налаштуваннях».</string>
     <string name="type_BILL_council">Проєкт рішення</string>
     <string name="type_INVESTIGATION_council">Контрольна перевірка</string>
+    <string name="pin_only">Лише PIN</string>
+    <string name="pin_only_hint">Розблоковувати лише PIN-кодом чи паролем телефона, без відбитка: палець можна силою прикласти до сканера, а PIN треба назвати. Діє з наступного розблокування.</string>
+    <string name="pin_only_failed">Не вдалося зберегти вибір.</string>
 </resources>

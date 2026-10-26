@@ -822,4 +822,7 @@
     <string name="mode_hint">Changes the bodies, positions and some names; everything else is the same. Can be changed in Options.</string>
     <string name="type_BILL_council">Draft decision</string>
     <string name="type_INVESTIGATION_council">Control check</string>
+    <string name="pin_only">PIN only</string>
+    <string name="pin_only_hint">Unlock with the phone\'s PIN or password only, without a fingerprint: a finger can be forced onto the sensor, a PIN has to be said. Takes effect at the next unlock.</string>
+    <string name="pin_only_failed">Could not save the choice.</string>
 </resources>

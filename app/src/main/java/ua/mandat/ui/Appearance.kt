@@ -30,6 +30,20 @@ object Appearance {
     }
 
     /**
+     * "PIN only": the unlock prompt does not accept a fingerprint, only the phone's PIN or
+     * password (a finger can be forced onto the sensor; a PIN has to be said). Kept here because
+     * the prompt needs it before unlocking. Unreadable means off, which is the usual behaviour.
+     */
+    fun pinOnly(context: Context): Boolean =
+        try {
+            prefs(context).getBoolean("pin_only", false)
+        } catch (e: Exception) {
+            false
+        }
+
+    fun setPinOnly(context: Context, on: Boolean): Boolean = prefs(context).edit().putBoolean("pin_only", on).commit()
+
+    /**
      * Screenshots are forbidden unless the owner explicitly allows them (for example to show the
      * app to testers). Kept here because the lock screen must be protected before unlocking.
      */
