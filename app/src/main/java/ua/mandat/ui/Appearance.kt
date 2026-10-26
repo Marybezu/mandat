@@ -29,6 +29,25 @@ object Appearance {
         prefs(context).edit().putBoolean("dynamic", on).apply()
     }
 
+    /**
+     * Screenshots are forbidden unless the owner explicitly allows them (for example to show the
+     * app to testers). Kept here because the lock screen must be protected before unlocking.
+     */
+    fun screenshotsAllowed(context: Context) = prefs(context).getBoolean("screenshots", false)
+
+    fun setScreenshotsAllowed(activity: android.app.Activity, allowed: Boolean) {
+        prefs(activity).edit().putBoolean("screenshots", allowed).commit()
+        applyScreenGuard(activity)
+    }
+
+    /** No screenshots, no screen recording, no preview in recent apps, unless allowed. */
+    fun applyScreenGuard(activity: android.app.Activity) {
+        val secure = android.view.WindowManager.LayoutParams.FLAG_SECURE
+        if (screenshotsAllowed(activity)) activity.window.clearFlags(secure) else activity.window.addFlags(secure)
+        // The preview in the recent apps list stays hidden either way (Android 13+)
+        if (android.os.Build.VERSION.SDK_INT >= 33) activity.setRecentsScreenshotEnabled(false)
+    }
+
     /** Whether the small summary strip on a screen is open (only a layout choice). */
     fun stripOpen(context: Context, key: String) = prefs(context).getBoolean("strip_$key", true)
 

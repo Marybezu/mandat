@@ -2,10 +2,8 @@ package ua.mandat.ui
 
 import android.app.KeyguardManager
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.security.keystore.KeyPermanentlyInvalidatedException
-import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -30,9 +28,8 @@ class MainActivity : AppCompatActivity() {
         // Draw behind the system bars; screens pad themselves and move above the keyboard
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        // No screenshots, no screen recording, no preview in the recent apps list
-        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
-        if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(false)
+        // No screenshots, no screen recording, no preview in the recent apps list (unless allowed)
+        Appearance.applyScreenGuard(this)
 
         // Only a fresh share: not after turning the phone or reopening from recent apps
         val fromHistory = intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0
