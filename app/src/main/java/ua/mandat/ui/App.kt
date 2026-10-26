@@ -219,8 +219,12 @@ private fun Main(db: MandatDb, session: Session) {
     // Trip mode follows its setting and the marks on matters, while Mandat is open
     androidx.compose.runtime.LaunchedEffect(db) {
         kotlinx.coroutines.flow.combine(db.settings().observe(SETTING_TRIP), db.matters().observeSensitiveIds()) { trip, ids ->
-            if (trip?.value == "1") ids.toSet() else emptySet()
-        }.collect { session.hiddenMatters.value = it }
+            val on = trip?.value == "1"
+            on to (if (on) ids.toSet() else emptySet())
+        }.collect { (on, hidden) ->
+            session.tripOn.value = on
+            session.hiddenMatters.value = hidden
+        }
     }
 
     when {

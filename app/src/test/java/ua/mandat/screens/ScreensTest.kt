@@ -94,7 +94,7 @@ class ScreensTest {
     @Test fun today() = shot("01-today") { Today(db, session, onOpen = {}, onToMatter = {}) }
     @Config(qualifiers = "+night")
     @Test fun todayDark() = shot("01-today-dark") { Today(db, session, onOpen = {}, onToMatter = {}) }
-    @Test fun matters() = shot("02-matters") { MattersList(db, onOpen = {}) }
+    @Test fun matters() = shot("02-matters") { MattersList(db, onOpen = {}, session = session) }
     @Test fun people() = shot("03-people") { PeopleList(db, session) }
     @Test fun time() = shot("04-time") { TimeScreen(db, session) }
     @Config(qualifiers = "+night")

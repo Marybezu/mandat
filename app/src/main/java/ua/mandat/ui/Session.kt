@@ -177,13 +177,12 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     /** Matters kept off the screen in trip mode (ids only); worked out before the screens open. */
     val hiddenMatters = kotlinx.coroutines.flow.MutableStateFlow<Set<Long>>(emptySet())
+    /** Trip mode is on (also keeps the phone's calendar events off the screen). */
+    val tripOn = kotlinx.coroutines.flow.MutableStateFlow(false)
 
-    private suspend fun computeHidden(db: MandatDb): Set<Long> =
-        if (db.settings().get(ua.mandat.ui.SETTING_TRIP)?.value == "1") db.matters().sensitiveIds().toSet() else emptySet()
-
-    /** Called when trip mode or a matter's mark changes. */
-    fun refreshHidden() {
-        background.launch { withOpenDb { db -> hiddenMatters.value = computeHidden(db) } }
+    private suspend fun computeHidden(db: MandatDb): Pair<Boolean, Set<Long>> {
+        val on = db.settings().get(ua.mandat.ui.SETTING_TRIP)?.value == "1"
+        return on to (if (on) db.matters().sensitiveIds().toSet() else emptySet())
     }
 
     /** The address book screen is open. */
@@ -509,17 +508,22 @@ class Session(app: Application) : AndroidViewModel(app) {
         }
         state = LockState.Opening
         background.launch {
-            val db = try {
+            val opened = try {
                 MandatDb.open(getApplication(), passphrase)
             } catch (e: Exception) {
                 null
             }
-            // Trip mode is applied before any screen shows data, so nothing hidden flashes up
+            // Trip mode is applied before any screen shows data, so nothing hidden flashes up.
+            // If it cannot be read, Mandat does not open at all rather than show everything.
+            var db2 = opened
             val hidden = try {
-                db?.let { computeHidden(it) } ?: emptySet()
+                opened?.let { computeHidden(it) } ?: (false to emptySet())
             } catch (e: Exception) {
-                emptySet()
+                try { opened?.close() } catch (x: Exception) { }
+                db2 = null
+                false to emptySet()
             }
+            val db = db2
             withContext(Dispatchers.Main) {
                 when {
                     db == null -> {
@@ -537,7 +541,8 @@ class Session(app: Application) : AndroidViewModel(app) {
                         // Kept only while open: the database may open extra connections with it
                         key = passphrase
                         lastError = false
-                        hiddenMatters.value = hidden
+                        tripOn.value = hidden.first
+                        hiddenMatters.value = hidden.second
                         state = LockState.Open(db)
                         // Record the automatic copy made when Mandat last closed
                         background.launch { reconcileAuto(db) }

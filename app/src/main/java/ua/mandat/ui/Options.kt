@@ -654,14 +654,13 @@ private fun PinOnlySwitch() {
 @Composable
 private fun TripSwitch(db: ua.mandat.data.MandatDb, session: Session) {
     val trip by remember(db) { db.settings().observe(SETTING_TRIP) }.collectAsStateWithLifecycle(null)
-    val hidden by session.hiddenMatters.collectAsStateWithLifecycle()
     var explain by remember { mutableStateOf(false) }
     val on = trip?.value == "1"
     fun set(v: Boolean) = session.write { it.settings().put(ua.mandat.data.Setting(SETTING_TRIP, if (v) "1" else "0")) }
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
         Column(Modifier.weight(1f)) {
             Text(stringResource(R.string.trip_mode), style = MaterialTheme.typography.bodyLarge)
-            Text(if (on) stringResource(R.string.trip_on, hidden.size) else stringResource(R.string.trip_hint), style = MaterialTheme.typography.labelMedium, color = Muted)
+            Text(stringResource(if (on) R.string.trip_on else R.string.trip_hint), style = MaterialTheme.typography.labelMedium, color = Muted)
             TextButton(onClick = { explain = true }) { Text(stringResource(R.string.trip_how)) }
         }
         androidx.compose.material3.Switch(checked = on, onCheckedChange = { v -> if (v) explain = true else set(false) })

@@ -78,7 +78,7 @@ data class EditRequest(val matter: Matter, val isNew: Boolean, val fromInboxId: 
  * both tappable to filter, then the matters grouped by attention.
  */
 @Composable
-fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {}, session: Session? = null) {
+fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {}, session: Session) {
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val active by remember(db) { db.matters().observeActive().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val closed by remember(db) { db.matters().observeClosed().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
@@ -92,9 +92,9 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {
     var showClosed by rememberSaveable { mutableStateOf(false) }
     val today = Dates.today()
     // Opened from another screen with a filter (for example a role from the dashboard)
-    androidx.compose.runtime.LaunchedEffect(session?.mattersRequest) {
-        session?.mattersRequest?.let { (m, key) -> mode = m; pick = key; level = null }
-        session?.mattersRequest = null
+    androidx.compose.runtime.LaunchedEffect(session.mattersRequest) {
+        session.mattersRequest?.let { (m, key) -> mode = m; pick = key; level = null }
+        session.mattersRequest = null
     }
 
     val roleNames = roles.associate { it.id to it.name }
@@ -132,7 +132,7 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {
         verticalArrangement = Arrangement.spacedBy(Space.gap),
     ) {
         if (active.isNotEmpty()) {
-            if (session != null) item(key = "district") { DistrictEntry(db, session) }
+            item(key = "district") { DistrictEntry(db, session) }
             item(key = "chart") {
                 MCard {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {

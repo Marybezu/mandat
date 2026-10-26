@@ -147,8 +147,10 @@ fun CalendarScreen(db: MandatDb, session: Session) {
     val titleOf = titles.associate { it.id to it.title }
     val peopleOf = links.groupBy({ it.eventId }, { it.personId })
     val context = LocalContext.current
-    val phone by produceState(emptyList<PhoneEvent>(), from, to) {
-        value = withContext(Dispatchers.IO) { PhoneCalendar.events(context, from, to) }
+    // In trip mode the phone's own events are not shown either: they may copy hidden ones
+    val trip by session.tripOn.collectAsStateWithLifecycle()
+    val phone by produceState(emptyList<PhoneEvent>(), from, to, trip) {
+        value = if (trip) emptyList() else withContext(Dispatchers.IO) { PhoneCalendar.events(context, from, to) }
     }
 
     fun eventsOn(d: Long) = events.filter { it.covers(d) }.sortedWith(compareBy({ it.startMin != null }, { it.startMin }))
