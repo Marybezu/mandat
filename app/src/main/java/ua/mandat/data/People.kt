@@ -1,5 +1,6 @@
 package ua.mandat.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.Insert
@@ -61,10 +62,14 @@ data class Promise(
     val matterId: Long?,
     /** Due date as a calendar day (days since 1970-01-01, no time zone), or null. */
     val due: Long?,
-    /** A key of [TaskStatus]. */
+    /** A key of [TaskStatus]; for promises FAILED is used too. */
     val status: String,
     val createdAt: Long,
     val closedAt: Long?,
+    /** Where it was promised: an interview, a post, a meeting; a link or a date. */
+    @ColumnInfo(defaultValue = "") val source: String = "",
+    /** Why it was dropped or did not work out. */
+    @ColumnInfo(defaultValue = "") val statusNote: String = "",
 )
 
 enum class TeamRole {
@@ -83,9 +88,12 @@ enum class Stance {
     }
 }
 
-/** For both delegations and promises: open, done (kept), or cancelled. */
+/**
+ * Open, done (kept), cancelled (dropped). FAILED ("did not work out") is used only for promises,
+ * because from outside a promise that failed and one that was withdrawn are different things.
+ */
 enum class TaskStatus {
-    OPEN, DONE, CANCELLED;
+    OPEN, DONE, FAILED, CANCELLED;
 
     companion object {
         fun of(key: String) = entries.firstOrNull { it.name == key } ?: OPEN

@@ -150,7 +150,7 @@ fun MatterPicker(active: List<MatterTitle>, all: List<MatterTitle>, current: Lon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DueField(due: Long?, onChange: (Long?) -> Unit) {
+fun DueField(due: Long?, allowClear: Boolean = true, onChange: (Long?) -> Unit) {
     var picking by remember { mutableStateOf(false) }
     Column {
         Text(stringResource(R.string.due), style = MaterialTheme.typography.labelLarge)
@@ -158,7 +158,7 @@ fun DueField(due: Long?, onChange: (Long?) -> Unit) {
             TextButton(onClick = { picking = true }) {
                 Text(due?.let { Dates.format(it) } ?: stringResource(R.string.pick_date))
             }
-            if (due != null) TextButton(onClick = { onChange(null) }) { Text(stringResource(R.string.clear_date)) }
+            if (due != null && allowClear) TextButton(onClick = { onChange(null) }) { Text(stringResource(R.string.clear_date)) }
         }
     }
     if (picking) {
@@ -176,12 +176,12 @@ fun DueField(due: Long?, onChange: (Long?) -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun StatusChips(current: TaskStatus, label: (TaskStatus) -> Int, onPick: (TaskStatus) -> Unit) {
+private fun StatusChips(current: TaskStatus, options: List<TaskStatus>, label: (TaskStatus) -> Int, onPick: (TaskStatus) -> Unit) {
     Text(stringResource(R.string.status), style = MaterialTheme.typography.labelLarge)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        TaskStatus.entries.forEach { s ->
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEach { s ->
             FilterChip(selected = current == s, onClick = { onPick(s) }, label = { Text(stringResource(label(s))) })
         }
     }
@@ -213,7 +213,7 @@ fun DelegationDialog(db: MandatDb, session: Session, draft: DelegationDraft) {
                 MatterPicker(matters, allMatters, draft.matterId) { draft.matterId = it }
                 DueField(draft.due) { draft.due = it }
                 if (!draft.isNew) {
-                    StatusChips(draft.status, { it.delegationLabel() }) { draft.status = it }
+                    StatusChips(draft.status, TASK_STATUSES, { it.delegationLabel() }) { draft.status = it }
                     TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
                 }
             }
@@ -270,10 +270,23 @@ fun PromiseDialog(db: MandatDb, session: Session, draft: PromiseDraft) {
                     FilterChip(selected = draft.isPublic, onClick = { draft.isPublic = true },
                         label = { Text(stringResource(R.string.promise_public)) })
                 }
+                OutlinedTextField(
+                    value = draft.source, onValueChange = { draft.source = it },
+                    label = { Text(stringResource(R.string.promise_source)) },
+                    supportingText = { Text(stringResource(R.string.promise_source_hint)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 MatterPicker(matters, allMatters, draft.matterId) { draft.matterId = it }
                 DueField(draft.due) { draft.due = it }
                 if (!draft.isNew) {
-                    StatusChips(draft.status, { it.promiseLabel() }) { draft.status = it }
+                    StatusChips(draft.status, TaskStatus.entries, { it.promiseLabel() }) { draft.status = it }
+                    if (draft.status == TaskStatus.FAILED || draft.status == TaskStatus.CANCELLED) {
+                        OutlinedTextField(
+                            value = draft.statusNote, onValueChange = { draft.statusNote = it },
+                            label = { Text(stringResource(R.string.promise_status_note)) }, minLines = 2,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                     TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
                 }
             }

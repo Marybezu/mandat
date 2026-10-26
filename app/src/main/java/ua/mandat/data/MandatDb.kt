@@ -146,6 +146,8 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
                 "`matterId` INTEGER, `remindBefore` INTEGER NOT NULL, `status` TEXT NOT NULL, " +
                 "`createdAt` INTEGER NOT NULL, `closedAt` INTEGER)",
         )
+        db.execSQL("ALTER TABLE `promises` ADD COLUMN `source` TEXT NOT NULL DEFAULT ''")
+        db.execSQL("ALTER TABLE `promises` ADD COLUMN `statusNote` TEXT NOT NULL DEFAULT ''")
         db.execSQL(
             "CREATE TABLE IF NOT EXISTS `reviews` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
                 "`day` INTEGER NOT NULL, `progress` TEXT NOT NULL, `createdAt` INTEGER NOT NULL)",

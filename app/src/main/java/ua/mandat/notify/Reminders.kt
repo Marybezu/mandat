@@ -27,6 +27,10 @@ object Reminders {
     private const val KEY_ON = "on"
     private const val KEY_HOUR = "hour"
     private const val KEY_DAYS = "days"
+    private const val KEY_SHOWN = "shown"
+
+    /** Only the next two weeks are kept, so the phone never holds a long calendar of due days. */
+    const val WINDOW_DAYS = 14
     private const val CHANNEL = "reminders"
     private const val NOTIFICATION_ID = 1
     const val DEFAULT_HOUR = 9
@@ -51,11 +55,25 @@ object Reminders {
         schedule(context)
     }
 
-    /** Called when Mandat locks: remembers only on which days something is due. */
+    /** Called when Mandat locks: remembers only on which of the next days something is due. */
     fun storeDays(context: Context, days: List<Long>) {
         if (!isOn(context)) return
-        prefs(context).edit().putString(KEY_DAYS, days.take(400).joinToString(",")).apply()
+        val today = LocalDate.now().toEpochDay()
+        val near = days.filter { it in today until today + WINDOW_DAYS }
+        prefs(context).edit().putString(KEY_DAYS, near.joinToString(",")).apply()
         schedule(context)
+    }
+
+    /** Forgets everything about reminders (used by "Start over"): days, alarm, notification. */
+    fun clear(context: Context) {
+        prefs(context).edit().clear().apply()
+        context.getSystemService(AlarmManager::class.java)?.cancel(alarmIntent(context))
+        NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
+    }
+
+    /** After a restart or time change: show today's reminder if its hour has passed unseen. */
+    fun catchUp(context: Context) {
+        if (LocalDateTime.now().hour >= hour(context)) show(context)
     }
 
     private fun days(context: Context): List<Long> =
@@ -73,7 +91,8 @@ object Reminders {
             .map { LocalDate.ofEpochDay(it).atTime(hour, 0) }
             .firstOrNull { it.isAfter(now) } ?: return
         val at = next.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        alarms.setWindow(AlarmManager.RTC_WAKEUP, at, 20 * 60 * 1000L, pending)
+        // Inexact but allowed while the phone sleeps; needs no exact-alarm permission
+        alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending)
     }
 
     private fun alarmIntent(context: Context): PendingIntent = PendingIntent.getBroadcast(
@@ -85,6 +104,8 @@ object Reminders {
     internal fun show(context: Context) {
         val today = LocalDate.now().toEpochDay()
         if (!isOn(context) || today !in days(context)) return
+        if (prefs(context).getLong(KEY_SHOWN, Long.MIN_VALUE) == today) return
+        prefs(context).edit().putLong(KEY_SHOWN, today).apply()
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL, context.getString(R.string.reminders_channel), NotificationManager.IMPORTANCE_DEFAULT),
@@ -95,14 +116,19 @@ object Reminders {
             PendingIntent.FLAG_IMMUTABLE,
         )
         val text = context.getString(R.string.reminder_text)
+        // On the lock screen only a neutral word, not even that something is due
+        val publicVersion = NotificationCompat.Builder(context, CHANNEL)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(context.getString(R.string.reminders_channel))
+            .build()
         val notification = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.app_name))
             .setContentText(text)
             .setContentIntent(open)
             .setAutoCancel(true)
-            // The same plain text on the lock screen; there are no details to hide anyway
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(publicVersion)
             .build()
         try {
             NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
@@ -117,7 +143,7 @@ object Reminders {
 /** Wakes up for a reminder, and re-arms after a restart, an update or a time change. */
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Reminders.ACTION_REMIND) Reminders.show(context)
+        if (intent.action == Reminders.ACTION_REMIND) Reminders.show(context) else Reminders.catchUp(context)
         Reminders.schedule(context)
     }
 }

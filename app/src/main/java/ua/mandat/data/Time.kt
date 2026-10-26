@@ -97,28 +97,36 @@ interface ReviewDao {
     suspend fun delete(id: Long)
 }
 
-/** Plain text search across everything; small data, so LIKE is enough. */
+/** Everything searchable, one row per item; the matching is done in Kotlin (see [search]). */
+data class SearchRow(val kind: String, val id: Long, val title: String, val detail: String, val haystack: String)
+
 @Dao
 interface SearchDao {
     @Query(
-        "SELECT 'matter' AS kind, id, title, nextStep AS detail FROM matters " +
-            "WHERE title LIKE :q ESCAPE '\\' OR nextStep LIKE :q ESCAPE '\\' OR goal LIKE :q ESCAPE '\\' OR description LIKE :q ESCAPE '\\' " +
-            "UNION ALL SELECT 'person', id, name, organization FROM people " +
-            "WHERE name LIKE :q ESCAPE '\\' OR organization LIKE :q ESCAPE '\\' OR jobTitle LIKE :q ESCAPE '\\' OR notes LIKE :q ESCAPE '\\' OR contact LIKE :q ESCAPE '\\' " +
-            "UNION ALL SELECT 'inbox', id, text, '' FROM inbox WHERE text LIKE :q ESCAPE '\\' " +
-            "UNION ALL SELECT 'delegation', id, what, '' FROM delegations WHERE what LIKE :q ESCAPE '\\' " +
-            "UNION ALL SELECT 'promise', id, what, toWhom FROM promises WHERE what LIKE :q ESCAPE '\\' OR toWhom LIKE :q ESCAPE '\\' " +
-            "UNION ALL SELECT 'deadline', id, title, basis FROM deadlines WHERE title LIKE :q ESCAPE '\\' OR basis LIKE :q ESCAPE '\\' " +
-            "UNION ALL SELECT 'review', id, progress, '' FROM reviews WHERE progress LIKE :q ESCAPE '\\' " +
-            "LIMIT 200",
+        "SELECT 'matter' AS kind, id, title, nextStep AS detail, " +
+            "title || ' ' || nextStep || ' ' || goal || ' ' || description AS haystack FROM matters " +
+            "UNION ALL SELECT 'person', id, name, organization, name || ' ' || organization || ' ' || jobTitle || ' ' || notes || ' ' || contact FROM people " +
+            "UNION ALL SELECT 'inbox', id, text, '', text FROM inbox " +
+            "UNION ALL SELECT 'delegation', id, what, '', what FROM delegations " +
+            "UNION ALL SELECT 'promise', id, what, toWhom, what || ' ' || toWhom FROM promises " +
+            "UNION ALL SELECT 'deadline', id, title, basis, title || ' ' || basis FROM deadlines " +
+            "UNION ALL SELECT 'review', id, progress, '', progress FROM reviews",
     )
-    fun search(q: String): Flow<List<SearchHit>>
+    fun everything(): Flow<List<SearchRow>>
 }
 
-/** Turns typed text into a safe LIKE pattern: %, _ and \ are matched literally. */
-fun likePattern(text: String): String {
-    val escaped = text.trim().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    return "%$escaped%"
+/**
+ * Case-insensitive search that also works for Cyrillic (SQLite LIKE ignores case only for
+ * Latin letters). The data is small, so filtering in memory is fine.
+ */
+fun search(rows: List<SearchRow>, text: String): List<SearchHit> {
+    val q = text.trim().lowercase()
+    if (q.length < 2) return emptyList()
+    return rows.asSequence()
+        .filter { it.haystack.lowercase().contains(q) }
+        .take(200)
+        .map { SearchHit(it.kind, it.id, it.title, it.detail) }
+        .toList()
 }
 
 /** A hard deadline needs its basis; any deadline needs a title. */
@@ -144,7 +152,9 @@ fun reminderDays(deadlines: List<Deadline>, delegations: List<Delegation>, promi
     }
     delegations.filter { TaskStatus.of(it.status) == TaskStatus.OPEN }.mapNotNullTo(days) { it.due }
     promises.filter { TaskStatus.of(it.status) == TaskStatus.OPEN }.mapNotNullTo(days) { it.due }
-    // Something already overdue: remind today too
+    // Something already overdue: remind every day (of the stored window) until it is closed
     val future = days.filter { it >= today }
-    return (if (days.any { it < today }) future + today else future).distinct().sorted()
+    val overdue = days.any { it < today }
+    val daily = if (overdue) (today until today + 14).toList() else emptyList()
+    return (future + daily).distinct().sorted()
 }

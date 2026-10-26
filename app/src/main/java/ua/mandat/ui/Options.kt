@@ -344,7 +344,6 @@ private fun RemindersSection(session: Session) {
     }
 
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        session.pickingFile = false
         if (granted) enable() else denied = true
     }
 
@@ -360,12 +359,11 @@ private fun RemindersSection(session: Session) {
                 androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) !=
                 android.content.pm.PackageManager.PERMISSION_GRANTED
             ) {
-                // The system dialog briefly covers Mandat; do not lock for that
-                session.pickingFile = true
+                // The system dialog only covers Mandat (it does not stop it), so nothing special here
                 try {
                     ask.launch(android.Manifest.permission.POST_NOTIFICATIONS)
                 } catch (e: Exception) {
-                    session.pickingFile = false
+                    denied = true
                 }
             } else {
                 enable()

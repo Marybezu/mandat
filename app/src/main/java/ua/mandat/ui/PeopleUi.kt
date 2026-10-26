@@ -81,14 +81,14 @@ fun PeopleList(db: MandatDb, session: Session) {
             item(key = "team_h") { GroupTitle(stringResource(R.string.team)) }
             items(team, key = { "t${it.id}" }) { p ->
                 val mine = openBy[p.id].orEmpty()
-                PersonCard(p, mine.size, mine.count { isOverdue(it.due, it.status, today) }) { session.personDraft = PersonDraft(p, isNew = false) }
+                PersonCard(p, mine.size) { session.personDraft = PersonDraft(p, isNew = false) }
             }
         }
         if (others.isNotEmpty()) {
             item(key = "others_h") { GroupTitle(stringResource(R.string.others)) }
             items(others, key = { "o${it.id}" }) { p ->
                 val mine = openBy[p.id].orEmpty()
-                PersonCard(p, mine.size, mine.count { isOverdue(it.due, it.status, today) }) { session.personDraft = PersonDraft(p, isNew = false) }
+                PersonCard(p, mine.size) { session.personDraft = PersonDraft(p, isNew = false) }
             }
         }
     }
@@ -102,7 +102,7 @@ private fun GroupTitle(text: String) {
 
 /** Plain facts only: what is open and what is overdue. No scores, no ranking. */
 @Composable
-private fun PersonCard(p: Person, openCount: Int, overdueCount: Int, onOpen: () -> Unit) {
+private fun PersonCard(p: Person, openCount: Int, onOpen: () -> Unit) {
     Card(Modifier.fillMaxWidth().clickable(onClick = onOpen)) {
         Column(Modifier.padding(16.dp)) {
             Text(p.name, style = MaterialTheme.typography.titleMedium)

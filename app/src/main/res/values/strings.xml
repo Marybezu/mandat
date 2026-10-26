@@ -177,9 +177,9 @@
     <string name="d_OPEN">Open</string>
     <string name="d_DONE">Done</string>
     <string name="d_CANCELLED">Cancelled</string>
-    <string name="p_OPEN">Open</string>
+    <string name="p_OPEN">In progress</string>
     <string name="p_DONE">Kept</string>
-    <string name="p_CANCELLED">Cancelled</string>
+    <string name="p_CANCELLED">Dropped</string>
     <string name="person_new">New person</string>
     <string name="person_edit">Person</string>
     <string name="person_name">Name</string>
@@ -220,7 +220,6 @@
     <string name="soon_title">Today and tomorrow</string>
     <string name="overdue_label">overdue</string>
     <string name="open_count">open: %1$d</string>
-    <string name="overdue_count">overdue: %1$d</string>
     <string name="save_matter_first">Save the matter first to add people, delegations and promises.</string>
 
     <string name="deadlines">Deadlines</string>
@@ -255,7 +254,12 @@
     <string name="my_promises">My promises, all time</string>
     <string name="promises_public">Public</string>
     <string name="promises_personal">Personal</string>
-    <string name="promises_summary">Promises: %1$d · kept %2$d · open %3$d · cancelled %4$d</string>
+    <string name="promises_summary">Promises: %1$d · kept %2$d · in progress %3$d · did not work out %4$d · dropped %5$d</string>
     <string name="promises_empty">No promises here yet.</string>
     <string name="promised_on">promised on %1$s</string>
+    <string name="p_FAILED">Did not work out</string>
+    <string name="promise_source">Where promised</string>
+    <string name="promise_source_hint">An interview, a post, a meeting; a link or a date</string>
+    <string name="promise_status_note">Why (briefly)</string>
+    <string name="all_years">All years</string>
 </resources>

@@ -5,9 +5,9 @@
     <string name="classified_notice">Не для відомостей з грифом.</string>
     <string name="unlock">Відкрити</string>
     <string name="unlock_title">Відкрити Мандат</string>
-    <string name="unlock_subtitle">Відбиток пальця або PIN телефона</string>
+    <string name="unlock_subtitle">Відбиток пальця або PIN телефону</string>
     <string name="first_run_title">Вітаємо в Мандаті</string>
-    <string name="first_run_text">Усе, що ви додаєте, залишається на цьому телефоні й завжди зашифроване. Мандат не має доступу до інтернету. Відкривається відбитком пальця або PIN телефона.\n\nВажливо: якщо вимкнути блокування екрана телефона, дані більше не відкриються. Тримайте зашифровану резервну копію (Опції → Резервна копія).</string>
+    <string name="first_run_text">Усе, що ви додаєте, залишається на цьому телефоні й завжди зашифроване. Мандат не має доступу до інтернету. Відкривається відбитком пальця або PIN телефону.\n\nВажливо: якщо вимкнути блокування екрана телефону, дані більше не відкриються. Тримайте зашифровану резервну копію (Опції → Резервна копія).</string>
     <string name="first_run_start">Почати</string>
     <string name="no_screen_lock">Спершу встановіть блокування екрана (PIN або пароль) на телефоні. Мандат використовує його для захисту даних.</string>
     <string name="key_lost">Ключ шифрування більше недоступний (наприклад, вимкнули блокування екрана або частину даних застосунку втрачено). Мандат нічого не видаляє сам. Дані можна відновити із зашифрованої резервної копії.</string>
@@ -56,12 +56,12 @@
     <string name="notice_restore_failed">Не вдалося відновити. Нічого не змінено.</string>
     <string name="ok">Гаразд</string>
     <string name="security_title">Безпека</string>
-    <string name="security_text">Мандат відкривається відбитком пальця або PIN телефона, закривається, коли ви з нього виходите, забороняє знімки екрана і не має доступу до інтернету. Змінювати PIN чи пароль телефона можна, а от повністю вимикати блокування екрана не можна: Android тоді знищує ключ, і дані на цьому телефоні більше не відкриються, навіть якщо блокування потім увімкнути. Тому перед змінами блокування робіть свіжу резервну копію.</string>
+    <string name="security_text">Мандат відкривається відбитком пальця або PIN телефону, закривається, коли ви з нього виходите, забороняє знімки екрана і не має доступу до інтернету. Змінювати PIN чи пароль телефону можна, а от повністю вимикати блокування екрана не можна: Android тоді знищує ключ, і дані на цьому телефоні більше не відкриються, навіть якщо блокування потім увімкнути. Тому перед змінами блокування робіть свіжу резервну копію.</string>
     <string name="about_title">Про застосунок</string>
     <string name="about_text">Версія %1$s. Не для відомостей з грифом. Відкритий код (GPL-3.0). Створено за допомогою ШІ (Claude, Anthropic) під керівництвом і з тестуванням автора.</string>
     <string name="start_over">Почати заново й відновити з копії</string>
     <string name="start_over_title">Почати заново?</string>
-    <string name="start_over_text">Дані на цьому телефоні більше неможливо відкрити. Якщо почати заново, їх буде остаточно видалено з цього телефона. Потім відновіть дані з резервної копії: Опції → Резервна копія → Відновити з копії.</string>
+    <string name="start_over_text">Дані на цьому телефоні більше неможливо відкрити. Якщо почати заново, їх буде остаточно видалено з цього телефону. Потім відновіть дані з резервної копії: Опції → Резервна копія → Відновити з копії.</string>
     <string name="start_over_confirm">Видалити й почати заново</string>
     <string name="restore_save_first">Спершу зберегти поточні</string>
     <string name="suggest_password">Запропонувати пароль</string>
@@ -179,9 +179,9 @@
     <string name="d_OPEN">Відкрите</string>
     <string name="d_DONE">Виконане</string>
     <string name="d_CANCELLED">Скасоване</string>
-    <string name="p_OPEN">Відкрита</string>
+    <string name="p_OPEN">У процесі</string>
     <string name="p_DONE">Дотримана</string>
-    <string name="p_CANCELLED">Скасована</string>
+    <string name="p_CANCELLED">Знята</string>
     <string name="person_new">Нова людина</string>
     <string name="person_edit">Людина</string>
     <string name="person_name">Ім\'я</string>
@@ -222,7 +222,6 @@
     <string name="soon_title">Сьогодні й завтра</string>
     <string name="overdue_label">прострочено</string>
     <string name="open_count">відкрито: %1$d</string>
-    <string name="overdue_count">прострочено: %1$d</string>
     <string name="save_matter_first">Збережіть справу, щоб додавати людей, доручення й обіцянки.</string>
 
     <string name="deadlines">Строки</string>
@@ -233,8 +232,8 @@
     <string name="deadline_basis">Підстава</string>
     <string name="deadline_basis_hint">Стаття закону, рішення суду чи документ, що встановлює цю дату. Для жорсткого строку обов\'язково.</string>
     <string name="remind_before">Нагадати</string>
-    <string name="remind_same_day">У сам день</string>
-    <string name="remind_days_before">За %1$d дн. і в сам день</string>
+    <string name="remind_same_day">У день строку</string>
+    <string name="remind_days_before">За %1$d дн. і в день строку</string>
     <string name="time_today">Сьогодні</string>
     <string name="time_week">Найближчі 7 днів</string>
     <string name="time_later">Пізніше</string>
@@ -251,13 +250,18 @@
     <string name="reminders_text">Раз на день, в обрану годину, у дні, коли щось має бути зроблено. У нагадуванні немає жодних подробиць: Мандат пам\'ятає лише, у які дні щось припадає, але ніколи не що саме.</string>
     <string name="reminders_switch">Нагадувати</string>
     <string name="reminders_hour">О годині</string>
-    <string name="reminders_denied">Сповіщення для Мандата заборонені. Їх можна дозволити в налаштуваннях телефона.</string>
+    <string name="reminders_denied">Сповіщення для Мандата заборонені. Їх можна дозволити в налаштуваннях телефону.</string>
     <string name="reminders_channel">Нагадування</string>
-    <string name="reminder_text">Сьогодні є строки. Відкрийте Мандат, щоб побачити.</string>
+    <string name="reminder_text">Сьогодні щось має бути зроблено. Відкрийте Мандат, щоб побачити.</string>
     <string name="my_promises">Мої обіцянки за весь час</string>
     <string name="promises_public">Публічні</string>
     <string name="promises_personal">Особисті</string>
-    <string name="promises_summary">Обіцянок: %1$d · дотримано %2$d · відкрито %3$d · скасовано %4$d</string>
+    <string name="promises_summary">Обіцянок: %1$d · дотримано %2$d · у процесі %3$d · не вдалося %4$d · знято %5$d</string>
     <string name="promises_empty">Тут поки немає обіцянок.</string>
     <string name="promised_on">обіцяно %1$s</string>
+    <string name="p_FAILED">Не вдалося</string>
+    <string name="promise_source">Де пообіцяно</string>
+    <string name="promise_source_hint">Інтерв\'ю, допис, зустріч; посилання чи дата</string>
+    <string name="promise_status_note">Чому (коротко)</string>
+    <string name="all_years">Усі роки</string>
 </resources>

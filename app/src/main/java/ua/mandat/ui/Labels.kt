@@ -82,11 +82,15 @@ fun ua.mandat.data.Stance.label(): Int = when (this) {
 fun ua.mandat.data.TaskStatus.delegationLabel(): Int = when (this) {
     ua.mandat.data.TaskStatus.OPEN -> R.string.d_OPEN
     ua.mandat.data.TaskStatus.DONE -> R.string.d_DONE
-    ua.mandat.data.TaskStatus.CANCELLED -> R.string.d_CANCELLED
+    ua.mandat.data.TaskStatus.FAILED, ua.mandat.data.TaskStatus.CANCELLED -> R.string.d_CANCELLED
 }
 
 fun ua.mandat.data.TaskStatus.promiseLabel(): Int = when (this) {
     ua.mandat.data.TaskStatus.OPEN -> R.string.p_OPEN
     ua.mandat.data.TaskStatus.DONE -> R.string.p_DONE
+    ua.mandat.data.TaskStatus.FAILED -> R.string.p_FAILED
     ua.mandat.data.TaskStatus.CANCELLED -> R.string.p_CANCELLED
 }
+
+/** Statuses offered for delegations and deadlines (no "did not work out"). */
+val TASK_STATUSES = listOf(ua.mandat.data.TaskStatus.OPEN, ua.mandat.data.TaskStatus.DONE, ua.mandat.data.TaskStatus.CANCELLED)

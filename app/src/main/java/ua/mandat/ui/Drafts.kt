@@ -102,6 +102,8 @@ class PromiseDraft(val promise: ua.mandat.data.Promise, val isNew: Boolean) {
     var matterId by mutableStateOf(promise.matterId)
     var due by mutableStateOf(promise.due)
     var status by mutableStateOf(ua.mandat.data.TaskStatus.of(promise.status))
+    var source by mutableStateOf(promise.source)
+    var statusNote by mutableStateOf(promise.statusNote)
 
     suspend fun persist(db: MandatDb) {
         val text = what.trim().take(2_000)
@@ -111,6 +113,8 @@ class PromiseDraft(val promise: ua.mandat.data.Promise, val isNew: Boolean) {
         val edited = promise.copy(
             what = text, personId = personId, toWhom = if (personId != null) "" else toWhom.trim().take(300), isPublic = isPublic,
             matterId = matterId, due = due, status = status.name, closedAt = closed,
+            source = source.trim().take(1_000),
+            statusNote = if (status == ua.mandat.data.TaskStatus.OPEN || status == ua.mandat.data.TaskStatus.DONE) "" else statusNote.trim().take(2_000),
         )
         if (isNew) db.promises().insert(edited.copy(id = 0, createdAt = now)) else db.promises().update(edited)
     }
@@ -157,7 +161,9 @@ class DeadlineDraft(val deadline: ua.mandat.data.Deadline, val isNew: Boolean) {
         val closed = if (status == ua.mandat.data.TaskStatus.OPEN) null else (deadline.closedAt ?: now)
         val edited = ua.mandat.data.cleanDeadline(
             deadline.copy(
-                title = title, day = day, kind = kind.name, basis = basis, matterId = matterId,
+                title = title, day = day, kind = kind.name,
+                // A soft deadline keeps no hidden basis
+                basis = if (kind == ua.mandat.data.DeadlineKind.HARD) basis else "", matterId = matterId,
                 remindBefore = remindBefore, status = status.name, closedAt = closed,
             ),
         ) ?: return

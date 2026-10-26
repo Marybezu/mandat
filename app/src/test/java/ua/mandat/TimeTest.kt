@@ -9,7 +9,8 @@ import ua.mandat.data.DeadlineKind
 import ua.mandat.data.Delegation
 import ua.mandat.data.TaskStatus
 import ua.mandat.data.cleanDeadline
-import ua.mandat.data.likePattern
+import ua.mandat.data.SearchRow
+import ua.mandat.data.search
 import ua.mandat.data.reminderDays
 
 class TimeTest {
@@ -33,11 +34,15 @@ class TimeTest {
         assertEquals(listOf(17L, 20L, 22L), days)
     }
 
-    @Test fun overdueMakesTodayAReminderDay() {
-        assertEquals(listOf(10L), reminderDays(listOf(deadline(5)), emptyList(), emptyList(), today = 10))
+    @Test fun overdueRemindsEveryDayOfTheWindow() {
+        assertEquals((10L..23L).toList(), reminderDays(listOf(deadline(5)), emptyList(), emptyList(), today = 10))
     }
 
-    @Test fun searchPatternEscapesSpecialCharacters() {
-        assertEquals("%50\\%\\_a\\\\b%", likePattern(" 50%_a\\b "))
+    @Test fun searchIgnoresCaseAlsoForCyrillic() {
+        val rows = listOf(SearchRow("person", 1, "Вигадана Особа", "", "Вигадана Особа Установа"))
+        assertEquals(1, search(rows, "вигадана").size)
+        assertEquals(1, search(rows, "УСТАНОВА").size)
+        assertEquals(0, search(rows, "інше").size)
+        assertEquals(0, search(rows, "в").size)
     }
 }

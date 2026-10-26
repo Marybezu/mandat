@@ -2,6 +2,7 @@ package ua.mandat.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -49,7 +50,6 @@ import ua.mandat.data.InboxItem
 import ua.mandat.data.MandatDb
 import ua.mandat.data.TaskStatus
 import ua.mandat.data.cleanInboxText
-import ua.mandat.data.likePattern
 
 @Composable
 fun DeadlineRow(d: Deadline, matterTitle: String?, session: Session) {
@@ -104,7 +104,7 @@ fun DeadlineDialog(db: MandatDb, session: Session, draft: DeadlineDraft) {
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                DueField(draft.day) { draft.day = it ?: Dates.today() }
+                DueField(draft.day, allowClear = false) { if (it != null) draft.day = it }
                 Picker(
                     label = stringResource(R.string.remind_before),
                     current = remindLabel(draft.remindBefore),
@@ -115,7 +115,7 @@ fun DeadlineDialog(db: MandatDb, session: Session, draft: DeadlineDraft) {
                 if (!draft.isNew) {
                     Text(stringResource(R.string.status), style = MaterialTheme.typography.labelLarge)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TaskStatus.entries.forEach { s ->
+                        TASK_STATUSES.forEach { s ->
                             FilterChip(selected = draft.status == s, onClick = { draft.status = s },
                                 label = { Text(stringResource(s.delegationLabel())) })
                         }
@@ -259,8 +259,9 @@ fun SearchScreen(db: MandatDb, session: Session) {
     BackHandler { session.searching = false }
     var query by remember { mutableStateOf("") }
     val trimmed = query.trim()
-    val flow = remember(db, trimmed) { db.search().search(likePattern(trimmed)) }
-    val hits by flow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val flow = remember(db) { db.search().everything() }
+    val rows by flow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val hits = remember(rows, trimmed) { ua.mandat.data.search(rows, trimmed) }
 
     Scaffold(
         topBar = {
@@ -337,8 +338,18 @@ fun PromisesScreen(db: MandatDb, session: Session) {
     val titleOf = titles.associate { it.id to it.title }
     // true = public only, false = personal only, null = all
     var publicOnly by remember { mutableStateOf<Boolean?>(true) }
+    var year by remember { mutableStateOf<Int?>(null) }
+    var query by remember { mutableStateOf("") }
 
-    val shown = all.filter { publicOnly == null || it.isPublic == publicOnly }
+    fun yearOf(p: ua.mandat.data.Promise) = java.time.LocalDate.ofEpochDay(Dates.dayOf(p.createdAt)).year
+    val years = all.map(::yearOf).distinct().sortedDescending()
+    val q = query.trim().lowercase()
+    val shown = all.filter { p ->
+        (publicOnly == null || p.isPublic == publicOnly) &&
+            (year == null || yearOf(p) == year) &&
+            (q.length < 2 || listOf(p.what, p.toWhom, p.source, p.personId?.let(nameOf::get).orEmpty())
+                .any { it.lowercase().contains(q) })
+    }
     val byStatus = TaskStatus.entries.associateWith { s -> shown.filter { TaskStatus.of(it.status) == s } }
 
     Scaffold(
@@ -364,12 +375,26 @@ fun PromisesScreen(db: MandatDb, session: Session) {
                         label = { Text(stringResource(R.string.matters_all_roles)) })
                 }
             }
+            if (years.size > 1) item(key = "years") {
+                Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = year == null, onClick = { year = null }, label = { Text(stringResource(R.string.all_years)) })
+                    years.forEach { y -> FilterChip(selected = year == y, onClick = { year = y }, label = { Text(y.toString()) }) }
+                }
+            }
+            item(key = "query") {
+                OutlinedTextField(
+                    value = query, onValueChange = { query = it }, singleLine = true,
+                    label = { Text(stringResource(R.string.search)) },
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                )
+            }
             item(key = "summary") {
                 Text(
                     stringResource(
                         R.string.promises_summary, shown.size,
                         byStatus.getValue(TaskStatus.DONE).size,
                         byStatus.getValue(TaskStatus.OPEN).size,
+                        byStatus.getValue(TaskStatus.FAILED).size,
                         byStatus.getValue(TaskStatus.CANCELLED).size,
                     ),
                     style = MaterialTheme.typography.bodyLarge,
@@ -377,7 +402,7 @@ fun PromisesScreen(db: MandatDb, session: Session) {
                 )
             }
             if (shown.isEmpty()) item(key = "empty") { Text(stringResource(R.string.promises_empty), color = MaterialTheme.colorScheme.secondary) }
-            listOf(TaskStatus.OPEN, TaskStatus.DONE, TaskStatus.CANCELLED).forEach { status ->
+            listOf(TaskStatus.OPEN, TaskStatus.DONE, TaskStatus.FAILED, TaskStatus.CANCELLED).forEach { status ->
                 val list = byStatus.getValue(status)
                 if (list.isNotEmpty()) {
                     item(key = "h$status") {
@@ -387,7 +412,9 @@ fun PromisesScreen(db: MandatDb, session: Session) {
                     items(list, key = { "p${it.id}" }) { p ->
                         Column {
                             PromiseRow(p, p.personId?.let(nameOf::get), p.matterId?.let(titleOf::get), session)
-                            Text(stringResource(R.string.promised_on, Dates.format(Dates.dayOf(p.createdAt))),
+                            val origin = listOf(stringResource(R.string.promised_on, Dates.format(Dates.dayOf(p.createdAt))), p.source, p.statusNote)
+                                .filter { it.isNotBlank() }.joinToString(" · ")
+                            Text(origin,
                                 style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary,
                                 modifier = Modifier.padding(start = 48.dp, bottom = 4.dp))
                         }

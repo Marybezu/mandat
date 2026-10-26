@@ -106,6 +106,8 @@ class MainActivity : AppCompatActivity() {
     private fun startOver() {
         vault.reset()
         MandatDb.deleteFiles(this)
+        // Nothing about the deleted data may stay behind, not even the days of reminders
+        ua.mandat.notify.Reminders.clear(this)
         session.autoPrompt = false
         refreshState()
     }
