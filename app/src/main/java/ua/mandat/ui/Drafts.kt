@@ -263,6 +263,10 @@ fun newEvent(day: Long = Dates.today(), matterId: Long? = null, personId: Long? 
 /** An address-book entry being edited; saved like the other drafts if Mandat locks meanwhile. */
 class ContactDraft(val contact: ua.mandat.data.Contact) {
     val isNew get() = contact.id == 0L
+
+    /** Something was typed; a new entry that was only looked at is not saved on lock. */
+    val touched get() = name != contact.name || phones != contact.phones || emails != contact.emails ||
+        organization != contact.organization || jobTitle != contact.jobTitle || label != contact.label || notes != contact.notes
     var name by mutableStateOf(contact.name)
     var phones by mutableStateOf(contact.phones)
     var emails by mutableStateOf(contact.emails)

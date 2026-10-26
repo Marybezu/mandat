@@ -17,7 +17,8 @@ object VCard {
 
     class Result(val contacts: List<Contact>, val tooMany: Boolean)
 
-    fun read(reader: BufferedReader, now: Long = System.currentTimeMillis()): Result {
+    /** [stop] is checked as it goes: reading ends early when Mandat locks meanwhile. */
+    fun read(reader: BufferedReader, now: Long = System.currentTimeMillis(), stop: () -> Boolean = { false }): Result {
         val out = ArrayList<Contact>()
         var card: Card? = null
         var tooMany = false
@@ -42,7 +43,7 @@ object VCard {
         val current = StringBuilder()
         var skipping = false
         var qpOpen = false
-        while (!tooMany) {
+        while (!tooMany && !stop()) {
             val raw = readBounded(reader) ?: break
             if (qpOpen) {
                 if (!skipping && current.length < MAX_VALUE) {

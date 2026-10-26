@@ -145,7 +145,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                         override fun read(b: ByteArray, off: Int, len: Int): Int =
                             super.read(b, off, len).also { if (it > 0) { count += it; if (count > MAX_VCF_BYTES) throw java.io.IOException() } }
                     }
-                    ua.mandat.data.VCard.read(limited.bufferedReader(Charsets.UTF_8))
+                    ua.mandat.data.VCard.read(limited.bufferedReader(Charsets.UTF_8), stop = { startedAt != generation })
                 } ?: R.string.vcf_failed
             } catch (e: Exception) {
                 R.string.vcf_failed
@@ -156,8 +156,8 @@ class Session(app: Application) : AndroidViewModel(app) {
                 withOpenDb { db -> ua.mandat.data.planImport(r.contacts, db.contacts().all(), db.people().all()) }?.let { it to r }
             }
             withContext(Dispatchers.Main) {
-                vcfBusy = false
                 if (startedAt != generation || state !is LockState.Open) return@withContext
+                vcfBusy = false
                 when {
                     result is Int -> vcfError = result
                     plan == null -> vcfError = R.string.vcf_failed
@@ -544,7 +544,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                             { openPromise?.persist(current.db) },
                             { openDeadline?.persist(current.db) },
                             { openEvent?.persist(current.db) },
-                            { openContact?.persist(current.db) },
+                            { openContact?.takeIf { !it.isNew || it.touched }?.persist(current.db) },
                             { persistReview(current.db, openReview) },
                             // Last: only the days on which something is due, for reminders
                             { storeReminderDays(current.db) },
