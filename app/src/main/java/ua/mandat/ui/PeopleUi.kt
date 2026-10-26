@@ -2,6 +2,7 @@ package ua.mandat.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.material3.FilterChip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -51,79 +52,150 @@ import ua.mandat.data.TaskStatus
 import ua.mandat.data.TeamRole
 import ua.mandat.data.isOverdue
 
+/**
+ * People: a ring of who the owner works with (by category or by team role), bars of how
+ * delegations move and where people stand on matters, then the list in two cards.
+ * Plain facts only; nobody is scored or ranked.
+ */
 @Composable
 fun PeopleList(db: MandatDb, session: Session) {
-    val peopleFlow = remember(db) { db.people().observeAll() }
-    val delegationsFlow = remember(db) { db.delegations().observeOpen() }
-    val people by peopleFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val open by delegationsFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    // The search text is not sensitive enough to matter, but stays out of saved state anyway
+    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db) { db.delegations().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val links by remember(db) { db.people().observeLinks() }.collectAsStateWithLifecycle(emptyList())
     var query by remember { mutableStateOf("") }
-    val shown = people.filter {
-        query.isBlank() || listOf(it.name, it.organization, it.jobTitle).any { f -> f.contains(query.trim(), ignoreCase = true) }
-    }
-    val team = shown.filter { it.teamRole != null }
-    val others = shown.filter { it.teamRole == null }
-    val openBy = open.groupBy { it.personId }
+    var byTeam by rememberSaveable { mutableStateOf(false) }
+    var pick by rememberSaveable { mutableStateOf<String?>(null) }
+    var stance by rememberSaveable { mutableStateOf<String?>(null) }
+    val today = Dates.today()
 
     if (people.isEmpty()) {
         Column(Modifier.padding(Space.screen)) { EmptyHint(Sym.group, stringResource(R.string.people_empty)) }
         return
     }
-    val allDelegations by remember(db) { db.delegations().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val monthAgo = Dates.today() - 30
-    val doneMonth = allDelegations.count {
-        ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.DONE && it.closedAt != null && Dates.dayOf(it.closedAt) > monthAgo
+
+    fun categoryKey(p: Person) = if (p.teamRole != null) "TEAM" else (p.category ?: "NONE")
+    val notSet = stringResource(R.string.not_set)
+    val teamLabel = stringResource(R.string.team)
+    val categorySlices = buildList {
+        add(Slice("TEAM", teamLabel, people.count { it.teamRole != null }, ChartColors.blue))
+        ua.mandat.data.PersonCategory.entries.forEachIndexed { i, c ->
+            add(Slice(c.name, stringResource(c.label()), people.count { it.teamRole == null && it.category == c.name }, SeriesColors[(i + 1) % SeriesColors.size]))
+        }
+        add(Slice("NONE", notSet, people.count { it.teamRole == null && it.category == null }, ChartColors.grayLight))
+    }.sortedByDescending { it.value }
+    val team = people.filter { it.teamRole != null }
+    val teamSlices = TeamRole.entries.mapIndexed { i, r ->
+        Slice(r.name, stringResource(r.label()), team.count { it.teamRole == r.name }, SeriesColors[i % SeriesColors.size])
+    }.sortedByDescending { it.value }
+
+    val stanceOf = links.groupBy { it.personId }.mapValues { (_, l) -> l.mapNotNull { it.stance }.toSet() }
+    val shown = people.filter { p ->
+        (query.isBlank() || listOf(p.name, p.organization, p.jobTitle).any { f -> f.contains(query.trim(), ignoreCase = true) }) &&
+            (pick == null || (if (byTeam) p.teamRole == pick else categoryKey(p) == pick)) &&
+            (stance == null || stanceOf[p.id]?.contains(stance) == true)
     }
-    val overdue = open.count { ua.mandat.data.isOverdue(it.due, it.status, Dates.today()) }
+    val openBy = delegations.filter { ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.OPEN }.groupBy { it.personId }
+
+    val openD = delegations.filter { ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.OPEN }
+    val overdue = openD.count { ua.mandat.data.isOverdue(it.due, it.status, today) }
+    val done30 = delegations.count {
+        ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.DONE && it.closedAt != null && Dates.dayOf(it.closedAt) > today - 30
+    }
+
     LazyColumn(
-        contentPadding = PaddingValues(start = Space.screen, end = Space.screen, bottom = 96.dp),
+        contentPadding = PaddingValues(start = Space.screen, end = Space.screen, top = 8.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(Space.gap),
     ) {
-        item(key = "strip") {
-            SummaryStrip(
-                "people",
-                listOfNotNull(
-                    StripItem(people.count { it.teamRole != null }.toString(), stringResource(R.string.strip_team)),
-                    StripItem(open.size.toString(), stringResource(R.string.strip_delegations_open)),
-                    if (overdue > 0) StripItem(overdue.toString(), stringResource(R.string.stat_overdue), attention = true) else null,
-                    StripItem(doneMonth.toString(), stringResource(R.string.strip_done_30)),
-                ),
-                Modifier.padding(top = 8.dp),
-            )
+        item(key = "chart") {
+            MCard {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
+                    FilterChip(selected = !byTeam, onClick = { byTeam = false; pick = null }, label = { Text(stringResource(R.string.person_category)) })
+                    FilterChip(selected = byTeam, onClick = { byTeam = true; pick = null }, label = { Text(teamLabel) })
+                }
+                DonutChart(
+                    slices = if (byTeam) teamSlices else categorySlices,
+                    center = (if (byTeam) team.size else people.size).toString(),
+                    centerLabel = stringResource(R.string.people_count),
+                    selected = pick, onPick = { pick = it },
+                )
+            }
+        }
+        if (openD.isNotEmpty() || done30 > 0) {
+            item(key = "delegations") {
+                SectionCard(Sym.checkCircle, stringResource(R.string.delegations)) {
+                    Spacer(Modifier.height(4.dp))
+                    StackBar(
+                        listOf(
+                            Slice("ontime", stringResource(R.string.on_time), openD.size - overdue, ChartColors.blue),
+                            Slice("overdue", stringResource(R.string.stat_overdue), overdue, MaterialTheme.colorScheme.error),
+                            Slice("done", stringResource(R.string.strip_done_30), done30, ChartColors.blueLight),
+                        ),
+                    )
+                }
+            }
+        }
+        if (links.any { it.stance != null }) {
+            item(key = "stances") {
+                SectionCard(Sym.group, stringResource(R.string.stances_title)) {
+                    Spacer(Modifier.height(4.dp))
+                    StackBar(
+                        listOf(
+                            Slice("ALLY", stringResource(R.string.strip_allies), links.count { it.stance == "ALLY" }, ChartColors.teal),
+                            Slice("UNDECIDED", stringResource(R.string.strip_undecided), links.count { it.stance == "UNDECIDED" }, ChartColors.amberLight),
+                            Slice("OPPONENT", stringResource(R.string.strip_opponents), links.count { it.stance == "OPPONENT" }, ChartColors.salmon),
+                            Slice("NEUTRAL", stringResource(R.string.stance_neutral_many), links.count { it.stance == "NEUTRAL" }, ChartColors.grayLight),
+                        ),
+                        selected = stance, onPick = { stance = it },
+                    )
+                }
+            }
         }
         item(key = "search") {
             OutlinedTextField(
                 value = query, onValueChange = { query = it }, singleLine = true,
                 label = { Text(stringResource(R.string.search)) },
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
             )
         }
-        if (team.isNotEmpty()) {
-            item(key = "team_h") { GroupTitle(stringResource(R.string.team)) }
-            items(team, key = { "t${it.id}" }) { p ->
-                val mine = openBy[p.id].orEmpty()
-                PersonCard(p, mine.size) { session.personDraft = PersonDraft(p, isNew = false) }
+        if (pick != null || stance != null) {
+            item(key = "filters") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    pick?.let { k ->
+                        val slices = if (byTeam) teamSlices else categorySlices
+                        FilterBadge(slices.firstOrNull { it.key == k }?.label ?: k) { pick = null }
+                    }
+                    stance?.let { st ->
+                        val label = when (st) {
+                            "ALLY" -> R.string.strip_allies
+                            "UNDECIDED" -> R.string.strip_undecided
+                            "OPPONENT" -> R.string.strip_opponents
+                            else -> R.string.stance_neutral_many
+                        }
+                        FilterBadge(stringResource(label)) { stance = null }
+                    }
+                }
             }
         }
-        if (others.isNotEmpty()) {
-            item(key = "others_h") { GroupTitle(stringResource(R.string.others)) }
-            items(others, key = { "o${it.id}" }) { p ->
-                val mine = openBy[p.id].orEmpty()
-                PersonCard(p, mine.size) { session.personDraft = PersonDraft(p, isNew = false) }
+        listOf(
+            stringResource(R.string.team) to shown.filter { it.teamRole != null },
+            stringResource(R.string.others) to shown.filter { it.teamRole == null },
+        ).forEach { (title, list) ->
+            if (list.isNotEmpty()) item(key = "group_$title") {
+                SectionCard(Sym.group, title, count = list.size) {
+                    list.forEachIndexed { i, p ->
+                        if (i > 0) RowDivider()
+                        PersonLine(p, openBy[p.id]?.size ?: 0) { session.personDraft = PersonDraft(p, isNew = false) }
+                    }
+                }
             }
         }
     }
 }
 
-@Composable
-private fun GroupTitle(text: String) {
-    SectionHeader(Sym.group, text)
-}
-
 /** Plain facts only: who it is and how much is open. No scores, no ranking. */
 @Composable
-private fun PersonCard(p: Person, openCount: Int, onOpen: () -> Unit) {
-    MCard(Modifier.padding(bottom = Space.gap), onClick = onOpen) {
+private fun PersonLine(p: Person, openCount: Int, onOpen: () -> Unit) {
+    Column(Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Initials(p.name, team = p.teamRole != null)
             Spacer(Modifier.width(12.dp))

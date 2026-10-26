@@ -1,6 +1,5 @@
 package ua.mandat.data
 
-import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -17,7 +16,7 @@ data class Span(val from: Long, val to: Long) {
 const val SETTING_CADENCE_START = "cadence_start"
 
 /**
- * The days a period covers. Week, month and year are calendar ones; [back] steps to earlier ones
+ * The days a period covers. Week is the last seven days, month and year are calendar ones; [back] steps to earlier ones
  * (1 = the previous week, month or year). Cadence runs from its start day, everything from the
  * earliest record; both end today.
  */
@@ -25,10 +24,8 @@ fun spanOf(period: Period, today: Long, back: Int = 0, cadenceStart: Long? = nul
     val d = LocalDate.ofEpochDay(today)
     val b = back.coerceAtLeast(0).toLong()
     return when (period) {
-        Period.WEEK -> {
-            val start = d.with(DayOfWeek.MONDAY).minusWeeks(b)
-            Span(start.toEpochDay(), start.plusDays(6).toEpochDay())
-        }
+        // The last seven days (so a Monday is never empty); [back] steps a week earlier
+        Period.WEEK -> Span(today - 6 - 7 * b, today - 7 * b)
         Period.MONTH -> {
             val start = d.withDayOfMonth(1).minusMonths(b)
             Span(start.toEpochDay(), start.plusMonths(1).minusDays(1).toEpochDay())
@@ -68,12 +65,16 @@ data class Overview(
     /** Promises made in the period, by their state now. */
     val publicPromises: Tally,
     val personalPromises: Tally,
+    /** All public promises ever made, by their state now: always shown as the background. */
+    val publicAll: Tally,
+    /** Promises (public and personal) kept in the period, by the day they were closed. */
+    val keptInSpan: Int,
     val roles: List<RoleMove>,
     /** Only for cadence and everything: one row per year. */
     val years: List<YearRow>,
 ) {
     val isEmpty get() = moved == 0 && evenings == 0 && deadlinesDue == 0 && delegationsGiven == 0 &&
-        delegationsDone == 0 && publicPromises.total == 0 && personalPromises.total == 0
+        delegationsDone == 0 && publicPromises.total == 0 && personalPromises.total == 0 && keptInSpan == 0
 }
 
 /** The first day anything was recorded, or null when there is nothing yet. */
@@ -149,6 +150,8 @@ fun overview(
         },
         publicPromises = tally(made.filter { it.isPublic }),
         personalPromises = tally(made.filter { !it.isPublic }),
+        publicAll = tally(promises.filter { it.isPublic }),
+        keptInSpan = promises.count { TaskStatus.of(it.status) == TaskStatus.DONE && it.closedAt != null && day(it.closedAt) in span },
         roles = roleMoves,
         years = years,
     )

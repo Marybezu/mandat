@@ -313,7 +313,7 @@
     <string name="dash_deadlines_title">Строки й доручення</string>
     <string name="dash_on_time">Строків виконано вчасно: %1$d з %2$d</string>
     <string name="dash_delegations">Доручень дано: %1$d · виконано: %2$d</string>
-    <string name="dash_promises_title">Обіцянки, дані за цей період</string>
+    <string name="dash_promises_title">Обіцянки</string>
     <string name="dash_tally">дотримано %1$d · у процесі %2$d · не вдалося %3$d · знято %4$d</string>
     <string name="dash_years_title">По роках</string>
     <string name="dash_year_line">справ %1$d · обіцянок %2$d, дотримано %3$d · строків виконано %4$d</string>
@@ -339,4 +339,25 @@
     <string name="screenshots_confirm_title">Дозволити знімки екрана?</string>
     <string name="screenshots_confirm_text">Знімки й записи екрана зберігаються в галереї незашифрованими й можуть потрапити в хмарну копію чи інші застосунки. Коли закінчите, вимкніть знову. Мандат і далі блокується як звичайно.</string>
     <string name="screenshots_confirm_yes">Дозволити</string>
+    <string name="show_less">Згорнути</string>
+    <string name="show_more">Ще %1$d</string>
+    <string name="soon_empty">На сьогодні й завтра нічого немає.</string>
+    <string name="by_type">За типом</string>
+    <string name="by_role">За роллю</string>
+    <string name="attention_title">Увага</string>
+    <string name="people_count">людей</string>
+    <string name="on_time">у строк</string>
+    <string name="stances_title">Позиції у справах</string>
+    <string name="stance_neutral_many">нейтральні</string>
+    <string name="next_14_days">Наступні 14 днів</string>
+    <string name="hard_day_hint">Темніший стовпчик: того дня жорсткий строк. Торкніться дня, щоб побачити його.</string>
+    <string name="ahead_title">Що попереду</string>
+    <string name="on_time_month_title">Строки цього місяця, виконані вчасно</string>
+    <string name="not_on_time">не вчасно: %1$d</string>
+    <string name="dash_promises_period">За цей період: дано %1$d · дотримано %2$d</string>
+    <string name="dash_public_all">Усі публічні обіцянки</string>
+    <string name="tally_kept">дотримано</string>
+    <string name="tally_open">у процесі</string>
+    <string name="tally_failed">не вдалося</string>
+    <string name="tally_dropped">знято</string>
 </resources>

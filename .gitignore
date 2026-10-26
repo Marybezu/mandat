@@ -9,3 +9,5 @@ build/
 captures/
 .kotlin/
 /signing/*.jks
+__pycache__/
+*.pyc

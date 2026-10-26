@@ -163,6 +163,10 @@ interface PersonDao {
     )
     fun observeMattersOf(personId: Long): Flow<List<PersonMatterRow>>
 
+    /** All links between people and matters, for the overview of stances. */
+    @Query("SELECT * FROM matter_people")
+    fun observeLinks(): Flow<List<MatterPerson>>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun link(link: MatterPerson)
 

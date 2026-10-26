@@ -124,7 +124,7 @@ fun Dashboard(db: MandatDb, session: Session) {
                 }
                 if (o.roles.any { it.moved > 0 }) add { RolesBlock(o, roles.associate { it.id to it.name }, hintIdle = !long) }
                 if (o.deadlinesDue + o.delegationsGiven + o.delegationsDone > 0) add { DeadlinesBlock(o) }
-                if (o.publicPromises.total + o.personalPromises.total > 0) add { PromisesBlock(o) }
+                if (o.publicAll.total + o.personalPromises.total + o.keptInSpan > 0) add { PromisesBlock(o) }
             }
             BoxWithConstraints {
                 if (maxWidth >= 600.dp) {
@@ -181,16 +181,11 @@ private fun spanText(period: Period, span: Span, cadenceStart: Long?): String {
 
 /** A titled block of the dashboard. */
 @Composable
-private fun Block(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, content: @Composable () -> Unit) {
-    MCard {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
-            Icon(icon, contentDescription = null, tint = Muted, modifier = Modifier.width(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(title, style = MaterialTheme.typography.labelLarge, color = Muted)
-        }
+private fun Block(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, content: @Composable () -> Unit) =
+    SectionCard(icon, title) {
+        Spacer(Modifier.height(6.dp))
         content()
     }
-}
 
 @Composable
 private fun MovedBlock(o: Overview) = Block(Sym.checkCircle, stringResource(R.string.dash_moved_title)) {
@@ -249,15 +244,19 @@ private fun DeadlinesBlock(o: Overview) = Block(Sym.schedule, stringResource(R.s
 @Composable
 private fun PromisesBlock(o: Overview) = Block(Sym.checkCircle, stringResource(R.string.dash_promises_title)) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        if (o.publicPromises.total > 0) {
-            Text(stringResource(R.string.promise_public), style = MaterialTheme.typography.labelMedium, color = Muted)
-            TallyBar(o.publicPromises)
-            TallyLegend(o.publicPromises)
-        }
-        if (o.personalPromises.total > 0) {
-            Spacer(Modifier.height(4.dp))
-            Text(stringResource(R.string.promise_personal), style = MaterialTheme.typography.labelMedium, color = Muted)
-            TallyLegend(o.personalPromises)
+        val made = o.publicPromises.total + o.personalPromises.total
+        Text(stringResource(R.string.dash_promises_period, made, o.keptInSpan), style = MaterialTheme.typography.bodyMedium)
+        if (o.publicAll.total > 0) {
+            Text(stringResource(R.string.dash_public_all), style = MaterialTheme.typography.labelMedium, color = Muted,
+                modifier = Modifier.padding(top = 4.dp))
+            StackBar(
+                listOf(
+                    Slice("k", stringResource(R.string.tally_kept), o.publicAll.kept, ChartColors.blue),
+                    Slice("o", stringResource(R.string.tally_open), o.publicAll.open, ChartColors.blueLight),
+                    Slice("f", stringResource(R.string.tally_failed), o.publicAll.failed, ChartColors.salmon),
+                    Slice("d", stringResource(R.string.tally_dropped), o.publicAll.dropped, ChartColors.grayLight),
+                ),
+            )
         }
     }
 }

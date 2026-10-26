@@ -1,6 +1,11 @@
 package ua.mandat.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import ua.mandat.data.FOCUS_LIMIT
+import ua.mandat.data.TaskStatus
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.filled.MailOutline
@@ -329,85 +334,129 @@ private fun Main(db: MandatDb, session: Session) {
     }
 }
 
-/** Today: what is in focus, then the Inbox. */
+/**
+ * Today: three rings (today, focus, overdue) that jump to their section, then clear cards:
+ * overdue, today and tomorrow, focus, and the Inbox.
+ */
 @Composable
 private fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onToMatter: (InboxItem) -> Unit) {
-    val inboxFlow = remember(db) { db.inbox().observeAll() }
-    val focusFlow = remember(db) { db.matters().observeFocus() }
-    val rolesFlow = remember(db) { db.roles().observeAll() }
-    val items by inboxFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val focus by focusFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val roles by rolesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val items by remember(db) { db.inbox().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val focus by remember(db) { db.matters().observeFocus() }.collectAsStateWithLifecycle(emptyList())
+    val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val titles by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
+    val deadlines by remember(db) { db.deadlines().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db) { db.delegations().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val roleNames = roles.associate { it.id to it.name }
-    val delegationsFlow = remember(db) { db.delegations().observeOpen() }
-    val promisesFlow = remember(db) { db.promises().observeOpen() }
-    val peopleFlow = remember(db) { db.people().observeAll() }
-    val titlesFlow = remember(db) { db.matters().observeAllTitles() }
-    val delegations by delegationsFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val promises by promisesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val people by peopleFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val titles by titlesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val nameOf = people.associate { it.id to it.name }
     val titleOf = titles.associate { it.id to it.title }
-    val deadlinesFlow = remember(db) { db.deadlines().observeOpen() }
-    val deadlines by deadlinesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val today = Dates.today()
     val tomorrow = Dates.addDays(today, 1)
-    val overdueDl = deadlines.filter { it.day < today }
-    val overdueD = delegations.filter { it.due != null && it.due < today }
-    val overdueP = promises.filter { it.due != null && it.due < today }
-    val soonDl = deadlines.filter { it.day == today || it.day == tomorrow }
-    val soonD = delegations.filter { it.due == today || it.due == tomorrow }
-    val soonP = promises.filter { it.due == today || it.due == tomorrow }
-    val overdueCount = overdueDl.size + overdueD.size + overdueP.size
-    val todayCount = deadlines.count { it.day == today } + delegations.count { it.due == today } + promises.count { it.due == today }
+    fun open(status: String) = TaskStatus.of(status) == TaskStatus.OPEN
 
-    LazyColumn(contentPadding = PaddingValues(start = Space.screen, end = Space.screen, bottom = 96.dp)) {
-        item(key = "stats") {
-            Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
-                StatTile(overdueCount, stringResource(R.string.stat_overdue), attention = true)
-                StatTile(todayCount, stringResource(R.string.stat_today))
-                StatTile(focus.size, stringResource(R.string.stat_focus))
+    val openDl = deadlines.filter { open(it.status) }
+    val openD = delegations.filter { open(it.status) }
+    val openP = promises.filter { open(it.status) }
+    val overdueDl = openDl.filter { it.day < today }
+    val overdueD = openD.filter { it.due != null && it.due < today }
+    val overdueP = openP.filter { it.due != null && it.due < today }
+    val soonDl = openDl.filter { it.day == today || it.day == tomorrow }
+    val soonD = openD.filter { it.due == today || it.due == tomorrow }
+    val soonP = openP.filter { it.due == today || it.due == tomorrow }
+    val overdueCount = overdueDl.size + overdueD.size + overdueP.size
+    val dated = openDl.size + openD.count { it.due != null } + openP.count { it.due != null }
+    // Everything due today, and how much of it is already done
+    val dueToday = deadlines.filter { it.day == today && TaskStatus.of(it.status) != TaskStatus.CANCELLED }.map { it.status } +
+        delegations.filter { it.due == today && TaskStatus.of(it.status) != TaskStatus.CANCELLED }.map { it.status } +
+        promises.filter { it.due == today && TaskStatus.of(it.status) != TaskStatus.CANCELLED }.map { it.status }
+    val doneToday = dueToday.count { TaskStatus.of(it) == TaskStatus.DONE }
+
+    val scroll = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    val overdueAt = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    val soonAt = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    val focusAt = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    fun jump(r: androidx.compose.foundation.relocation.BringIntoViewRequester) {
+        scope.launch { r.bringIntoView() }
+    }
+    var showAllOverdue by rememberSaveable { mutableStateOf(false) }
+
+    Column(
+        Modifier.fillMaxSize().verticalScroll(scroll).padding(start = Space.screen, end = Space.screen, top = 8.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(Space.gap + 2.dp),
+    ) {
+        MCard {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                RingStat(
+                    text = "$doneToday/${dueToday.size}", label = stringResource(R.string.stat_today),
+                    fraction = if (dueToday.isEmpty()) 0f else doneToday.toFloat() / dueToday.size,
+                    color = ChartColors.blue, modifier = Modifier.weight(1f),
+                ) { jump(soonAt) }
+                RingStat(
+                    text = "${focus.size}/$FOCUS_LIMIT", label = stringResource(R.string.stat_focus),
+                    fraction = (focus.size.toFloat() / FOCUS_LIMIT).coerceAtMost(1f),
+                    overflow = if (focus.size > FOCUS_LIMIT) (focus.size - FOCUS_LIMIT).toFloat() / focus.size else 0f,
+                    color = ChartColors.blue, modifier = Modifier.weight(1f),
+                ) { jump(focusAt) }
+                RingStat(
+                    text = overdueCount.toString(), label = stringResource(R.string.stat_overdue),
+                    fraction = if (dated == 0) 0f else overdueCount.toFloat() / dated,
+                    color = MaterialTheme.colorScheme.error, attention = overdueCount > 0, modifier = Modifier.weight(1f),
+                ) { jump(overdueAt) }
             }
         }
+
         if (overdueCount > 0) {
-            item(key = "overdue_h") { SectionHeader(Sym.warning, stringResource(R.string.overdue_title), attention = true) }
-            items(overdueDl, key = { "odl${it.id}" }) { DeadlineRow(it, it.matterId?.let(titleOf::get), session) }
-            items(overdueD, key = { "od${it.id}" }) { DelegationRow(it, it.personId?.let(nameOf::get), it.matterId?.let(titleOf::get), session) }
-            items(overdueP, key = { "op${it.id}" }) { PromiseRow(it, it.personId?.let(nameOf::get), it.matterId?.let(titleOf::get), session) }
-        }
-        if (soonDl.isNotEmpty() || soonD.isNotEmpty() || soonP.isNotEmpty()) {
-            item(key = "soon_h") { SectionHeader(Sym.schedule, stringResource(R.string.soon_title)) }
-            items(soonDl, key = { "sdl${it.id}" }) { DeadlineRow(it, it.matterId?.let(titleOf::get), session) }
-            items(soonD, key = { "sd${it.id}" }) { DelegationRow(it, it.personId?.let(nameOf::get), it.matterId?.let(titleOf::get), session) }
-            items(soonP, key = { "sp${it.id}" }) { PromiseRow(it, it.personId?.let(nameOf::get), it.matterId?.let(titleOf::get), session) }
-        }
-        item(key = "focus_h") { SectionHeader(Sym.target, stringResource(R.string.focus_title)) }
-        if (focus.isEmpty()) {
-            item(key = "focus_empty") { EmptyHint(Sym.target, stringResource(R.string.focus_empty)) }
-        } else {
-            items(focus, key = { "m${it.id}" }) { m ->
-                MatterCard(m, roleNames[m.roleId], onOpen, Modifier.padding(bottom = Space.gap))
+            SectionCard(Sym.warning, stringResource(R.string.overdue_title), Modifier.bringIntoViewRequester(overdueAt),
+                count = overdueCount, attention = true) {
+                val rows = buildList<@Composable () -> Unit> {
+                    overdueDl.forEach { d -> add { DeadlineRow(d, d.matterId?.let(titleOf::get), session) } }
+                    overdueD.forEach { d -> add { DelegationRow(d, d.personId?.let(nameOf::get), d.matterId?.let(titleOf::get), session) } }
+                    overdueP.forEach { p -> add { PromiseRow(p, p.personId?.let(nameOf::get), p.matterId?.let(titleOf::get), session) } }
+                }
+                val shown = if (showAllOverdue) rows else rows.take(4)
+                shown.forEachIndexed { i, row -> if (i > 0) RowDivider(); row() }
+                if (rows.size > 4) {
+                    TextButton(onClick = { showAllOverdue = !showAllOverdue }) {
+                        Text(if (showAllOverdue) stringResource(R.string.show_less) else stringResource(R.string.show_more, rows.size - 4))
+                    }
+                }
             }
         }
-        item(key = "inbox_h") {
-            SectionHeader(Sym.inbox, stringResource(R.string.inbox) + if (items.isNotEmpty()) " · ${items.size}" else "")
+
+        SectionCard(Sym.schedule, stringResource(R.string.soon_title), Modifier.bringIntoViewRequester(soonAt),
+            count = soonDl.size + soonD.size + soonP.size) {
+            val rows = buildList<@Composable () -> Unit> {
+                soonDl.forEach { d -> add { DeadlineRow(d, d.matterId?.let(titleOf::get), session) } }
+                soonD.forEach { d -> add { DelegationRow(d, d.personId?.let(nameOf::get), d.matterId?.let(titleOf::get), session) } }
+                soonP.forEach { p -> add { PromiseRow(p, p.personId?.let(nameOf::get), p.matterId?.let(titleOf::get), session) } }
+            }
+            if (rows.isEmpty()) EmptyHint(Sym.checkCircle, stringResource(R.string.soon_empty))
+            rows.forEachIndexed { i, row -> if (i > 0) RowDivider(); row() }
         }
-        if (items.isEmpty()) {
-            item(key = "inbox_empty") { EmptyHint(Sym.inbox, stringResource(R.string.inbox_empty)) }
-        } else {
-            items(items, key = { "i${it.id}" }) { item ->
-                Column {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(item.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(vertical = 10.dp),
-                            maxLines = 3, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                        IconButton(onClick = { onToMatter(item) }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = stringResource(R.string.to_matter), tint = Muted)
-                        }
-                        IconButton(onClick = { session.write { it.inbox().delete(item.id) } }) {
-                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete), tint = Muted)
-                        }
+
+        SectionCard(Sym.target, stringResource(R.string.focus_title), Modifier.bringIntoViewRequester(focusAt),
+            count = focus.size, attention = focus.size > FOCUS_LIMIT) {
+            if (focus.isEmpty()) EmptyHint(Sym.target, stringResource(R.string.focus_empty))
+            focus.forEachIndexed { i, m ->
+                if (i > 0) RowDivider()
+                MatterLine(m, roleNames[m.roleId]) { onOpen(m) }
+            }
+        }
+
+        SectionCard(Sym.inbox, stringResource(R.string.inbox), count = items.size.takeIf { it > 0 }) {
+            if (items.isEmpty()) EmptyHint(Sym.inbox, stringResource(R.string.inbox_empty))
+            items.forEachIndexed { i, item ->
+                if (i > 0) RowDivider()
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(item.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(vertical = 8.dp),
+                        maxLines = 3, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    IconButton(onClick = { onToMatter(item) }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = stringResource(R.string.to_matter), tint = Muted)
+                    }
+                    IconButton(onClick = { session.write { it.inbox().delete(item.id) } }) {
+                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete), tint = Muted)
                     }
                 }
             }

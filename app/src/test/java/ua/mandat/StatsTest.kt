@@ -39,9 +39,9 @@ class StatsTest {
             remindBefore = 0, status = status.name, createdAt = 0, closedAt = closed?.let(::ms))
 
     @Test fun calendarSpans() {
-        val today = day(2026, 10, 28) // a Wednesday
-        assertEquals(Span(day(2026, 10, 26), day(2026, 11, 1)), spanOf(Period.WEEK, today))
-        assertEquals(Span(day(2026, 10, 19), day(2026, 10, 25)), spanOf(Period.WEEK, today, back = 1))
+        val today = day(2026, 10, 28)
+        assertEquals(Span(day(2026, 10, 22), today), spanOf(Period.WEEK, today))
+        assertEquals(Span(day(2026, 10, 15), day(2026, 10, 21)), spanOf(Period.WEEK, today, back = 1))
         assertEquals(Span(day(2026, 10, 1), day(2026, 10, 31)), spanOf(Period.MONTH, today))
         assertEquals(Span(day(2026, 9, 1), day(2026, 9, 30)), spanOf(Period.MONTH, today, back = 1))
         assertEquals(Span(day(2025, 1, 1), day(2025, 12, 31)), spanOf(Period.YEAR, today, back = 1))
@@ -86,6 +86,7 @@ class StatsTest {
         assertEquals(1, o.publicPromises.kept)
         assertEquals(1, o.publicPromises.open)
         assertEquals(1, o.personalPromises.total)
+        assertEquals(2, o.publicAll.kept)
         val role2 = o.roles.first { it.roleId == 2L }
         assertEquals(0, role2.moved)
         assertEquals(1, role2.active)

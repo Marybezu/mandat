@@ -1,7 +1,9 @@
 package ua.mandat.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -71,89 +73,118 @@ import ua.mandat.data.Role
 /** What the matter editor should open: a matter, and the Inbox note it came from, if any. */
 data class EditRequest(val matter: Matter, val isNew: Boolean, val fromInboxId: Long? = null)
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Matters: a ring of what the work is made of (by type or by role) and a bar of attention,
+ * both tappable to filter, then the matters grouped by attention.
+ */
 @Composable
 fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit) {
-    val rolesFlow = remember(db) { db.roles().observeAll() }
-    val activeFlow = remember(db) { db.matters().observeActive() }
-    val closedFlow = remember(db) { db.matters().observeClosed() }
-    val roles by rolesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val active by activeFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val closed by closedFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    var roleFilter by rememberSaveable { mutableStateOf<Long?>(null) }
+    val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val active by remember(db) { db.matters().observeActive() }.collectAsStateWithLifecycle(emptyList())
+    val closed by remember(db) { db.matters().observeClosed() }.collectAsStateWithLifecycle(emptyList())
+    var byRole by rememberSaveable { mutableStateOf(false) }
+    var pick by rememberSaveable { mutableStateOf<String?>(null) }
+    var level by rememberSaveable { mutableStateOf<String?>(null) }
     var showClosed by rememberSaveable { mutableStateOf(false) }
-
-    // Quick filter from the summary strip: "FOCUS", "STALE" or null
-    var quick by rememberSaveable { mutableStateOf<String?>(null) }
     val today = Dates.today()
 
     val roleNames = roles.associate { it.id to it.name }
-    fun visible(m: Matter) = (roleFilter == null || m.roleId == roleFilter) && when (quick) {
-        "FOCUS" -> Attention.of(m.attention) == Attention.FOCUS
-        "STALE" -> ua.mandat.data.isStale(m, today)
-        else -> true
+    val noRole = stringResource(R.string.dash_no_role)
+    fun roleKey(m: Matter) = m.roleId?.toString() ?: "none"
+    fun visible(m: Matter): Boolean {
+        val slice = pick == null || (if (byRole) roleKey(m) else m.type) == pick
+        val lv = when (level) {
+            null -> true
+            "STALE" -> ua.mandat.data.isStale(m, today)
+            else -> m.attention == level
+        }
+        return slice && lv
     }
 
-    Column(Modifier.fillMaxSize()) {
+    val typeSlices = MatterType.entries.map { t ->
+        Slice(t.name, stringResource(t.label()), active.count { it.type == t.name }, t.chartColor())
+    }.sortedByDescending { it.value }
+    val roleSlices = (roles.mapIndexed { i, r ->
+        Slice(r.id.toString(), r.name, active.count { it.roleId == r.id }, SeriesColors[i % SeriesColors.size])
+    } + Slice("none", noRole, active.count { it.roleId == null || it.roleId !in roleNames }, ChartColors.grayLight))
+        .sortedByDescending { it.value }
+    val stale = active.count { ua.mandat.data.isStale(it, today) }
+
+    if (active.isEmpty() && closed.isEmpty()) {
+        Column(Modifier.padding(Space.screen)) { EmptyHint(Sym.folder, stringResource(R.string.matters_empty)) }
+        return
+    }
+    LazyColumn(
+        contentPadding = PaddingValues(start = Space.screen, end = Space.screen, top = 8.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(Space.gap),
+    ) {
         if (active.isNotEmpty()) {
-            val strip = ua.mandat.data.mattersStrip(active, today)
-            SummaryStrip(
-                "matters",
-                listOfNotNull(
-                    StripItem(strip.active.toString(), stringResource(R.string.strip_active), selected = quick == null) { quick = null },
-                    StripItem("${strip.focus}/$FOCUS_LIMIT", stringResource(R.string.strip_focus), selected = quick == "FOCUS") {
-                        quick = if (quick == "FOCUS") null else "FOCUS"
-                    },
-                    if (strip.stale > 0) StripItem(strip.stale.toString(), stringResource(R.string.strip_stale, ua.mandat.data.STALE_DAYS),
-                        attention = quick != "STALE", selected = quick == "STALE") {
-                        quick = if (quick == "STALE") null else "STALE"
-                    } else null,
-                ),
-                Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp),
-            )
-        }
-        if (roles.isNotEmpty()) {
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                FilterChip(
-                    selected = roleFilter == null,
-                    onClick = { roleFilter = null },
-                    label = { Text(stringResource(R.string.matters_all_roles)) },
-                )
-                roles.forEach { role ->
-                    FilterChip(
-                        selected = roleFilter == role.id,
-                        onClick = { roleFilter = role.id },
-                        label = { Text(role.name) },
+            item(key = "chart") {
+                MCard {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
+                        FilterChip(selected = !byRole, onClick = { byRole = false; pick = null }, label = { Text(stringResource(R.string.by_type)) })
+                        FilterChip(selected = byRole, onClick = { byRole = true; pick = null }, label = { Text(stringResource(R.string.by_role)) })
+                    }
+                    DonutChart(
+                        slices = if (byRole) roleSlices else typeSlices,
+                        center = active.size.toString(), centerLabel = stringResource(R.string.strip_active),
+                        selected = pick, onPick = { pick = it },
                     )
                 }
             }
-        }
-        if (active.isEmpty() && closed.isEmpty()) {
-            Column(Modifier.padding(Space.screen)) { EmptyHint(Sym.folder, stringResource(R.string.matters_empty)) }
-            return@Column
-        }
-        LazyColumn(
-            contentPadding = PaddingValues(start = Space.screen, end = Space.screen, bottom = 96.dp),
-        ) {
-            Attention.entries.forEach { level ->
-                val group = active.filter { Attention.of(it.attention) == level && visible(it) }
-                if (group.isNotEmpty()) {
-                    item(key = "h_$level") { AttentionHeader(level) }
-                    items(group, key = { "a${it.id}" }) { m -> MatterCard(m, roleNames[m.roleId], onOpen, Modifier.padding(bottom = Space.gap)) }
-                }
-            }
-            val closedVisible = if (quick != null) emptyList() else closed.filter { visible(it) }
-            if (closedVisible.isNotEmpty()) {
-                item(key = "closed") {
-                    TextButton(onClick = { showClosed = !showClosed }) {
-                        Text("${stringResource(R.string.matters_closed)} (${closedVisible.size})")
+            item(key = "attention") {
+                SectionCard(Sym.layers, stringResource(R.string.attention_title)) {
+                    Spacer(Modifier.height(4.dp))
+                    StackBar(
+                        Attention.entries.map { a ->
+                            Slice(a.name, stringResource(a.label()), active.count { it.attention == a.name },
+                                when (a) {
+                                    Attention.FOCUS -> ChartColors.blue
+                                    Attention.BACKGROUND -> ChartColors.blueLight
+                                    Attention.SLEEPING -> ChartColors.grayLight
+                                })
+                        },
+                        selected = level, onPick = { level = it },
+                    )
+                    if (stale > 0) {
+                        TextButton(onClick = { level = if (level == "STALE") null else "STALE" }) {
+                            Text(stringResource(R.string.strip_stale, ua.mandat.data.STALE_DAYS) + ": $stale",
+                                color = MaterialTheme.colorScheme.error)
+                        }
                     }
                 }
-                if (showClosed) items(closedVisible, key = { "c${it.id}" }) { m -> MatterCard(m, roleNames[m.roleId], onOpen, Modifier.padding(bottom = Space.gap)) }
             }
+        }
+        if (pick != null || level != null) {
+            item(key = "filters") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    pick?.let { k ->
+                        val label = if (byRole) (k.toLongOrNull()?.let(roleNames::get) ?: noRole) else stringResource(MatterType.of(k).label())
+                        FilterBadge(label) { pick = null }
+                    }
+                    level?.let { l ->
+                        val label = if (l == "STALE") stringResource(R.string.strip_stale, ua.mandat.data.STALE_DAYS)
+                        else stringResource(Attention.of(l).label())
+                        FilterBadge(label) { level = null }
+                    }
+                }
+            }
+        }
+        Attention.entries.forEach { lv ->
+            val group = active.filter { Attention.of(it.attention) == lv && visible(it) }
+            if (group.isNotEmpty()) {
+                item(key = "h_$lv") { AttentionHeader(lv) }
+                items(group, key = { "a${it.id}" }) { m -> MatterCard(m, roleNames[m.roleId], onOpen) }
+            }
+        }
+        val closedVisible = if (level != null) emptyList() else closed.filter { visible(it) }
+        if (closedVisible.isNotEmpty()) {
+            item(key = "closed") {
+                TextButton(onClick = { showClosed = !showClosed }) {
+                    Text("${stringResource(R.string.matters_closed)} (${closedVisible.size})")
+                }
+            }
+            if (showClosed) items(closedVisible, key = { "c${it.id}" }) { m -> MatterCard(m, roleNames[m.roleId], onOpen) }
         }
     }
 }
@@ -194,6 +225,24 @@ fun MatterCard(m: Matter, roleName: String?, onOpen: (Matter) -> Unit, modifier:
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+        }
+    }
+}
+
+/** A compact matter row for lists inside a card: type colour, title, next step. */
+@Composable
+fun MatterLine(m: Matter, roleName: String?, onOpen: () -> Unit) {
+    val type = MatterType.of(m.type)
+    Row(Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(10.dp).clip(androidx.compose.foundation.shape.CircleShape).background(type.chartColor()))
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(m.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            val meta = listOfNotNull(stringResource(type.label()), roleName).joinToString(" · ")
+            Text(meta, style = MaterialTheme.typography.labelMedium, color = Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (m.nextStep.isNotBlank()) {
+                Text("→ " + m.nextStep, style = MaterialTheme.typography.bodySmall, color = Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }

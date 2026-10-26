@@ -11,6 +11,10 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -149,27 +153,45 @@ private fun remindLabel(days: Int): String =
 /** Time: deadlines, delegations and promises with dates, in order. */
 @Composable
 fun TimeScreen(db: MandatDb, session: Session) {
-    val deadlinesFlow = remember(db) { db.deadlines().observeOpen() }
-    val delegationsFlow = remember(db) { db.delegations().observeOpen() }
-    val promisesFlow = remember(db) { db.promises().observeOpen() }
-    val peopleFlow = remember(db) { db.people().observeAll() }
-    val titlesFlow = remember(db) { db.matters().observeAllTitles() }
-    val deadlines by deadlinesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val delegations by delegationsFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val promises by promisesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val people by peopleFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val titles by titlesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val deadlines by remember(db) { db.deadlines().observeOpen() }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db) { db.delegations().observeOpen() }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeOpen() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val titles by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
+    val allDeadlines by remember(db) { db.deadlines().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val nameOf = people.associate { it.id to it.name }
     val titleOf = titles.associate { it.id to it.title }
     val today = Dates.today()
+    var kind by rememberSaveable { mutableStateOf<String?>(null) }
+    var pickedDay by rememberSaveable { mutableStateOf<Long?>(null) }
 
-    // Each item with its day; items without a date are not on this screen
-    data class Entry(val key: String, val day: Long, val hard: Boolean, val content: @Composable () -> Unit)
-    val entries = buildList {
-        deadlines.forEach { d -> add(Entry("d${d.id}", d.day, DeadlineKind.of(d.kind) == DeadlineKind.HARD) { DeadlineRow(d, d.matterId?.let(titleOf::get), session) }) }
-        delegations.filter { it.due != null }.forEach { d -> add(Entry("g${d.id}", d.due!!, false) { DelegationRow(d, d.personId?.let(nameOf::get), d.matterId?.let(titleOf::get), session) }) }
-        promises.filter { it.due != null }.forEach { p -> add(Entry("p${p.id}", p.due!!, false) { PromiseRow(p, p.personId?.let(nameOf::get), p.matterId?.let(titleOf::get), session) }) }
-    }.sortedWith(compareBy({ it.day }, { !it.hard }))
+    // Each item with its day and kind; items without a date are not on this screen
+    data class Entry(val key: String, val day: Long, val kind: String, val content: @Composable () -> Unit)
+    val all = buildList {
+        deadlines.forEach { d ->
+            add(Entry("d${d.id}", d.day, if (DeadlineKind.of(d.kind) == DeadlineKind.HARD) "HARD" else "SOFT") { DeadlineRow(d, d.matterId?.let(titleOf::get), session) })
+        }
+        delegations.filter { it.due != null }.forEach { d -> add(Entry("g${d.id}", d.due!!, "DELEGATION") { DelegationRow(d, d.personId?.let(nameOf::get), d.matterId?.let(titleOf::get), session) }) }
+        promises.filter { it.due != null }.forEach { p -> add(Entry("p${p.id}", p.due!!, "PROMISE") { PromiseRow(p, p.personId?.let(nameOf::get), p.matterId?.let(titleOf::get), session) }) }
+    }.sortedWith(compareBy({ it.day }, { it.kind != "HARD" }))
+
+    if (all.isEmpty()) {
+        Column(Modifier.padding(Space.screen)) { EmptyHint(Sym.calendar, stringResource(R.string.time_empty)) }
+        return
+    }
+    val entries = all.filter { (kind == null || it.kind == kind) && (pickedDay == null || it.day == pickedDay) }
+
+    // Deadlines of this month that are due by today: how many were met on time
+    val month = ua.mandat.data.spanOf(ua.mandat.data.Period.MONTH, today)
+    val dueMonth = allDeadlines.filter { it.day in month && it.day <= today && TaskStatus.of(it.status) != TaskStatus.CANCELLED }
+    val onTimeMonth = dueMonth.count { TaskStatus.of(it.status) == TaskStatus.DONE && it.closedAt != null && Dates.dayOf(it.closedAt) <= it.day }
+
+    val dayFmt = java.time.format.DateTimeFormatter.ofPattern("EEEEEE")
+    val days = (0L until 14L).map { i ->
+        val d = today + i
+        val onDay = all.filter { it.day == d && (kind == null || it.kind == kind) }
+        DayLoad(d, java.time.LocalDate.ofEpochDay(d).format(dayFmt), onDay.size, onDay.any { it.kind == "HARD" })
+    }
 
     val groups = listOf(
         R.string.overdue_title to entries.filter { it.day < today },
@@ -177,38 +199,58 @@ fun TimeScreen(db: MandatDb, session: Session) {
         R.string.time_week to entries.filter { it.day in (today + 1)..(today + 7) },
         R.string.time_later to entries.filter { it.day > today + 7 },
     )
-    if (entries.isEmpty()) {
-        Column(Modifier.padding(Space.screen)) { EmptyHint(Sym.calendar, stringResource(R.string.time_empty)) }
-        return
-    }
-    val allDeadlines by remember(db) { db.deadlines().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val month = ua.mandat.data.spanOf(ua.mandat.data.Period.MONTH, today)
-    val dueMonth = allDeadlines.filter {
-        it.day in month && it.day <= today && ua.mandat.data.TaskStatus.of(it.status) != ua.mandat.data.TaskStatus.CANCELLED
-    }
-    val onTimeMonth = dueMonth.count {
-        ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.DONE && it.closedAt != null && Dates.dayOf(it.closedAt) <= it.day
-    }
-    val week = ua.mandat.data.spanOf(ua.mandat.data.Period.WEEK, today)
-    LazyColumn(contentPadding = PaddingValues(start = Space.screen, end = Space.screen, bottom = 96.dp)) {
-        item(key = "strip") {
-            SummaryStrip(
-                "time",
-                listOfNotNull(
-                    StripItem(entries.count { it.day in today..week.to }.toString(), stringResource(R.string.strip_this_week)),
-                    StripItem(entries.count { it.day in (week.to + 1)..(week.to + 7) }.toString(), stringResource(R.string.strip_next_week)),
-                    if (dueMonth.isNotEmpty()) StripItem("$onTimeMonth/${dueMonth.size}", stringResource(R.string.strip_on_time_month)) else null,
-                ),
-                Modifier.padding(top = 8.dp),
-            )
+    LazyColumn(
+        contentPadding = PaddingValues(start = Space.screen, end = Space.screen, top = 8.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(Space.gap),
+    ) {
+        item(key = "days") {
+            SectionCard(Sym.calendar, stringResource(R.string.next_14_days)) {
+                Spacer(Modifier.height(6.dp))
+                DayColumns(days, pickedDay) { pickedDay = it }
+                Text(stringResource(R.string.hard_day_hint), style = MaterialTheme.typography.labelSmall, color = Muted,
+                    modifier = Modifier.padding(top = 6.dp))
+            }
+        }
+        item(key = "kinds") {
+            SectionCard(Sym.layers, stringResource(R.string.ahead_title)) {
+                Spacer(Modifier.height(4.dp))
+                StackBar(
+                    listOf(
+                        Slice("HARD", stringResource(R.string.deadline_hard), all.count { it.kind == "HARD" }, ChartColors.blue),
+                        Slice("SOFT", stringResource(R.string.deadline_soft), all.count { it.kind == "SOFT" }, ChartColors.blueLight),
+                        Slice("DELEGATION", stringResource(R.string.delegations), all.count { it.kind == "DELEGATION" }, ChartColors.teal),
+                        Slice("PROMISE", stringResource(R.string.promises), all.count { it.kind == "PROMISE" }, ChartColors.amber),
+                    ),
+                    selected = kind, onPick = { kind = it },
+                )
+            }
+        }
+        if (dueMonth.isNotEmpty()) {
+            item(key = "ontime") {
+                MCard {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RingStat("$onTimeMonth/${dueMonth.size}", "", onTimeMonth.toFloat() / dueMonth.size, ChartColors.blue)
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text(stringResource(R.string.on_time_month_title), style = MaterialTheme.typography.titleMedium)
+                            val late = dueMonth.size - onTimeMonth
+                            if (late > 0) Text(stringResource(R.string.not_on_time, late), style = MaterialTheme.typography.labelMedium, color = Muted)
+                        }
+                    }
+                }
+            }
+        }
+        if (pickedDay != null) {
+            item(key = "dayfilter") {
+                Row { FilterBadge(Dates.format(pickedDay!!)) { pickedDay = null } }
+            }
         }
         groups.forEach { (title, list) ->
-            if (list.isNotEmpty()) {
-                item(key = "h$title") {
-                    val overdue = title == R.string.overdue_title
-                    SectionHeader(if (overdue) Sym.warning else Sym.schedule, stringResource(title), attention = overdue)
+            if (list.isNotEmpty()) item(key = "g$title") {
+                val overdue = title == R.string.overdue_title
+                SectionCard(if (overdue) Sym.warning else Sym.schedule, stringResource(title), count = list.size, attention = overdue) {
+                    list.forEachIndexed { i, e -> if (i > 0) RowDivider(); e.content() }
                 }
-                items(list, key = { it.key }) { it.content() }
             }
         }
     }
@@ -368,12 +410,17 @@ fun PromisesScreen(db: MandatDb, session: Session) {
     fun yearOf(p: ua.mandat.data.Promise) = java.time.LocalDate.ofEpochDay(Dates.dayOf(p.createdAt)).year
     val years = all.map(::yearOf).distinct().sortedDescending()
     val q = query.trim().lowercase()
-    val shown = all.filter { p ->
+    var statusPick by remember { mutableStateOf<String?>(null) }
+    // Public/personal and search apply everywhere; the year and the status chosen in a chart narrow the list
+    val baseNoYear = all.filter { p ->
         (publicOnly == null || p.isPublic == publicOnly) &&
-            (year == null || yearOf(p) == year) &&
             (q.length < 2 || listOf(p.what, p.toWhom, p.source, p.personId?.let(nameOf::get).orEmpty())
                 .any { it.lowercase().contains(q) })
     }
+    val base = baseNoYear.filter { year == null || yearOf(it) == year }
+    val yearsAsc = years.sorted()
+    val byStatusAll = TaskStatus.entries.associateWith { s -> base.filter { TaskStatus.of(it.status) == s } }
+    val shown = base.filter { statusPick == null || it.status == statusPick }
     val byStatus = TaskStatus.entries.associateWith { s -> shown.filter { TaskStatus.of(it.status) == s } }
 
     Scaffold(
@@ -399,12 +446,6 @@ fun PromisesScreen(db: MandatDb, session: Session) {
                         label = { Text(stringResource(R.string.matters_all_roles)) })
                 }
             }
-            if (years.size > 1) item(key = "years") {
-                Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = year == null, onClick = { year = null }, label = { Text(stringResource(R.string.all_years)) })
-                    years.forEach { y -> FilterChip(selected = year == y, onClick = { year = y }, label = { Text(y.toString()) }) }
-                }
-            }
             item(key = "query") {
                 OutlinedTextField(
                     value = query, onValueChange = { query = it }, singleLine = true,
@@ -413,33 +454,41 @@ fun PromisesScreen(db: MandatDb, session: Session) {
                 )
             }
             item(key = "summary") {
-                Text(
-                    stringResource(
-                        R.string.promises_summary, shown.size,
-                        byStatus.getValue(TaskStatus.DONE).size,
-                        byStatus.getValue(TaskStatus.OPEN).size,
-                        byStatus.getValue(TaskStatus.FAILED).size,
-                        byStatus.getValue(TaskStatus.CANCELLED).size,
-                    ),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(vertical = 12.dp),
-                )
+                MCard(Modifier.padding(top = 10.dp)) {
+                    DonutChart(
+                        slices = listOf(
+                            Slice(TaskStatus.DONE.name, stringResource(TaskStatus.DONE.promiseLabel()), byStatusAll.getValue(TaskStatus.DONE).size, ChartColors.blue),
+                            Slice(TaskStatus.OPEN.name, stringResource(TaskStatus.OPEN.promiseLabel()), byStatusAll.getValue(TaskStatus.OPEN).size, ChartColors.blueLight),
+                            Slice(TaskStatus.FAILED.name, stringResource(TaskStatus.FAILED.promiseLabel()), byStatusAll.getValue(TaskStatus.FAILED).size, ChartColors.salmon),
+                            Slice(TaskStatus.CANCELLED.name, stringResource(TaskStatus.CANCELLED.promiseLabel()), byStatusAll.getValue(TaskStatus.CANCELLED).size, ChartColors.grayLight),
+                        ),
+                        center = base.size.toString(), centerLabel = stringResource(R.string.promises),
+                        selected = statusPick, onPick = { statusPick = it },
+                    )
+                }
             }
-            if (shown.isEmpty()) item(key = "empty") { Text(stringResource(R.string.promises_empty), color = MaterialTheme.colorScheme.secondary) }
+            if (yearsAsc.size > 1) item(key = "byyear") {
+                SectionCard(Sym.calendar, stringResource(R.string.dash_years_title), Modifier.padding(top = 8.dp)) {
+                    Spacer(Modifier.height(6.dp))
+                    DayColumns(
+                        yearsAsc.map { y -> DayLoad(y.toLong(), "’" + (y % 100).toString().padStart(2, '0'), baseNoYear.count { yearOf(it) == y }, false) },
+                        selected = year?.toLong(), onPick = { year = it?.toInt() },
+                    )
+                }
+            }
+            if (shown.isEmpty()) item(key = "empty") { Text(stringResource(R.string.promises_empty), color = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(top = 12.dp)) }
             listOf(TaskStatus.OPEN, TaskStatus.DONE, TaskStatus.FAILED, TaskStatus.CANCELLED).forEach { status ->
                 val list = byStatus.getValue(status)
-                if (list.isNotEmpty()) {
-                    item(key = "h$status") {
-                            SectionHeader(Sym.checkCircle, stringResource(status.promiseLabel()))
-                    }
-                    items(list, key = { "p${it.id}" }) { p ->
-                        Column {
+                if (list.isNotEmpty()) item(key = "g$status") {
+                    SectionCard(Sym.checkCircle, stringResource(status.promiseLabel()), Modifier.padding(top = 8.dp), count = list.size,
+                        attention = status == TaskStatus.FAILED) {
+                        list.forEachIndexed { i, p ->
+                            if (i > 0) RowDivider()
                             PromiseRow(p, p.personId?.let(nameOf::get), p.matterId?.let(titleOf::get), session)
                             val origin = listOf(stringResource(R.string.promised_on, Dates.format(Dates.dayOf(p.createdAt))), p.source, p.statusNote)
                                 .filter { it.isNotBlank() }.joinToString(" · ")
-                            Text(origin,
-                                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary,
-                                modifier = Modifier.padding(start = 48.dp, bottom = 4.dp))
+                            Text(origin, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.padding(start = 48.dp, bottom = 6.dp))
                         }
                     }
                 }
