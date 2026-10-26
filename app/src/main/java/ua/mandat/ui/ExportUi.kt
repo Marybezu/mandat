@@ -73,6 +73,8 @@ class ExportPlan {
     var calendarSpan by mutableStateOf(0)
     var tables by mutableStateOf(setOf<String>())
     var diary by mutableStateOf(false)
+    /** Documents (diary, matter) also as PDF. */
+    var pdf by mutableStateOf(true)
     var matterId by mutableStateOf<Long?>(null)
     var everything by mutableStateOf(false)
 
@@ -206,6 +208,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
                         ?: stringResource(R.string.export_matter), style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.clickable { pickingMatter = true })
                 }
+                if (plan.diary || plan.matterId != null) Check(stringResource(R.string.export_pdf), plan.pdf) { plan.pdf = it }
                 if (!trip) Check(stringResource(R.string.export_everything), plan.everything) { plan.everything = it }
             }
             SectionCard(Sym.lock, stringResource(R.string.export_protection)) {
@@ -347,6 +350,10 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
     fun visible(matterId: Long?) = matterId == null || matterId !in hidden
     val out = ArrayList<Pair<String, ByteArray>>()
     fun add(name: String, text: String) { out += name to text.toByteArray(Charsets.UTF_8) }
+    fun addDoc(base: String, markdown: String) {
+        add("$base.md", markdown)
+        if (plan.pdf) out += "$base.pdf" to PdfText.render(markdown)
+    }
     val people = db.people().all()
     val titles = db.matters().observeAllTitles().first().filter { visible(it.id) }.associate { it.id to it.title }
     val nameOf = people.associate { it.id to it.name }
@@ -427,7 +434,7 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
     ))
     if (plan.diary) {
         val reviews = db.reviews().observeAll().first().sortedBy { it.day }
-        add("diary.md", buildString {
+        addDoc("diary", buildString {
             append("# ").append(context.getString(R.string.diary_title)).append("\n\n")
             reviews.filter { it.progress.isNotBlank() || it.mood != null || it.energy != null }.forEach { r ->
                 append("## ").append(Export.day(r.day)).append("\n\n")
@@ -437,7 +444,7 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
             }
         })
     }
-    plan.matterId?.takeIf { visible(it) }?.let { id -> db.matters().get(id)?.let { m -> add("matter-$id.md", matterDossier(context, db, m, nameOf, hidden)) } }
+    plan.matterId?.takeIf { visible(it) }?.let { id -> db.matters().get(id)?.let { m -> addDoc("matter-$id", matterDossier(context, db, m, nameOf, hidden)) } }
     if (plan.everything && hidden.isEmpty()) out += "everything.json" to ua.mandat.backup.BackupData.dump(db)
     return out
 }
@@ -540,4 +547,62 @@ private fun readImport(context: Context, kind: String, uri: Uri): PendingImport?
     null
 } catch (e: OutOfMemoryError) {
     null
+}
+
+/**
+ * A simple PDF from Markdown text, made by the phone itself (no library): A4 pages, headings in
+ * bold, paragraphs wrapped, a page number at the bottom. Readable and printable anywhere.
+ */
+object PdfText {
+    private const val W = 595
+    private const val H = 842
+    private const val M = 48f
+
+    fun render(markdown: String): ByteArray {
+        val doc = android.graphics.pdf.PdfDocument()
+        val body = android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f; color = android.graphics.Color.BLACK }
+        val h1 = android.text.TextPaint(body).apply { textSize = 18f; isFakeBoldText = true }
+        val h2 = android.text.TextPaint(body).apply { textSize = 14f; isFakeBoldText = true }
+        val foot = android.text.TextPaint(body).apply { textSize = 9f; color = android.graphics.Color.GRAY }
+        val width = (W - 2 * M).toInt()
+        var pageNo = 0
+        var page: android.graphics.pdf.PdfDocument.Page? = null
+        var y = M
+        fun newPage() {
+            page?.let { p -> p.canvas.drawText(pageNo.toString(), W / 2f, H - 24f, foot); doc.finishPage(p) }
+            pageNo++
+            page = doc.startPage(android.graphics.pdf.PdfDocument.PageInfo.Builder(W, H, pageNo).create())
+            y = M
+        }
+        newPage()
+        // Markup first (bold, italics), then the escaped characters back to themselves
+        fun plain(s: String) = s.replace("**", "").replace(Regex("(?<!\\\\)_"), "").replace(Regex("\\\\([*_#`\\\\])"), "$1")
+        for (raw in markdown.split("\n")) {
+            val (paint, text, gap) = when {
+                raw.startsWith("# ") -> Triple(h1, plain(raw.removePrefix("# ")), 10f)
+                raw.startsWith("## ") -> Triple(h2, plain(raw.removePrefix("## ")), 8f)
+                raw.isBlank() -> Triple(body, "", 4f)
+                else -> Triple(body, plain(raw).replace(Regex("^- "), "• "), 2f)
+            }
+            if (text.isEmpty()) { y += gap; continue }
+            val layout = android.text.StaticLayout.Builder.obtain(text, 0, text.length, paint, width).build()
+            for (line in 0 until layout.lineCount) {
+                val lh = (layout.getLineBottom(line) - layout.getLineTop(line)).toFloat()
+                if (y + lh > H - M) newPage()
+                val c = page!!.canvas
+                c.save()
+                c.translate(M, y - layout.getLineTop(line))
+                c.clipRect(0f, layout.getLineTop(line).toFloat(), width.toFloat(), layout.getLineBottom(line).toFloat())
+                layout.draw(c)
+                c.restore()
+                y += lh
+            }
+            y += gap
+        }
+        page?.let { p -> p.canvas.drawText(pageNo.toString(), W / 2f, H - 24f, foot); doc.finishPage(p) }
+        val out = java.io.ByteArrayOutputStream()
+        doc.writeTo(out)
+        doc.close()
+        return out.toByteArray()
+    }
 }

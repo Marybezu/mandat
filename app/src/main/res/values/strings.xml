@@ -901,4 +901,5 @@
     <string name="import_csv_summary">Contacts found: %1$d. Next you can choose which to add.</string>
     <string name="import_go">Import</string>
     <string name="import_done">Imported: %1$d</string>
+    <string name="export_pdf">Documents also as PDF</string>
 </resources>

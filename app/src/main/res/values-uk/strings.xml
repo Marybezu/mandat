@@ -903,4 +903,5 @@
     <string name="import_csv_summary">Знайдено контактів: %1$d. Далі можна вибрати, кого додати.</string>
     <string name="import_go">Імпортувати</string>
     <string name="import_done">Імпортовано: %1$d</string>
+    <string name="export_pdf">Документи також у PDF</string>
 </resources>
