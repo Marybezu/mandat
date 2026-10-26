@@ -20,5 +20,5 @@
 
 ## Технічне
 - Kotlin, Jetpack Compose, Material 3, Room + SQLCipher.
-- Коміти від імені Marybezu з адресою GitHub noreply.
+- Коміти від імені Claude (підписані, «Verified») з рядком `Co-Authored-By: Marybezu <347567161+Marybezu@users.noreply.github.com>`.
 - Ліцензія GPL-3.0.
