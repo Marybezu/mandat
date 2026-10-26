@@ -15,7 +15,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -228,8 +230,34 @@ class Session(app: Application) : AndroidViewModel(app) {
     // generation (the owner already left the app) is closed straight away.
     @Volatile private var generation = 0
     private val writes = Mutex()
-    /** The result of the last automatic copy, until the next unlock records it. */
-    @Volatile private var autoResult: ua.mandat.backup.AutoBackup.Result? = null
+    /** The automatic copy being written (or written last), shared by closing and "copy now". */
+    @Volatile private var autoJob: kotlinx.coroutines.Deferred<ua.mandat.backup.AutoBackup.Result>? = null
+
+    /** Writes prepared encrypted bytes to the folder, without the database. */
+    fun startAutoWrite(p: ua.mandat.backup.AutoBackup.Prepared): kotlinx.coroutines.Deferred<ua.mandat.backup.AutoBackup.Result> =
+        background.async { ua.mandat.backup.AutoBackup.writePrepared(getApplication(), p) }.also { autoJob = it }
+
+    /**
+     * Records a pending automatic copy. Folder work happens outside the lock and is bounded in
+     * time, so a stuck folder never holds the database. Returns true if a copy was accepted,
+     * false if it failed, null if it is still being written (tried again next time).
+     */
+    suspend fun reconcileAuto(db: MandatDb): Boolean? {
+        val auto = ua.mandat.backup.AutoBackup
+        val info = writes.withLock { if (db.isOpen) try { auto.pendingInfo(db) } catch (e: Exception) { null } else null } ?: return null
+        val job = autoJob
+        val result = if (job == null) null else (withTimeoutOrNull(AUTO_WAIT_MS) { job.await() } ?: run { info.key?.fill(0); return null })
+        // A one-element list tells "checked, nothing accepted" apart from "took too long"
+        val checked = withTimeoutOrNull(AUTO_WAIT_MS) {
+            background.async { listOf(auto.check(getApplication(), info, result)) }.await()
+        } ?: return null
+        val accepted = checked.first()
+        val toDelete = writes.withLock {
+            if (db.isOpen) try { auto.record(db, info, accepted) } catch (e: Exception) { null } else null
+        } ?: return null
+        background.launch { auto.deleteAll(getApplication(), toDelete) }
+        return accepted != null
+    }
     private var key: ByteArray? = null
 
     // Not tied to the screen's lifetime: opening and closing always run to the end
@@ -302,16 +330,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                         lastError = false
                         state = LockState.Open(db)
                         // Record the automatic copy made when Mandat last closed
-                        val result = autoResult
-                        autoResult = null
-                        background.launch {
-                            writes.withLock {
-                                if (db.isOpen) try {
-                                    ua.mandat.backup.AutoBackup.reconcile(getApplication(), db, result)
-                                } catch (e: Throwable) {
-                                    // Checked again next time
-                                }
-                            }
+                        background.launch { reconcileAuto(db) }
                         }
                     }
                 }
@@ -402,7 +421,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                     oldKey?.fill(0)
                 }
                 // The database is closed: a slow folder can only delay writing encrypted bytes
-                prepared?.let { autoResult = ua.mandat.backup.AutoBackup.writePrepared(getApplication(), it) }
+                prepared?.let { startAutoWrite(it) }
             }
         }
         return wasInUse
@@ -410,6 +429,7 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     companion object {
         private const val PICKER_TIMEOUT_MS = 90 * 1000L
+        private const val AUTO_WAIT_MS = 30 * 1000L
     }
 
     override fun onCleared() {

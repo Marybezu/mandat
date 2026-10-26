@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
 import ua.mandat.data.MandatDb
+import androidx.room.withTransaction
 import ua.mandat.data.Setting
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -156,59 +157,87 @@ object AutoBackup {
             false
         }
 
-    /**
-     * Step 3, with the database open again: records the pending copy. If Mandat was stopped
-     * before it knew the result, the file itself is checked with the key; a damaged one is removed.
-     */
-    suspend fun reconcile(context: Context, db: MandatDb, result: Result?) {
+    /** A copy noted as pending, read under the lock; the key is only for checking an unknown result. */
+    class PendingInfo(val name: String, val createdAt: Long, val folder: Uri, val key: ByteArray?)
+
+    /** Step 3a, under the lock: what is pending, if anything. No file access. */
+    suspend fun pendingInfo(db: MandatDb): PendingInfo? {
         val s = db.settings()
-        val pending = s.get(KEY_PENDING)?.value ?: return
-        val name = pending.substringBefore('\t')
-        val createdAt = pending.substringAfter('\t').toLongOrNull() ?: System.currentTimeMillis()
-        s.deletePrefix(KEY_PENDING)
-        val folder = s.get(KEY_FOLDER)?.value?.let(Uri::parse) ?: return
-        val accepted: Uri? = if (result != null && result.name == name) {
-            result.uri.takeIf { result.ok }
-        } else {
-            val uri = try { findByName(context, folder, name) } catch (e: Exception) { null }
-            if (uri == null) null else {
-                val key = s.get(KEY_KEY)?.value?.unhex()
-                val ok = key != null && try {
-                    BackupCrypto.decryptWithKey(read(context, uri), key).fill(0)
-                    true
-                } catch (e: Throwable) {
-                    false
-                } finally {
-                    key?.fill(0)
-                }
-                if (!ok) deleteQuietly(context, uri)
-                uri.takeIf { ok }
-            }
+        val pending = s.get(KEY_PENDING)?.value ?: return null
+        val folder = s.get(KEY_FOLDER)?.value?.let(Uri::parse)
+        if (folder == null) {
+            s.deletePrefix(KEY_PENDING)
+            return null
         }
-        if (accepted == null) {
-            fail(db, REASON_WRITE, createdAt)
-            return
-        }
-        val files = files(s) + (accepted.toString() to createdAt)
-        s.put(Setting(KEY_LAST_OK, createdAt.toString()))
-        s.deletePrefix(KEY_FAIL_REASON)
-        // Removing old copies must never undo a good new one
-        val kept = try {
-            trim(context, files, keepNewest = accepted.toString())
-        } catch (e: Throwable) {
-            files
-        }
-        s.put(Setting(KEY_FILES, kept.joinToString("\n") { "${it.first}\t${it.second}" }))
+        return PendingInfo(
+            name = pending.substringBefore('\t'),
+            createdAt = pending.substringAfter('\t').toLongOrNull() ?: System.currentTimeMillis(),
+            folder = folder,
+            key = s.get(KEY_KEY)?.value?.unhex(),
+        )
     }
 
-    /** Keeps one copy per day (the newest) for the last [KEEP] days; deletes only the others on the list. */
-    private fun trim(context: Context, files: List<Pair<String, Long>>, keepNewest: String): List<Pair<String, Long>> {
+    /**
+     * Step 3b, without the lock (it touches the folder and may be slow): the accepted copy, if any.
+     * With no known result (Mandat was stopped meanwhile) the file is found by name and checked
+     * with the key; a damaged file is removed.
+     */
+    fun check(context: Context, info: PendingInfo, result: Result?): Uri? {
+        try {
+            if (result != null && result.name == info.name) return result.uri.takeIf { result.ok }
+            val uri = try { findByName(context, info.folder, info.name) } catch (e: Exception) { null } ?: return null
+            val key = info.key ?: return null
+            val ok = try {
+                BackupCrypto.decryptWithKey(read(context, uri), key).fill(0)
+                true
+            } catch (e: Throwable) {
+                false
+            }
+            if (!ok) deleteQuietly(context, uri)
+            return uri.takeIf { ok }
+        } finally {
+            info.key?.fill(0)
+        }
+    }
+
+    /**
+     * Step 3c, under the lock, in one transaction: records the result and decides which of Mandat's
+     * own old copies to remove. Returns their addresses, to be deleted afterwards without the lock.
+     */
+    suspend fun record(db: MandatDb, info: PendingInfo, accepted: Uri?): List<Uri> {
+        var toDelete = emptyList<Uri>()
+        db.withTransaction {
+            val s = db.settings()
+            // Something else already handled it
+            if (s.get(KEY_PENDING)?.value?.substringBefore('\t') != info.name) return@withTransaction
+            s.deletePrefix(KEY_PENDING)
+            if (accepted == null) {
+                fail(db, REASON_WRITE, info.createdAt)
+                return@withTransaction
+            }
+            val files = files(s) + (accepted.toString() to info.createdAt)
+            val kept = trimmed(files, keepNewest = accepted.toString())
+            toDelete = files.filter { f -> kept.none { it.first == f.first } }.map { Uri.parse(it.first) }
+            s.put(Setting(KEY_FILES, kept.joinToString("\n") { "${it.first}\t${it.second}" }))
+            s.put(Setting(KEY_LAST_OK, info.createdAt.toString()))
+            s.deletePrefix(KEY_FAIL_REASON)
+        }
+        return toDelete
+    }
+
+    /** Removes old copies chosen by [record]; never fails the backup itself. */
+    fun deleteAll(context: Context, uris: List<Uri>) = uris.forEach { deleteQuietly(context, it) }
+
+    /** Removes a file written during set-up when the password check did not pass. */
+    fun discard(context: Context, uri: Uri) = deleteQuietly(context, uri)
+
+    /** One copy per day (the newest) for the last [KEEP] days; the new copy always stays. */
+    private fun trimmed(files: List<Pair<String, Long>>, keepNewest: String): List<Pair<String, Long>> {
         val zone = java.time.ZoneId.systemDefault()
         fun dayOf(ms: Long) = java.time.Instant.ofEpochMilli(ms).atZone(zone).toLocalDate()
         val newestPerDay = files.groupBy { dayOf(it.second) }.values.map { day -> day.maxBy { it.second } }
         val kept = newestPerDay.sortedByDescending { it.second }.take(KEEP).toMutableList()
         if (kept.none { it.first == keepNewest }) files.firstOrNull { it.first == keepNewest }?.let { kept += it }
-        files.filter { f -> kept.none { it.first == f.first } }.forEach { deleteQuietly(context, Uri.parse(it.first)) }
         return kept
     }
 

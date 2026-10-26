@@ -283,6 +283,7 @@ fun Options(session: Session, onBack: () -> Unit) {
             BackupNotice.AutoFailed -> stringResource(R.string.notice_auto_failed)
             BackupNotice.AutoOff -> stringResource(R.string.notice_auto_off)
             BackupNotice.AutoSaved -> stringResource(R.string.notice_auto_saved)
+            BackupNotice.AutoTooBig -> stringResource(R.string.notice_auto_too_big)
         }
         AlertDialog(
             onDismissRequest = { backups.notice = null },

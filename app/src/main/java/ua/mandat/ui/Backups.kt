@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import ua.mandat.backup.BackupCrypto
 import ua.mandat.backup.BackupData
@@ -28,6 +29,7 @@ sealed interface BackupNotice {
     data object AutoFailed : BackupNotice
     data object AutoOff : BackupNotice
     data object AutoSaved : BackupNotice
+    data object AutoTooBig : BackupNotice
 }
 
 /** A decrypted backup waiting for the owner's "Replace" confirmation. Kept in memory only. */
@@ -57,16 +59,25 @@ class Backups(private val context: Context, private val session: Session) {
     /** Turns automatic backups on: folder chosen, password typed once; the first copy is checked with it. */
     fun enableAuto(folder: Uri, password: String) = run(onCrash = { BackupNotice.AutoFailed }) {
         val auto = ua.mandat.backup.AutoBackup
+        val db = (session.state as? LockState.Open)?.db ?: return@run BackupNotice.AutoFailed
         val prepared = session.withOpenDb {
             auto.setUp(context, it, folder, password)
             auto.prepareIfDue(it, force = true)
         }
-        // Written with the database free, then checked with the password the owner typed
-        val result = prepared?.let { auto.writePrepared(context, it) }
+        if (prepared == null) {
+            val tooBig = session.withOpenDb { auto.status(it).failReason == auto.REASON_TOO_BIG } == true
+            session.withOpenDb { auto.disable(context, it) }
+            refreshAuto()
+            return@run if (tooBig) BackupNotice.AutoTooBig else BackupNotice.AutoFailed
+        }
+        // Written without the database, then checked with the password the owner typed
+        val result = withTimeoutOrNull(60_000) { session.startAutoWrite(prepared).await() }
         val ok = result?.ok == true && result.uri != null && auto.opensWith(context, result.uri, password)
-        session.withOpenDb {
-            auto.reconcile(context, it, result?.copy(ok = ok))
-            if (!ok) auto.disable(context, it)
+        if (ok) {
+            session.reconcileAuto(db)
+        } else {
+            result?.uri?.let { auto.discard(context, it) }
+            session.withOpenDb { auto.disable(context, it) }
         }
         refreshAuto()
         if (ok) BackupNotice.AutoOn else BackupNotice.AutoFailed
@@ -81,11 +92,19 @@ class Backups(private val context: Context, private val session: Session) {
     /** Makes an automatic copy right now, without waiting a day. */
     fun autoNow() = run(onCrash = { BackupNotice.AutoFailed }) {
         val auto = ua.mandat.backup.AutoBackup
+        val db = (session.state as? LockState.Open)?.db ?: return@run BackupNotice.AutoFailed
+        // An earlier copy still waiting to be recorded comes first
+        session.reconcileAuto(db)
         val prepared = session.withOpenDb { auto.prepareIfDue(it, force = true) }
-        val result = prepared?.let { auto.writePrepared(context, it) }
-        session.withOpenDb { auto.reconcile(context, it, result) }
+        if (prepared == null) {
+            refreshAuto()
+            val tooBig = session.withOpenDb { auto.status(it).failReason == auto.REASON_TOO_BIG } == true
+            return@run if (tooBig) BackupNotice.AutoTooBig else BackupNotice.AutoFailed
+        }
+        withTimeoutOrNull(60_000) { session.startAutoWrite(prepared).await() }
+        val ok = session.reconcileAuto(db) == true
         refreshAuto()
-        if (result?.ok == true) BackupNotice.AutoSaved else BackupNotice.AutoFailed
+        if (ok) BackupNotice.AutoSaved else BackupNotice.AutoFailed
     }
 
     /** The EFF long word list (7776 words) for suggested passwords. */
