@@ -6,7 +6,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -104,6 +106,7 @@ fun SmartListScreen(db: MandatDb, session: Session, list: SmartList) {
     val today = Dates.today()
     val noMatter = stringResource(R.string.no_matter_group)
     val noRole = stringResource(R.string.dash_no_role)
+    val otherMatters = stringResource(R.string.other_matters)
     fun open(m: Matter) { session.draft = MatterDraft(EditRequest(m, isNew = false)) }
 
     // (title, rows) groups for this list
@@ -129,7 +132,15 @@ fun SmartListScreen(db: MandatDb, session: Session, list: SmartList) {
         SmartList.NO_NEXT -> active.filter { Attention.of(it.attention) != Attention.SLEEPING && it.nextStep.isBlank() }
             .groupBy { it.roleId }.toList()
             .map { (rid, ms) -> (rid?.let(roleNames::get) ?: noRole) to ms.map { m -> @Composable { MatterLine(m, null) { open(m) } } } }
-    }.filter { it.second.isNotEmpty() }
+    }.filter { it.second.isNotEmpty() }.let { all ->
+        // Many matters with one item each would make many tiny cards: they share one card
+        if (list != SmartList.WAITING && list != SmartList.PROMISES) all
+        else {
+            val big = all.filter { it.second.size > 1 }
+            val single = all.filter { it.second.size == 1 }
+            if (single.size < 2) all else big + (otherMatters to single.flatMap { (title, rows) -> rows.map { row -> @Composable { Column { MiniChip(title); Spacer(Modifier.height(4.dp)); row() } } } })
+        }
+    }
 
     Scaffold(
         topBar = {

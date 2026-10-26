@@ -211,7 +211,7 @@ private fun RolesBlock(o: Overview, names: Map<Long, String>, hintIdle: Boolean)
                 val name = r.roleId?.let(names::get) ?: noRole
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(name, style = MaterialTheme.typography.labelMedium, maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.width(110.dp))
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.width(140.dp))
                     Bar(r.moved.toFloat() / max, Modifier.weight(1f))
                     Text(r.moved.toString(), style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.width(32.dp).padding(start = 8.dp))

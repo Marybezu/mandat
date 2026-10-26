@@ -379,4 +379,5 @@
     <string name="smart_empty">Nothing here.</string>
     <string name="no_matter_group">Without a matter</string>
     <string name="chip_public">public</string>
+    <string name="other_matters">Other matters</string>
 </resources>

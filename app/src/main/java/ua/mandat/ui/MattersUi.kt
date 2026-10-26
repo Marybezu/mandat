@@ -172,9 +172,12 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit) {
         }
         Attention.entries.forEach { lv ->
             val group = active.filter { Attention.of(it.attention) == lv && visible(it) }
-            if (group.isNotEmpty()) {
-                item(key = "h_$lv") { AttentionHeader(lv) }
-                items(group, key = { "a${it.id}" }) { m -> MatterCard(m, roleNames[m.roleId], onOpen) }
+            if (group.isNotEmpty()) item(key = "g_$lv") {
+                SectionCard(lv.icon(), stringResource(lv.label()), count = group.size, attention = lv == Attention.FOCUS && group.size > FOCUS_LIMIT) {
+                    Text(stringResource(lv.hint()), style = MaterialTheme.typography.labelMedium, color = Muted,
+                        modifier = Modifier.padding(bottom = 6.dp))
+                    group.forEachIndexed { i, m -> if (i > 0) RowDivider(); MatterLine(m, roleNames[m.roleId]) { onOpen(m) } }
+                }
             }
         }
         val closedVisible = if (level != null) emptyList() else closed.filter { visible(it) }
@@ -184,18 +187,25 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit) {
                     Text("${stringResource(R.string.matters_closed)} (${closedVisible.size})")
                 }
             }
-            if (showClosed) items(closedVisible, key = { "c${it.id}" }) { m -> MatterCard(m, roleNames[m.roleId], onOpen) }
+            if (showClosed) item(key = "closed_list") {
+                SectionCard(Sym.checkCircle, stringResource(R.string.matters_closed), count = closedVisible.size) {
+                    closedVisible.forEachIndexed { i, m -> if (i > 0) RowDivider(); MatterLine(m, roleNames[m.roleId]) { onOpen(m) } }
+                }
+            }
         }
     }
 }
 
 @Composable
+private fun Attention.icon() = when (this) {
+    Attention.FOCUS -> Sym.target
+    Attention.BACKGROUND -> Sym.layers
+    Attention.SLEEPING -> Sym.bedtime
+}
+
+@Composable
 private fun AttentionHeader(level: Attention) {
-    val icon = when (level) {
-        Attention.FOCUS -> Sym.target
-        Attention.BACKGROUND -> Sym.layers
-        Attention.SLEEPING -> Sym.bedtime
-    }
+    val icon = level.icon()
     Column {
         SectionHeader(icon, stringResource(level.label()))
         Text(stringResource(level.hint()), style = MaterialTheme.typography.labelMedium, color = Muted,

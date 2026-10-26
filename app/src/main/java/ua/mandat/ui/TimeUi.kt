@@ -11,6 +11,8 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -309,11 +311,18 @@ fun ReviewScreen(db: MandatDb, session: Session) {
         }
         val earlier = recent.filter { it.day != today }
         if (earlier.isNotEmpty()) {
-            item(key = "earlier_h") { SectionHeader(Sym.calendar, stringResource(R.string.evening_earlier)) }
-            items(earlier, key = { it.id }) { r ->
-                Column {
-                    Text(Dates.format(r.day), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
-                    Text(r.progress, style = MaterialTheme.typography.bodyLarge)
+            item(key = "earlier") {
+                SectionCard(Sym.calendar, stringResource(R.string.evening_earlier), count = earlier.size) {
+                    earlier.forEachIndexed { i, r ->
+                        if (i > 0) RowDivider()
+                        Column(
+                            Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)).padding(10.dp),
+                        ) {
+                            MiniChip(Dates.format(r.day))
+                            Text(r.progress, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+                        }
+                    }
                 }
             }
         }
@@ -486,11 +495,9 @@ fun PromisesScreen(db: MandatDb, session: Session) {
                         attention = status == TaskStatus.FAILED) {
                         list.forEachIndexed { i, p ->
                             if (i > 0) RowDivider()
-                            PromiseRow(p, p.personId?.let(nameOf::get), p.matterId?.let(titleOf::get), session)
                             val origin = listOf(stringResource(R.string.promised_on, Dates.format(Dates.dayOf(p.createdAt))), p.source, p.statusNote)
                                 .filter { it.isNotBlank() }.joinToString(" · ")
-                            Text(origin, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary,
-                                modifier = Modifier.padding(start = 48.dp, bottom = 6.dp))
+                            PromiseRow(p, p.personId?.let(nameOf::get), p.matterId?.let(titleOf::get), session, extra = origin)
                         }
                     }
                 }

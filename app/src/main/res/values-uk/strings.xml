@@ -381,4 +381,5 @@
     <string name="smart_empty">Тут порожньо.</string>
     <string name="no_matter_group">Без справи</string>
     <string name="chip_public">публічна</string>
+    <string name="other_matters">Інші справи</string>
 </resources>

@@ -114,6 +114,7 @@ fun TaskRow(
     status: String,
     onToggleDone: () -> Unit,
     onOpen: () -> Unit,
+    extra: String? = null,
 ) {
     val done = TaskStatus.of(status) != TaskStatus.OPEN
     val (bg, fg) = kind.badge()
@@ -150,6 +151,10 @@ fun TaskRow(
                     labels.forEach { MiniChip(it) }
                 }
             }
+            if (!extra.isNullOrBlank()) {
+                Text(extra, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp), maxLines = 3, overflow = TextOverflow.Ellipsis)
+            }
         }
         Checkbox(checked = done, onCheckedChange = { onToggleDone() })
     }
@@ -176,7 +181,7 @@ fun DelegationRow(d: Delegation, personName: String?, matterTitle: String?, sess
 }
 
 @Composable
-fun PromiseRow(p: Promise, personName: String?, matterTitle: String?, session: Session) {
+fun PromiseRow(p: Promise, personName: String?, matterTitle: String?, session: Session, extra: String? = null) {
     val whom = personName ?: p.toWhom.ifBlank { null }
     val publicLabel = stringResource(R.string.chip_public)
     TaskRow(
@@ -195,6 +200,7 @@ fun PromiseRow(p: Promise, personName: String?, matterTitle: String?, session: S
             }
         },
         onOpen = { session.promiseDraft = PromiseDraft(p, isNew = false) },
+        extra = extra,
     )
 }
 
