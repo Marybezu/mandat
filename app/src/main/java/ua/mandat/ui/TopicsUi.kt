@@ -309,10 +309,11 @@ private fun TopicDetail(db: MandatDb, session: Session, name: String) {
 
 /** A plain text tile, with an optional label above (for example a date). */
 @Composable
-fun TextTile(text: String, label: String? = null) {
+fun TextTile(text: String, label: String? = null, onClick: (() -> Unit)? = null) {
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)).padding(10.dp),
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+            .let { if (onClick != null) it.clickable(onClick = onClick) else it }.padding(10.dp),
     ) {
         if (label != null) {
             MiniChip(label)

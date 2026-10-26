@@ -199,7 +199,7 @@ fun OneOnOneScreen(db: MandatDb, session: Session, personId: Long) {
             }
             if (matters.isNotEmpty()) item(key = "matters") {
                 SectionCard(Sym.folder, stringResource(R.string.agenda_matters), count = matters.size) {
-                    Paged(matters) { m -> TextTile(m.title) }
+                    Paged(matters) { m -> TextTile(m.title) { session.openMatter(m.matterId) } }
                 }
             }
             val openP = promises.filter { TaskStatus.of(it.status) == TaskStatus.OPEN }
