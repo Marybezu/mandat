@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
@@ -138,6 +139,10 @@ fun Options(session: Session, onBack: () -> Unit) {
             }
 
             Spacer(Modifier.height(8.dp))
+            Section(stringResource(R.string.look_title))
+            LookSection(session)
+
+            Spacer(Modifier.height(8.dp))
             Section(stringResource(R.string.reminders_title))
             RemindersSection(session)
 
@@ -237,6 +242,7 @@ private fun Section(title: String) {
             stringResource(R.string.roles_manage) -> Icons.Filled.AccountBox
             stringResource(R.string.reminders_title) -> Icons.Filled.Notifications
             stringResource(R.string.security_title) -> Icons.Filled.Lock
+            stringResource(R.string.look_title) -> Icons.Filled.Face
             else -> Icons.Filled.Info
         },
         title,
@@ -397,5 +403,37 @@ private fun RemindersSection(session: Session) {
                 ua.mandat.notify.Reminders.setHour(context, it)
             },
         )
+    }
+}
+
+/** Theme: automatic, light or dark; and Material You colours instead of blue and yellow. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LookSection(session: Session) {
+    val context = LocalContext.current
+    var mode by remember { mutableStateOf(Appearance.mode(context)) }
+    Text(stringResource(R.string.look_theme), style = MaterialTheme.typography.labelLarge)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(Appearance.AUTO to R.string.look_auto, Appearance.LIGHT to R.string.look_light, Appearance.DARK to R.string.look_dark)
+            .forEach { (value, label) ->
+                androidx.compose.material3.FilterChip(
+                    selected = mode == value,
+                    onClick = {
+                        mode = value
+                        Appearance.setMode(context, value)
+                    },
+                    label = { Text(stringResource(label)) },
+                )
+            }
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.look_dynamic), style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.look_dynamic_hint), style = MaterialTheme.typography.labelMedium, color = Muted)
+        }
+        androidx.compose.material3.Switch(checked = session.dynamicColors, onCheckedChange = {
+            session.dynamicColors = it
+            Appearance.setDynamic(context, it)
+        })
     }
 }

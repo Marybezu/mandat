@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="background">#FAF8F4</color>
-    <color name="icon_bg">#2F4A6D</color>
-    <color name="icon_fg">#FAF8F4</color>
+    <color name="background">#F7F6F2</color>
+    <!-- Icon: flag blue background, a white open hand holding a yellow square -->
+    <color name="icon_bg">#0057B7</color>
+    <color name="icon_hand">#FFFFFF</color>
+    <color name="icon_square">#FFD700</color>
 </resources>

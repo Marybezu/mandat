@@ -281,4 +281,11 @@
     <string name="stat_overdue">overdue</string>
     <string name="stat_today">for today</string>
     <string name="stat_focus">in focus</string>
+    <string name="look_title">Look</string>
+    <string name="look_theme">Theme</string>
+    <string name="look_auto">Automatic</string>
+    <string name="look_light">Light</string>
+    <string name="look_dark">Dark</string>
+    <string name="look_dynamic">Material You colours</string>
+    <string name="look_dynamic_hint">Colours from your wallpaper instead of blue and yellow</string>
 </resources>

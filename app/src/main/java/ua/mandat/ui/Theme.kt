@@ -13,43 +13,55 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ua.mandat.data.MatterType
 
-// Calm colours; "error" is a warm amber, never red
+// Blue and yellow of the Ukrainian flag as accents; calm neutrals around them.
+// "error" (needs attention) is a burnt orange, distinct from the yellow and never red.
+val FlagBlue = Color(0xFF0057B7)
+val FlagYellow = Color(0xFFFFD700)
+
 private val Light = lightColorScheme(
-    primary = Color(0xFF2F4A6D),
+    primary = FlagBlue,
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFDCE6F3),
-    onPrimaryContainer = Color(0xFF14243A),
+    primaryContainer = Color(0xFFD6E6F8),
+    onPrimaryContainer = Color(0xFF00214A),
     secondary = Color(0xFF6B6A64),
     onSecondary = Color(0xFFFFFFFF),
+    tertiary = FlagYellow,
+    onTertiary = Color(0xFF2E2500),
+    tertiaryContainer = Color(0xFFFFF3B0),
+    onTertiaryContainer = Color(0xFF3A2E00),
     background = Color(0xFFF7F6F2),
     surface = Color(0xFFFFFFFF),
     surfaceVariant = Color(0xFFF1EFE8),
     onSurfaceVariant = Color(0xFF5F5E5A),
     outline = Color(0xFFD3D1C7),
     outlineVariant = Color(0xFFE6E4DC),
-    error = Color(0xFF854F0B),
+    error = Color(0xFF9A4A00),
     onError = Color(0xFFFFFFFF),
-    errorContainer = Color(0xFFFAEEDA),
-    onErrorContainer = Color(0xFF633806),
+    errorContainer = Color(0xFFFBE3CF),
+    onErrorContainer = Color(0xFF5C2C00),
 )
 
 private val Dark = darkColorScheme(
-    primary = Color(0xFFA9C4E8),
-    onPrimary = Color(0xFF14243A),
-    primaryContainer = Color(0xFF2F4A6D),
-    onPrimaryContainer = Color(0xFFDCE6F3),
+    primary = Color(0xFF8EBBF2),
+    onPrimary = Color(0xFF002C5E),
+    primaryContainer = Color(0xFF00428C),
+    onPrimaryContainer = Color(0xFFD6E6F8),
     secondary = Color(0xFFB4B2A9),
     onSecondary = Color(0xFF2C2C2A),
-    background = Color(0xFF141619),
-    surface = Color(0xFF1C1F23),
-    surfaceVariant = Color(0xFF26292E),
+    tertiary = FlagYellow,
+    onTertiary = Color(0xFF2E2500),
+    tertiaryContainer = Color(0xFF4A3D00),
+    onTertiaryContainer = Color(0xFFFFF3B0),
+    background = Color(0xFF121418),
+    surface = Color(0xFF1B1E23),
+    surfaceVariant = Color(0xFF262A30),
     onSurfaceVariant = Color(0xFFB4B2A9),
-    outline = Color(0xFF44464A),
-    outlineVariant = Color(0xFF32353A),
-    error = Color(0xFFEF9F27),
-    onError = Color(0xFF412402),
-    errorContainer = Color(0xFF4A3309),
-    onErrorContainer = Color(0xFFFAC775),
+    outline = Color(0xFF44474D),
+    outlineVariant = Color(0xFF30343A),
+    error = Color(0xFFF2A65A),
+    onError = Color(0xFF3A1C00),
+    errorContainer = Color(0xFF4A2A0B),
+    onErrorContainer = Color(0xFFFBE3CF),
 )
 
 /**
@@ -71,12 +83,23 @@ private val Calm = Typography().run {
 }
 
 @Composable
-fun MandatTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) Dark else Light,
-        typography = Calm,
-        content = content,
+fun MandatTheme(dynamic: Boolean = false, content: @Composable () -> Unit) {
+    val dark = isSystemInDarkTheme()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val base = when {
+        // Material You: colours from the wallpaper (minSdk 31, so always available)
+        dynamic && dark -> androidx.compose.material3.dynamicDarkColorScheme(context)
+        dynamic -> androidx.compose.material3.dynamicLightColorScheme(context)
+        dark -> Dark
+        else -> Light
+    }
+    // Whatever the accents, "needs attention" stays our calm orange, never red
+    val ours = if (dark) Dark else Light
+    val scheme = base.copy(
+        error = ours.error, onError = ours.onError,
+        errorContainer = ours.errorContainer, onErrorContainer = ours.onErrorContainer,
     )
+    MaterialTheme(colorScheme = scheme, typography = Calm, content = content)
 }
 
 /** Spacing used everywhere, so screens line up. */

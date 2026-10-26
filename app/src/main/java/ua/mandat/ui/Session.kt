@@ -58,6 +58,9 @@ class Session(app: Application) : AndroidViewModel(app) {
     /** Today's answer to the evening question while it is being typed; null when not editing. */
     var reviewDraft by mutableStateOf<String?>(null)
 
+    /** Material You colours on or off; changing it recolours the app right away. */
+    var dynamicColors by mutableStateOf(Appearance.dynamic(app))
+
     /** The "My promises" screen is open. */
     var showPromises by mutableStateOf(false)
 

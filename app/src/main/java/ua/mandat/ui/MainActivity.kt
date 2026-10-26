@@ -26,6 +26,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prompt: BiometricPrompt
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        Appearance.apply(Appearance.mode(this))
         // Draw behind the system bars; screens pad themselves and move above the keyboard
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -42,7 +43,7 @@ class MainActivity : AppCompatActivity() {
         refreshState()
 
         setContent {
-            MandatTheme {
+            MandatTheme(dynamic = session.dynamicColors) {
                 App(session = session, onUnlock = ::unlock, onStartOver = ::startOver)
             }
         }

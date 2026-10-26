@@ -248,10 +248,11 @@ private fun Main(db: MandatDb, session: Session) {
                         onClick = { tab = t },
                         icon = {
                             if (t.central) {
+                                // Blue and yellow: the one place where the flag's yellow is used boldly
                                 Surface(
                                     shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                    contentColor = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(44.dp),
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {

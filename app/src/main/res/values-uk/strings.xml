@@ -283,4 +283,11 @@
     <string name="stat_overdue">прострочено</string>
     <string name="stat_today">на сьогодні</string>
     <string name="stat_focus">у фокусі</string>
+    <string name="look_title">Вигляд</string>
+    <string name="look_theme">Тема</string>
+    <string name="look_auto">Автоматично</string>
+    <string name="look_light">Світла</string>
+    <string name="look_dark">Темна</string>
+    <string name="look_dynamic">Кольори Material You</string>
+    <string name="look_dynamic_hint">Кольори зі шпалер телефону замість синього й жовтого</string>
 </resources>
