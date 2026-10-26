@@ -77,6 +77,41 @@ object BackupCrypto {
         throw WrongPasswordOrDamaged()
     }
 
+    /**
+     * For automatic backups: a fresh salt and the key from the password, computed once when the
+     * owner turns them on. Files made with it have the same layout and open with the password.
+     */
+    fun newAutoKey(password: String): Pair<ByteArray, ByteArray> {
+        val salt = ByteArray(SALT_BYTES).also { SecureRandom().nextBytes(it) }
+        return salt to deriveKey(password, salt, DEFAULT)
+    }
+
+    /** Same file layout as [encrypt], with a key derived earlier; a fresh nonce every time. */
+    fun encryptWithKey(plain: ByteArray, key: ByteArray, salt: ByteArray): ByteArray {
+        require(key.size == 32 && salt.size == SALT_BYTES)
+        val nonce = ByteArray(NONCE_BYTES).also { SecureRandom().nextBytes(it) }
+        val header = salt + nonce
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(TAG_BYTES * 8, nonce))
+        cipher.updateAAD(header)
+        return header + cipher.doFinal(plain)
+    }
+
+    /** Opens a file with a key derived earlier (to check an automatic backup right after writing it). */
+    fun decryptWithKey(file: ByteArray, key: ByteArray): ByteArray {
+        val headerSize = SALT_BYTES + NONCE_BYTES
+        if (file.size < headerSize + TAG_BYTES || file.size > MAX_FILE_BYTES) throw NotABackup()
+        val nonce = file.copyOfRange(SALT_BYTES, headerSize)
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(TAG_BYTES * 8, nonce))
+        cipher.updateAAD(file, 0, headerSize)
+        return try {
+            cipher.doFinal(file, headerSize, file.size - headerSize)
+        } catch (e: AEADBadTagException) {
+            throw WrongPasswordOrDamaged()
+        }
+    }
+
     internal fun deriveKey(password: String, salt: ByteArray, params: KdfParams): ByteArray {
         val passwordBytes = java.text.Normalizer.normalize(password, java.text.Normalizer.Form.NFC)
             .toByteArray(Charsets.UTF_8)

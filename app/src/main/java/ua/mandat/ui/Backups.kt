@@ -24,6 +24,10 @@ sealed interface BackupNotice {
     data object Incompatible : BackupNotice
     data class Restored(val rows: Int) : BackupNotice
     data object RestoreFailed : BackupNotice
+    data object AutoOn : BackupNotice
+    data object AutoFailed : BackupNotice
+    data object AutoOff : BackupNotice
+    data object AutoSaved : BackupNotice
 }
 
 /** A decrypted backup waiting for the owner's "Replace" confirmation. Kept in memory only. */
@@ -38,6 +42,37 @@ class Backups(private val context: Context, private val session: Session) {
         private set
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** Automatic backups: on or off, and when the last one worked or failed. */
+    var auto by mutableStateOf<ua.mandat.backup.AutoBackup.Status?>(null)
+        private set
+
+    fun refreshAuto() {
+        scope.launch {
+            val st = try { session.withOpenDb { ua.mandat.backup.AutoBackup.status(it) } } catch (e: Exception) { null }
+            withContext(Dispatchers.Main) { auto = st }
+        }
+    }
+
+    /** Turns automatic backups on: folder chosen, password typed once. */
+    fun enableAuto(folder: Uri, password: String) = run(onCrash = { BackupNotice.AutoFailed }) {
+        val ok = session.withOpenDb { ua.mandat.backup.AutoBackup.enable(context, it, folder, password) } == true
+        refreshAuto()
+        if (ok) BackupNotice.AutoOn else BackupNotice.AutoFailed
+    }
+
+    fun disableAuto() = run(onCrash = { BackupNotice.AutoOff }) {
+        session.withOpenDb { ua.mandat.backup.AutoBackup.disable(context, it) }
+        refreshAuto()
+        BackupNotice.AutoOff
+    }
+
+    /** Makes an automatic copy right now, without waiting a day. */
+    fun autoNow() = run(onCrash = { BackupNotice.AutoFailed }) {
+        val ok = session.withOpenDb { ua.mandat.backup.AutoBackup.runIfDue(context, it, force = true) } == true
+        refreshAuto()
+        if (ok) BackupNotice.AutoSaved else BackupNotice.AutoFailed
+    }
 
     /** The EFF long word list (7776 words) for suggested passwords. */
     val words: List<String> by lazy {

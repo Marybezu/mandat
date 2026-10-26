@@ -39,6 +39,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,6 +80,14 @@ fun Options(session: Session, onBack: () -> Unit) {
         newPassword = null
         val fresh = pickedAt == session.generationNow()
         if (uri != null && password != null && fresh) backups.save(uri, password)
+    }
+    // Automatic backups: the folder is chosen first, then the password
+    var autoFolder by remember { mutableStateOf<android.net.Uri?>(null) }
+    var confirmAutoOff by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { backups.refreshAuto() }
+    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        session.pickingFile = false
+        if (uri != null && pickedAt == session.generationNow()) autoFolder = uri
     }
     val openFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         session.pickingFile = false
@@ -132,6 +141,45 @@ fun Options(session: Session, onBack: () -> Unit) {
                 ) { Text(stringResource(R.string.backup_restore)) }
             }
 
+            // Automatic backups (optional)
+            val auto = backups.auto
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.auto_title), style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.auto_hint, ua.mandat.backup.AutoBackup.KEEP), style = MaterialTheme.typography.labelMedium, color = Muted)
+                }
+                androidx.compose.material3.Switch(
+                    checked = auto?.enabled == true,
+                    enabled = !backups.busy && auto != null,
+                    onCheckedChange = { on ->
+                        if (on) {
+                            session.pickingFile = true
+                            pickedAt = session.generationNow()
+                            try {
+                                pickFolder.launch(null)
+                            } catch (e: Exception) {
+                                session.pickingFile = false
+                            }
+                        } else confirmAutoOff = true
+                    },
+                )
+            }
+            if (auto?.enabled == true) {
+                val fmt = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+                Text(
+                    auto.lastOk?.let { stringResource(R.string.auto_last_ok, fmt.format(Date(it))) } ?: stringResource(R.string.auto_none_yet),
+                    style = MaterialTheme.typography.labelMedium, color = Muted,
+                )
+                if (auto.lastFail != null && (auto.lastOk == null || auto.lastFail > auto.lastOk)) {
+                    Text(stringResource(R.string.auto_last_fail, fmt.format(Date(auto.lastFail))), style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.error)
+                }
+                if (auto.maySync) {
+                    Text(stringResource(R.string.auto_may_sync), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                }
+                TextButton(onClick = { backups.autoNow() }, enabled = !backups.busy) { Text(stringResource(R.string.auto_now)) }
+            }
+
             (session.state as? LockState.Open)?.db?.let { db ->
                 Spacer(Modifier.height(8.dp))
                 Section(stringResource(R.string.roles_manage))
@@ -179,6 +227,25 @@ fun Options(session: Session, onBack: () -> Unit) {
         )
     }
 
+    autoFolder?.let { folder ->
+        NewPasswordDialog(
+            words = backups.words,
+            onDone = { password ->
+                autoFolder = null
+                if (password != null) backups.enableAuto(folder, password)
+            },
+        )
+    }
+
+    if (confirmAutoOff) {
+        AlertDialog(
+            onDismissRequest = { confirmAutoOff = false },
+            text = { Text(stringResource(R.string.auto_off_confirm)) },
+            confirmButton = { TextButton(onClick = { confirmAutoOff = false; backups.disableAuto() }) { Text(stringResource(R.string.auto_off)) } },
+            dismissButton = { TextButton(onClick = { confirmAutoOff = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+
     askRestorePassword?.let { uri ->
         PasswordDialog(
             title = stringResource(R.string.restore_password_title),
@@ -198,6 +265,10 @@ fun Options(session: Session, onBack: () -> Unit) {
             BackupNotice.Incompatible -> stringResource(R.string.notice_incompatible)
             is BackupNotice.Restored -> stringResource(R.string.notice_restored, notice.rows)
             BackupNotice.RestoreFailed -> stringResource(R.string.notice_restore_failed)
+            BackupNotice.AutoOn -> stringResource(R.string.notice_auto_on)
+            BackupNotice.AutoFailed -> stringResource(R.string.notice_auto_failed)
+            BackupNotice.AutoOff -> stringResource(R.string.notice_auto_off)
+            BackupNotice.AutoSaved -> stringResource(R.string.notice_auto_saved)
         }
         AlertDialog(
             onDismissRequest = { backups.notice = null },

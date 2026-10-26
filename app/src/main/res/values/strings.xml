@@ -466,4 +466,17 @@
     <string name="long_no_talk">Influential, no talk for 30+ days</string>
     <string name="influence_unknown">Influence not set</string>
     <string name="influence_unknown_hint">Tap a name and set their influence to place them on the map.</string>
+    <string name="auto_title">Automatic backup</string>
+    <string name="auto_hint">Once a day, when Mandat closes, an encrypted copy goes to a folder you choose; the last %1$d are kept. Same password as a manual backup: write it down.</string>
+    <string name="auto_last_ok">Last automatic copy: %1$s</string>
+    <string name="auto_none_yet">No automatic copy yet</string>
+    <string name="auto_last_fail">Last attempt failed: %1$s. Check that the folder still exists.</string>
+    <string name="auto_may_sync">This folder belongs to another app and may be synced to a cloud. The copy is encrypted, but it leaves the phone.</string>
+    <string name="auto_now">Make a copy now</string>
+    <string name="auto_off">Turn off</string>
+    <string name="auto_off_confirm">Turn off automatic backups? Mandat forgets the folder and the key; copies already made stay in the folder.</string>
+    <string name="notice_auto_on">Automatic backups are on. The first copy is made and checked with your password.</string>
+    <string name="notice_auto_failed">The automatic copy could not be made. Check the folder and try again.</string>
+    <string name="notice_auto_off">Automatic backups are off.</string>
+    <string name="notice_auto_saved">Automatic copy made and checked.</string>
 </resources>

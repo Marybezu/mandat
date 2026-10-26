@@ -32,7 +32,10 @@ object BackupData {
             val rows = JSONArray()
             sql.query("SELECT * FROM `$table`").use { c ->
                 for (i in 0 until c.columnCount) columns.put(c.getColumnName(i))
+                val keyIndex = if (table == "settings") c.getColumnIndex("key") else -1
                 while (c.moveToNext()) {
+                    // The automatic-backup settings (folder and key) never go into a backup file
+                    if (keyIndex >= 0 && c.getString(keyIndex)?.startsWith(AutoBackup.PREFIX) == true) continue
                     val row = JSONArray()
                     for (i in 0 until c.columnCount) row.put(cell(c, i))
                     rows.put(row)
@@ -79,7 +82,11 @@ object BackupData {
 
         // Room's own transaction: all or nothing, and the screens see the new data afterwards
         db.runInTransaction(Runnable {
-            for (table in current) sql.execSQL("DELETE FROM `$table`")
+            for (table in current) {
+                // This phone's automatic-backup settings stay as they are
+                if (table == "settings") sql.execSQL("DELETE FROM `settings` WHERE substr(`key`, 1, ${AutoBackup.PREFIX.length}) <> '${AutoBackup.PREFIX}'")
+                else sql.execSQL("DELETE FROM `$table`")
+            }
             tables.keys().forEach { table ->
                 val t = tables.getJSONObject(table)
                 val columns = t.getJSONArray("columns")
@@ -89,6 +96,7 @@ object BackupData {
                     if (row.length() != columns.length()) throw Incompatible()
                     val values = ContentValues()
                     for (i in 0 until columns.length()) put(values, columns.getString(i), row.get(i))
+                    if (table == "settings" && values.getAsString("key")?.startsWith(AutoBackup.PREFIX) == true) continue
                     if (sql.insert(table, android.database.sqlite.SQLiteDatabase.CONFLICT_ABORT, values) < 0) {
                         throw Incompatible()
                     }

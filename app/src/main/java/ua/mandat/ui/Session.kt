@@ -376,6 +376,12 @@ class Session(app: Application) : AndroidViewModel(app) {
                                 // Not saved; nothing about the content is logged
                             }
                         }
+                        // Automatic backup, if turned on and more than a day has passed
+                        try {
+                            ua.mandat.backup.AutoBackup.runIfDue(getApplication(), current.db)
+                        } catch (e: Throwable) {
+                            // Recorded as failed inside; Mandat must still close
+                        }
                     }
                     current.db.close()
                     oldKey?.fill(0)

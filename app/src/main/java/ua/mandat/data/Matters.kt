@@ -136,6 +136,13 @@ interface SettingDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun put(setting: Setting)
+
+    @Query("SELECT * FROM settings WHERE `key` = :key")
+    suspend fun get(key: String): Setting?
+
+    /** Removes all settings whose key starts with [prefix] (for example turning a feature off). */
+    @Query("DELETE FROM settings WHERE substr(`key`, 1, length(:prefix)) = :prefix")
+    suspend fun deletePrefix(prefix: String)
 }
 
 /** Cleans a matter before saving: trims fields, refuses an empty title, limits lengths. */
