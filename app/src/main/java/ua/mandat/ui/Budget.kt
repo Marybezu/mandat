@@ -133,6 +133,7 @@ fun BudgetScreen(db: MandatDb, session: Session) {
     var catPick by rememberSaveable { mutableStateOf<String?>(null) }
     var kindPick by rememberSaveable { mutableStateOf<String?>(null) }
     var awaitingOnly by rememberSaveable { mutableStateOf(false) }
+    var charityPick by rememberSaveable { mutableStateOf<String?>(null) }
     var editLimits by remember { mutableStateOf(false) }
     var editCategories by remember { mutableStateOf(false) }
 
@@ -145,6 +146,7 @@ fun BudgetScreen(db: MandatDb, session: Session) {
         .associate { it.key.removePrefix(SETTING_LIMIT_PREFIX) to (it.value.toLongOrNull() ?: 0L) }.filterValues { it > 0 }
     val shown = (if (awaitingOnly) entries.filter { it.awaitingRefund && !it.refunded } else inSpan)
         .filter { (catPick == null || it.category == catPick) && (kindPick == null || it.kind == kindPick) }
+        .filter { charityPick == null || (it.category == ExpenseCategory.CHARITY.name && (it.charityKind ?: "NONE") == charityPick) }
     val aidInSpan = aid.filter { it.day in span }
     val title = if (year) LocalDate.ofEpochDay(span.from).year.toString()
     else LocalDate.ofEpochDay(span.from).format(DateTimeFormatter.ofPattern("LLLL yyyy")).replaceFirstChar { it.uppercase() }
@@ -240,7 +242,7 @@ fun BudgetScreen(db: MandatDb, session: Session) {
                     Spacer(Modifier.height(6.dp))
                     val months = (11 downTo 0).map { spanOf(Period.MONTH, today, it) }
                     MonthBars(months.map { m -> summarize(entries, m) }.map { it.income to it.expense },
-                        months.map { LocalDate.ofEpochDay(it.from).format(DateTimeFormatter.ofPattern("LLLLL")) })
+                        months.map { LocalDate.ofEpochDay(it.from).format(DateTimeFormatter.ofPattern("LLLLL")) }) { i -> year = false; back = 11 - i }
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 4.dp)) {
                         LegendDot(ChartColors.teal, stringResource(R.string.money_in))
                         LegendDot(ChartColors.coral, stringResource(R.string.money_out))
@@ -257,6 +259,7 @@ fun BudgetScreen(db: MandatDb, session: Session) {
                             CharityKind.entries.mapIndexed { i, k ->
                                 Slice(k.name, stringResource(k.label()), hInt(charity.filter { it.charityKind == k.name }.sumOf { it.uah }), categoryColor(i))
                             } + Slice("NONE", stringResource(R.string.not_set), hInt(charity.filter { it.charityKind == null }.sumOf { it.uah }), ChartColors.grayLight),
+                            selected = charityPick, onPick = { charityPick = it; awaitingOnly = false },
                         )
                     }
                     if (aidInSpan.isNotEmpty()) {
@@ -269,11 +272,14 @@ fun BudgetScreen(db: MandatDb, session: Session) {
                     }
                 }
             }
-            if (catPick != null || awaitingOnly || kindPick != null) item(key = "filter") {
+            if (catPick != null || awaitingOnly || kindPick != null || charityPick != null) item(key = "filter") {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     kindPick?.let { FilterBadge(stringResource(if (it == MoneyKind.INCOME.name) R.string.money_income else R.string.money_expense)) { kindPick = null } }
                     catPick?.let { FilterBadge(categoryName(it)) { catPick = null } }
                     if (awaitingOnly) FilterBadge(stringResource(R.string.money_awaiting_short)) { awaitingOnly = false }
+                    charityPick?.let { k ->
+                        FilterBadge(CharityKind.entries.firstOrNull { it.name == k }?.let { stringResource(it.label()) } ?: stringResource(R.string.not_set)) { charityPick = null }
+                    }
                 }
             }
             item(key = "list") {
@@ -329,11 +335,12 @@ private fun LimitRow(name: String, spent: Long, limit: Long) {
 
 /** Twelve months, money in and out side by side; the last one is this month. */
 @Composable
-private fun MonthBars(values: List<Pair<Long, Long>>, labels: List<String>) {
+private fun MonthBars(values: List<Pair<Long, Long>>, labels: List<String>, onPick: (Int) -> Unit) {
     val max = values.maxOfOrNull { maxOf(it.first, it.second) }?.coerceAtLeast(1) ?: 1
     Row(Modifier.fillMaxWidth().height(90.dp), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.Bottom) {
         values.forEachIndexed { i, (inc, out) ->
-            Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
+            Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(4.dp)).clickable { onPick(i) },
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(1.dp)) {
                     Box(Modifier.width(6.dp).fillMaxHeight((inc.toFloat() / max).coerceAtLeast(0.02f)).clip(RoundedCornerShape(2.dp)).background(ChartColors.teal))
                     Box(Modifier.width(6.dp).fillMaxHeight((out.toFloat() / max).coerceAtLeast(0.02f)).clip(RoundedCornerShape(2.dp)).background(ChartColors.coral))

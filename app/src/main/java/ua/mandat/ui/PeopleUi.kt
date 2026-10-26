@@ -228,6 +228,14 @@ fun PeopleList(db: MandatDb, session: Session) {
                             Slice("overdue", stringResource(R.string.stat_overdue), overdue, MaterialTheme.colorScheme.error),
                             Slice("done", stringResource(R.string.strip_done_30), done30, ChartColors.blueLight),
                         ),
+                        // Open ones are in "Waiting on others"; the done ones of the last 30 days in their own list
+                        onPick = { k ->
+                            when (k) {
+                                null -> Unit
+                                "done" -> session.periodView = PeriodKind.DELEG_DONE to ua.mandat.data.Span(today - 29, today)
+                                else -> session.smartList = SmartList.WAITING
+                            }
+                        },
                     )
                     // The same, matter by matter
                     TextButton(onClick = { delegByMatter = !delegByMatter }) {

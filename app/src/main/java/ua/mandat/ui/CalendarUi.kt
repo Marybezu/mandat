@@ -139,6 +139,7 @@ fun CalendarScreen(db: MandatDb, session: Session) = CalendarScreenForTest(db, s
 fun CalendarScreenForTest(db: MandatDb, session: Session, view0: Int) {
     val today = Dates.today()
     var selected by rememberSaveable { mutableStateOf(today) }
+    var kindPick by rememberSaveable { mutableStateOf<String?>(null) }
     var view by rememberSaveable { mutableStateOf(view0) }
     val weekMode = view != 0
     // The month shown (its first day); follows the chosen day
@@ -267,10 +268,23 @@ fun CalendarScreenForTest(db: MandatDb, session: Session, view0: Int) {
                 StackBar(
                     EventKind.entries.map { k -> Slice(k.name, stringResource(k.label()), shown.count { it.kind == k.name }, k.color()) }
                         .filter { it.value > 0 },
+                    selected = kindPick, onPick = { kindPick = it },
                 )
                 val withPeople = shown.count { peopleOf[it.id].orEmpty().isNotEmpty() }
                 Text(stringResource(R.string.cal_with_people, withPeople, shown.size), style = MaterialTheme.typography.labelMedium,
                     color = Muted, modifier = Modifier.padding(top = 6.dp))
+                // The events behind the chosen part, right under the chart
+                kindPick?.let { k ->
+                    val ofKind = shown.filter { it.kind == k }.sortedWith(compareBy({ it.day }, { it.startMin ?: -1 }))
+                    if (ofKind.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        FilterBadge(stringResource(EventKind.of(k).label())) { kindPick = null }
+                        ofKind.forEach { e ->
+                            RowDivider()
+                            EventRow(e, peopleOf[e.id].orEmpty().mapNotNull(nameOf::get), e.matterId?.let(titleOf::get), null, session)
+                        }
+                    }
+                }
             }
         }
     }

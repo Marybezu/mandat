@@ -236,12 +236,15 @@ fun TimeScreen(db: MandatDb, session: Session) {
             item(key = "ontime") {
                 MCard {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        RingStat("$onTimeMonth/${dueMonth.size}", "", onTimeMonth.toFloat() / dueMonth.size, ChartColors.blue)
+                        RingStat("$onTimeMonth/${dueMonth.size}", "", onTimeMonth.toFloat() / dueMonth.size, ChartColors.blue) {
+                            session.periodView = PeriodKind.ON_TIME to month
+                        }
                         Spacer(Modifier.width(12.dp))
                         Column {
                             Text(stringResource(R.string.on_time_month_title), style = MaterialTheme.typography.titleMedium)
                             val late = dueMonth.size - onTimeMonth
-                            if (late > 0) Text(stringResource(R.string.not_on_time, late), style = MaterialTheme.typography.labelMedium, color = Muted)
+                            if (late > 0) Text(stringResource(R.string.not_on_time, late) + " →", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.clickable { session.periodView = PeriodKind.DEADLINES_DUE to month })
                         }
                     }
                 }
