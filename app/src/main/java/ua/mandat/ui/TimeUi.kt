@@ -382,6 +382,7 @@ private fun kindLabel(kind: String): Int = when (kind) {
     "message" -> R.string.message_box
     "alliance" -> R.string.alliances_title
     "money" -> R.string.budget_title
+    "community" -> R.string.district_title
     else -> R.string.tab_review
 }
 
@@ -397,6 +398,7 @@ private fun openHit(db: MandatDb, session: Session, kind: String, id: Long) {
         "info", "alliance" -> session.openInfoItem(kind, id)
         "message" -> { session.searching = false; session.showInfo = true }
         "money" -> { session.searching = false; session.showBudget = true }
+        "community" -> { session.searching = false; session.showDistrict = true; session.communityOpen = id }
         else -> session.searching = false
     }
 }

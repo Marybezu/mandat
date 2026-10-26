@@ -64,6 +64,10 @@ class Session(app: Application) : AndroidViewModel(app) {
     var messageDraft by mutableStateOf<MessageDraft?>(null)
     var allianceDraft by mutableStateOf<AllianceDraft?>(null)
     var moneyDraft by mutableStateOf<MoneyDraft?>(null)
+    var communityDraft by mutableStateOf<CommunityDraft?>(null)
+    /** The district screen, and the community open in it. */
+    var showDistrict by mutableStateOf(false)
+    var communityOpen by mutableStateOf<Long?>(null)
     /** The budget and diary screens. */
     var showBudget by mutableStateOf(false)
     var showDiary by mutableStateOf(false)
@@ -118,6 +122,12 @@ class Session(app: Application) : AndroidViewModel(app) {
     fun saveMessageDraft() {
         val d = messageDraft ?: return
         messageDraft = null
+        write { d.persist(it) }
+    }
+
+    fun saveCommunityDraft() {
+        val d = communityDraft ?: return
+        communityDraft = null
         write { d.persist(it) }
     }
 
@@ -568,6 +578,8 @@ class Session(app: Application) : AndroidViewModel(app) {
         allianceDraft = null
         val openMoney = moneyDraft
         moneyDraft = null
+        val openCommunity = communityDraft
+        communityDraft = null
         // A .vcf being imported is decrypted personal data: it leaves memory with the lock
         vcfImport = null
         vcfDone = null
@@ -605,6 +617,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                             { openMessage?.persist(current.db) },
                             { openAlliance?.persist(current.db) },
                             { openMoney?.persist(current.db) },
+                            { openCommunity?.persist(current.db) },
                             { openContact?.takeIf { !it.isNew || it.touched }?.persist(current.db) },
                             { persistReview(current.db, openReview) },
                             // Last: only the days on which something is due, for reminders

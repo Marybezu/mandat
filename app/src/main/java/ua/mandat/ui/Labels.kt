@@ -1,14 +1,28 @@
 package ua.mandat.ui
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import ua.mandat.R
 import ua.mandat.data.Attention
 import ua.mandat.data.MatterStatus
 import ua.mandat.data.MatterType
 
+/**
+ * National parliament or a local council (chosen at the start, changed in Options). Read while
+ * drawing, so every name follows a change at once.
+ */
+object AppMode {
+    var council by androidx.compose.runtime.mutableStateOf(false)
+}
+
+/** Types that do not fit the chosen mode are not offered for new matters (old ones keep theirs). */
+fun matterTypesForMode(): List<MatterType> =
+    if (AppMode.council) MatterType.entries.filter { it != MatterType.INTERNATIONAL } else MatterType.entries
+
 fun MatterType.label(): Int = when (this) {
     MatterType.CAMPAIGN -> R.string.type_CAMPAIGN
-    MatterType.BILL -> R.string.type_BILL
-    MatterType.INVESTIGATION -> R.string.type_INVESTIGATION
+    MatterType.BILL -> if (AppMode.council) R.string.type_BILL_council else R.string.type_BILL
+    MatterType.INVESTIGATION -> if (AppMode.council) R.string.type_INVESTIGATION_council else R.string.type_INVESTIGATION
     MatterType.COURT -> R.string.type_COURT
     MatterType.DISTRICT -> R.string.type_DISTRICT
     MatterType.INTERNATIONAL -> R.string.type_INTERNATIONAL
@@ -43,6 +57,23 @@ fun MatterStatus.label(): Int = when (this) {
  * the owner's actual choices live in the encrypted database.
  */
 data class RoleBody(val name: Int, val positions: List<Int>)
+
+/** The bodies of the chosen mode. */
+fun roleBodies(): List<RoleBody> = if (AppMode.council) COUNCIL_BODIES else ROLE_BODIES
+
+/** A local council: generic names only. */
+val COUNCIL_BODIES = listOf(
+    RoleBody(R.string.cbody_leadership, listOf(R.string.cpos_head, R.string.cpos_secretary, R.string.pos_deputy)),
+    RoleBody(R.string.body_faction, listOf(R.string.pos_chair, R.string.pos_deputy, R.string.pos_member)),
+    RoleBody(R.string.body_independent, listOf()),
+    RoleBody(R.string.cbody_commission, listOf(R.string.pos_chair, R.string.pos_deputy, R.string.pos_secretary, R.string.pos_member)),
+    RoleBody(R.string.cbody_control, listOf(R.string.pos_chair, R.string.pos_deputy, R.string.pos_secretary, R.string.pos_member)),
+    RoleBody(R.string.cbody_executive, listOf(R.string.pos_member)),
+    RoleBody(R.string.cbody_presidium, listOf(R.string.pos_member)),
+    RoleBody(R.string.body_working_group, listOf(R.string.pos_head, R.string.pos_member)),
+    RoleBody(R.string.cbody_district, listOf()),
+    RoleBody(R.string.body_other_body, listOf(R.string.pos_representative, R.string.pos_member)),
+)
 
 val ROLE_BODIES = listOf(
     RoleBody(R.string.body_rada, listOf(R.string.pos_rada_chair, R.string.pos_rada_first_deputy, R.string.pos_rada_deputy)),

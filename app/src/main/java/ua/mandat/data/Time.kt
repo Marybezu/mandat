@@ -155,6 +155,7 @@ interface SearchDao {
             "UNION ALL SELECT 'message', id, text, audience, text || ' ' || proof || ' ' || audience FROM key_messages " +
             "UNION ALL SELECT 'alliance', id, withWhom, about, withWhom || ' ' || about || ' ' || gives || ' ' || gets || ' ' || notes FROM alliances " +
             "UNION ALL SELECT 'money', id, category, note, category || ' ' || note || ' ' || toWhom FROM money " +
+            "UNION ALL SELECT 'community', id, name, head, name || ' ' || head || ' ' || notes FROM communities " +
             "UNION ALL SELECT 'contact', id, name, organization, name || ' ' || organization || ' ' || jobTitle || ' ' || phones || ' ' || emails || ' ' || label FROM contacts",
     )
     fun everything(): Flow<List<SearchRow>>

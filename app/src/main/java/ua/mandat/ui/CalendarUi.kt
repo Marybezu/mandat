@@ -449,7 +449,7 @@ fun EventDialog(db: MandatDb, session: Session, draft: EventDraft) {
         ConfirmDelete(onConfirm = {
             val id = draft.event.id
             session.eventDraft = null
-            session.write { it.events().delete(id) }
+            session.write { it.events().delete(id); it.communities().unlinkRef(ua.mandat.data.LinkKind.EVENT, id) }
         }, onCancel = { confirmDelete = false })
     }
 }

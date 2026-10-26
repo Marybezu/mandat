@@ -213,6 +213,9 @@ private fun Main(db: MandatDb, session: Session) {
 
     val rolesAskedFlow = remember(db) { db.settings().observe(SETTING_ROLES_ASKED).map { it != null } }
     val rolesAsked by rolesAskedFlow.collectAsStateWithLifecycle(initialValue = null)
+    // The chosen mode (parliament or local council) follows the setting
+    val modeSetting by remember(db) { db.settings().observe(ua.mandat.data.SETTING_MODE) }.collectAsStateWithLifecycle(null)
+    androidx.compose.runtime.LaunchedEffect(modeSetting) { AppMode.council = modeSetting?.value == ua.mandat.data.MODE_COUNCIL }
 
     when {
         rolesAsked == null -> return
@@ -230,6 +233,7 @@ private fun Main(db: MandatDb, session: Session) {
     session.messageDraft?.let { MessageDialog(db, session, it) }
     session.allianceDraft?.let { AllianceDialog(db, session, it) }
     session.moneyDraft?.let { MoneyDialog(db, session, it) }
+    session.communityDraft?.let { CommunityDialog(session, it) }
     session.vcfDone?.let { (n, uri) -> VcfDoneDialog(session, n, uri) }
 
     session.draft?.let { draft ->
@@ -247,6 +251,14 @@ private fun Main(db: MandatDb, session: Session) {
     }
     session.influenceFor?.let {
         InfluenceMapScreen(db, session, it.takeIf { id -> id != 0L })
+        return
+    }
+    session.communityOpen?.let {
+        CommunityScreen(db, session, it)
+        return
+    }
+    if (session.showDistrict) {
+        DistrictScreen(db, session)
         return
     }
     if (session.showBudget) {

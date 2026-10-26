@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -192,6 +193,8 @@ fun Options(session: Session, onBack: () -> Unit) {
             (session.state as? LockState.Open)?.db?.let { db ->
                 Spacer(Modifier.height(8.dp))
                 Section(stringResource(R.string.roles_manage))
+                ModePicker(session)
+                DistrictSwitch(db, session)
                 RolesManager(db, session)
             }
 
@@ -604,6 +607,21 @@ private fun LookSection(session: Session) {
         androidx.compose.material3.Switch(checked = session.dynamicColors, onCheckedChange = {
             session.dynamicColors = it
             Appearance.setDynamic(context, it)
+        })
+    }
+}
+
+/** The district section: for those elected in a district; off by default. */
+@Composable
+private fun DistrictSwitch(db: ua.mandat.data.MandatDb, session: Session) {
+    val on by remember(db) { db.settings().observe(ua.mandat.data.SETTING_DISTRICT) }.collectAsStateWithLifecycle(null)
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.district_switch), style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.district_switch_hint), style = MaterialTheme.typography.labelMedium, color = Muted)
+        }
+        androidx.compose.material3.Switch(checked = on?.value == "1", onCheckedChange = { v ->
+            session.write { it.settings().put(ua.mandat.data.Setting(ua.mandat.data.SETTING_DISTRICT, if (v) "1" else "0")) }
         })
     }
 }

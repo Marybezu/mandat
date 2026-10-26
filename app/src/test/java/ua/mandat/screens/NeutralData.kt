@@ -20,6 +20,7 @@ import ua.mandat.data.Setting
 import ua.mandat.data.TaskStatus
 import ua.mandat.data.TeamRole
 import java.time.LocalDate
+import kotlinx.coroutines.flow.first
 import java.time.ZoneId
 
 /**
@@ -211,6 +212,23 @@ object NeutralData {
                 energy = if (i % 4 == 0) null else 1 + i % 5, mood = if (i % 5 == 0) null else 1 + (i * 2) % 5))
             if (i % 3 == 0) db.reviews().link(ua.mandat.data.ReviewLink(id, "matter", matters[i % matters.size]))
             if (i % 4 == 0) db.reviews().link(ua.mandat.data.ReviewLink(id, "person", people[i % people.size]))
+        }
+        // District: made-up communities with linked matters, visits, promises and people
+        db.settings().put(Setting(ua.mandat.data.SETTING_DISTRICT, "1"))
+        val allEvents = db.events().observeAll().first()
+        val allPromises = db.promises().observeAll().first()
+        (1..6).forEach { i ->
+            val cid = db.communities().insert(ua.mandat.data.Community(name = "Тестова громада $i", kind = ua.mandat.data.CommunityKind.entries[i % 5].name,
+                population = 500 * i, head = "Тестовий староста $i", createdAt = ms(-100), updatedAt = ms(-100)))
+            db.communities().link(ua.mandat.data.CommunityLink(cid, "matter", matters[i]))
+            if (i % 2 == 0) db.communities().link(ua.mandat.data.CommunityLink(cid, "promise", allPromises[i].id))
+            db.communities().link(ua.mandat.data.CommunityLink(cid, "person", people[5 + i]))
+            if (i < 5) {
+                val eid = db.events().insert(ua.mandat.data.Event(title = "Тестовий прийом $i", day = today - i * 25, kind = "RECEPTION", place = "Тестова громада $i",
+                    createdAt = ms(-30), updatedAt = ms(-30)))
+                db.communities().link(ua.mandat.data.CommunityLink(cid, "event", eid))
+            }
+            if (allEvents.size > i) db.communities().link(ua.mandat.data.CommunityLink(cid, "event", allEvents[i].id))
         }
         // Budget: made-up amounts over a year; charity; one compensation pending; organised aid
         val inCats = ua.mandat.data.IncomeCategory.entries

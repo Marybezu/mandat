@@ -132,6 +132,7 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {
         verticalArrangement = Arrangement.spacedBy(Space.gap),
     ) {
         if (active.isNotEmpty()) {
+            if (session != null) item(key = "district") { DistrictEntry(db, session) }
             item(key = "chart") {
                 MCard {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
@@ -337,7 +338,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
             Picker(
                 label = stringResource(R.string.matter_type),
                 current = stringResource(draft.type.label()),
-                options = MatterType.entries.map { it to stringResource(it.label()) },
+                options = matterTypesForMode().map { it to stringResource(it.label()) },
                 onPick = { draft.type = it },
             )
             Picker(
@@ -434,6 +435,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                             db.money().clearMatter(id)
                             db.money().deleteAidFor(id)
                             db.reviews().unlinkRef("matter", id)
+                            db.communities().unlinkRef("matter", id)
                             db.matters().delete(id)
                         }
                     }

@@ -443,7 +443,7 @@ fun PromiseDialog(db: MandatDb, session: Session, draft: PromiseDraft) {
         ConfirmDelete(onConfirm = {
             val id = draft.promise.id
             session.promiseDraft = null
-            session.write { it.promises().delete(id) }
+            session.write { it.promises().delete(id); it.communities().unlinkRef(ua.mandat.data.LinkKind.PROMISE, id) }
         }, onCancel = { confirmDelete = false })
     }
 }

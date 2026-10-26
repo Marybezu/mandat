@@ -221,7 +221,7 @@ suspend fun persistReview(db: MandatDb, text: String?) {
 }
 
 /** An event being edited in its dialog; the people taking part are saved with it. */
-class EventDraft(val event: ua.mandat.data.Event, val isNew: Boolean, people: Set<Long> = emptySet()) {
+class EventDraft(val event: ua.mandat.data.Event, val isNew: Boolean, people: Set<Long> = emptySet(), val communityId: Long? = null) {
     var title by mutableStateOf(event.title)
     var day by mutableStateOf(event.day)
     var endDay by mutableStateOf(event.endDay)
@@ -248,6 +248,7 @@ class EventDraft(val event: ua.mandat.data.Event, val isNew: Boolean, people: Se
         db.withTransaction {
             val id = if (isNew) db.events().insert(edited.copy(id = 0, createdAt = now)) else edited.id.also { db.events().update(edited) }
             db.events().setPeople(id, people)
+            communityId?.let { db.communities().link(ua.mandat.data.CommunityLink(it, ua.mandat.data.LinkKind.EVENT, id)) }
             // A meeting that has happened is the last contact with the people in it
             if (edited.day <= Dates.today()) people.forEach { db.people().touchLastContact(it, edited.day) }
         }
@@ -415,5 +416,27 @@ fun newMoney(kind: ua.mandat.data.MoneyKind, category: String? = null) = MoneyDr
         category = category ?: (if (kind == ua.mandat.data.MoneyKind.INCOME) ua.mandat.data.IncomeCategory.SALARY.name else ua.mandat.data.ExpenseCategory.HOME.name),
         amount = 0, currency = "UAH", uah = 0, createdAt = 0, updatedAt = 0,
     ),
+    isNew = true,
+)
+
+/** A community being edited. */
+class CommunityDraft(val community: ua.mandat.data.Community, val isNew: Boolean) {
+    var name by mutableStateOf(community.name)
+    var kind by mutableStateOf(ua.mandat.data.CommunityKind.of(community.kind))
+    var population by mutableStateOf(community.population?.toString().orEmpty())
+    var head by mutableStateOf(community.head)
+    var notes by mutableStateOf(community.notes)
+
+    suspend fun persist(db: MandatDb) {
+        val now = System.currentTimeMillis()
+        val edited = ua.mandat.data.cleanCommunity(
+            community.copy(name = name, kind = kind.name, population = population.filter { it.isDigit() }.take(9).toIntOrNull(), head = head, notes = notes, updatedAt = now),
+        ) ?: return
+        if (isNew) db.communities().insert(edited.copy(id = 0, createdAt = now)) else db.communities().update(edited)
+    }
+}
+
+fun newCommunity() = CommunityDraft(
+    ua.mandat.data.Community(name = "", kind = ua.mandat.data.CommunityKind.VILLAGE.name, createdAt = 0, updatedAt = 0),
     isNew = true,
 )

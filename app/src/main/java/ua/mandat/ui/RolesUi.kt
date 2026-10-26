@@ -47,15 +47,15 @@ import ua.mandat.data.Setting
 @Composable
 fun RoleBuilder(onAdd: (String) -> Unit) {
     val context = LocalContext.current
-    var body by remember { mutableStateOf(ROLE_BODIES.first()) }
-    var position by remember { mutableStateOf(ROLE_BODIES.first().positions.firstOrNull()) }
+    var body by remember(AppMode.council) { mutableStateOf(roleBodies().first()) }
+    var position by remember(AppMode.council) { mutableStateOf(roleBodies().first().positions.firstOrNull()) }
     var name by remember { mutableStateOf("") }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Picker(
             label = stringResource(R.string.role_body),
             current = stringResource(body.name),
-            options = ROLE_BODIES.map { it to context.getString(it.name) },
+            options = roleBodies().map { it to context.getString(it.name) },
             onPick = {
                 body = it
                 position = it.positions.firstOrNull()
@@ -116,6 +116,8 @@ fun RolesSetup(session: Session) {
     ) {
         Text(stringResource(R.string.roles_title), style = MaterialTheme.typography.titleLarge)
         Text(stringResource(R.string.roles_text), style = MaterialTheme.typography.bodyLarge)
+        Spacer(Modifier.height(8.dp))
+        ModePicker(session)
         Spacer(Modifier.height(8.dp))
         RoleBuilder(onAdd = { if (it !in added) added += it })
         if (added.isNotEmpty()) {
@@ -205,4 +207,23 @@ fun RolesManager(db: MandatDb, session: Session) {
             dismissButton = { TextButton(onClick = { deleting = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
+}
+
+/** National parliament or a local council: changes the bodies, positions and some names. */
+@Composable
+fun ModePicker(session: Session) {
+    Text(stringResource(R.string.mode_title), style = MaterialTheme.typography.titleMedium)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(false to R.string.mode_rada, true to R.string.mode_council).forEach { (council, label) ->
+            androidx.compose.material3.FilterChip(
+                selected = AppMode.council == council,
+                onClick = {
+                    AppMode.council = council
+                    session.write { it.settings().put(Setting(ua.mandat.data.SETTING_MODE, if (council) ua.mandat.data.MODE_COUNCIL else ua.mandat.data.MODE_RADA)) }
+                },
+                label = { Text(stringResource(label)) },
+            )
+        }
+    }
+    Text(stringResource(R.string.mode_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
 }

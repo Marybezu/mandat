@@ -40,6 +40,7 @@ interface InboxDao {
         Person::class, MatterPerson::class, Delegation::class, Promise::class,
         Deadline::class, Review::class, Event::class, EventPerson::class, Contact::class,
         InfoItem::class, KeyMessage::class, Alliance::class, MoneyEntry::class, AidRecord::class, ReviewLink::class,
+        Community::class, CommunityLink::class,
     ],
     version = DB_VERSION,
     exportSchema = true,
@@ -59,6 +60,7 @@ abstract class MandatDb : RoomDatabase() {
     abstract fun contacts(): ContactDao
     abstract fun info(): InfoDao
     abstract fun money(): MoneyDao
+    abstract fun communities(): CommunityDao
 
     companion object {
         const val FILE_NAME = "mandat.db"
@@ -268,7 +270,25 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
     }
 }
 
-val MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // The district: communities and what is linked to each
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `communities` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, " +
+                "`kind` TEXT NOT NULL, `population` INTEGER, `head` TEXT NOT NULL, `notes` TEXT NOT NULL, " +
+                "`createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `community_links` (`communityId` INTEGER NOT NULL, `kind` TEXT NOT NULL, `refId` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`communityId`, `kind`, `refId`))",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_community_links_refId` ON `community_links` (`refId`)")
+    }
+}
+
+val MIGRATIONS = arrayOf(
+    MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
+)
 
 /** The current database layout version; raise it together with a new migration. */
-const val DB_VERSION = 9
+const val DB_VERSION = 10
