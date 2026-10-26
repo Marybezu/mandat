@@ -8,14 +8,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.test.core.app.ActivityScenario
 import android.content.ComponentName
-import androidx.compose.ui.test.onRoot
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -83,9 +80,14 @@ class ScreensTest {
             shadowOf(Looper.getMainLooper()).idle()
             compose.waitForIdle()
         }
-        val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+        // Draw the whole window into a picture
+        var bitmap: Bitmap? = null
+        scenario.onActivity { activity ->
+            val view = activity.window.decorView
+            bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888).also { view.draw(android.graphics.Canvas(it)) }
+        }
         val dir = File("build/screens").apply { mkdirs() }
-        File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        File(dir, "$name.png").outputStream().use { bitmap!!.compress(Bitmap.CompressFormat.PNG, 100, it) }
         Unit
     }
 
