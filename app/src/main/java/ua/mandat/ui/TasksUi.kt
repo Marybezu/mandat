@@ -113,8 +113,9 @@ fun PromiseRow(p: Promise, personName: String?, matterTitle: String?, session: S
         onToggleDone = {
             val next = if (TaskStatus.of(p.status) == TaskStatus.OPEN) TaskStatus.DONE else TaskStatus.OPEN
             session.write {
+                // Back to open or kept: an old "why it failed" note no longer applies
                 it.promises().update(
-                    p.copy(status = next.name, closedAt = if (next == TaskStatus.OPEN) null else System.currentTimeMillis()),
+                    p.copy(status = next.name, statusNote = "", closedAt = if (next == TaskStatus.OPEN) null else System.currentTimeMillis()),
                 )
             }
         },

@@ -53,8 +53,6 @@ fun PeopleList(db: MandatDb, session: Session) {
     val open by delegationsFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     // The search text is not sensitive enough to matter, but stays out of saved state anyway
     var query by remember { mutableStateOf("") }
-    val today = Dates.today()
-
     val shown = people.filter {
         query.isBlank() || listOf(it.name, it.organization, it.jobTitle).any { f -> f.contains(query.trim(), ignoreCase = true) }
     }
@@ -110,7 +108,7 @@ private fun PersonCard(p: Person, openCount: Int, onOpen: () -> Unit) {
             val meta = listOfNotNull(role, p.jobTitle.ifBlank { null }, p.organization.ifBlank { null }).joinToString(" · ")
             if (meta.isNotEmpty()) Text(meta, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
             // Only how much is open, in a calm colour: the list is a directory, not a scoreboard.
-            // What is overdue is shown inside the person's page and on Today, item by item.
+            // Overdue items are shown on Today and in the person's page, one by one.
             if (openCount > 0) {
                 Text(stringResource(R.string.open_count, openCount), style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.secondary)
