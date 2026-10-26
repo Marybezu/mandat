@@ -485,4 +485,7 @@
     <string name="auto_use_anyway">Використати цю папку</string>
     <string name="notice_auto_too_big">Даних більше, ніж вміщає резервна копія, тому автокопію не зроблено.</string>
     <string name="auto_fail_stuck">Остання спроба не вдалася: %1$s. Папка не відповідала; оберіть іншу або перевірте застосунок, якому вона належить.</string>
+    <string name="show_by_matter">За справами</string>
+    <string name="hide_by_matter">Сховати справи</string>
+    <string name="by_matter_map_hint">Торкніться справи, щоб відкрити її карту впливу.</string>
 </resources>

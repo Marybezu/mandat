@@ -69,6 +69,12 @@ fun PeopleList(db: MandatDb, session: Session) {
     var byTeam by rememberSaveable { mutableStateOf(false) }
     var pick by rememberSaveable { mutableStateOf<String?>(null) }
     var stance by rememberSaveable { mutableStateOf<String?>(null) }
+    var delegByMatter by rememberSaveable { mutableStateOf(false) }
+    var stanceByMatter by rememberSaveable { mutableStateOf(false) }
+    var allDeleg by rememberSaveable { mutableStateOf(false) }
+    var allStance by rememberSaveable { mutableStateOf(false) }
+    val titles by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
+    val titleOf = titles.associate { it.id to it.title }
     val today = Dates.today()
 
     if (people.isEmpty()) {
@@ -140,6 +146,28 @@ fun PeopleList(db: MandatDb, session: Session) {
                             Slice("done", stringResource(R.string.strip_done_30), done30, ChartColors.blueLight),
                         ),
                     )
+                    // The same, matter by matter
+                    TextButton(onClick = { delegByMatter = !delegByMatter }) {
+                        Text(stringResource(if (delegByMatter) R.string.hide_by_matter else R.string.show_by_matter))
+                    }
+                    if (delegByMatter) {
+                        val perMatter = openD.filter { it.matterId != null }.groupBy { it.matterId!! }
+                            .entries.sortedByDescending { it.value.size }
+                        val shownRows = if (allDeleg) perMatter else perMatter.take(8)
+                        val onTimeL = stringResource(R.string.on_time)
+                        val overdueL = stringResource(R.string.stat_overdue)
+                        val warn = MaterialTheme.colorScheme.error
+                        shownRows.forEach { (mid, ds) ->
+                            val late = ds.count { ua.mandat.data.isOverdue(it.due, it.status, today) }
+                            ByMatterRow(titleOf[mid] ?: "—", listOf(
+                                Slice("o", onTimeL, ds.size - late, ChartColors.blue),
+                                Slice("l", overdueL, late, warn),
+                            )) { session.openMatter(mid) }
+                        }
+                        if (perMatter.size > 8) TextButton(onClick = { allDeleg = !allDeleg }) {
+                            Text(if (allDeleg) stringResource(R.string.show_less) else stringResource(R.string.show_more, perMatter.size - 8))
+                        }
+                    }
                 }
             }
         }
@@ -156,6 +184,30 @@ fun PeopleList(db: MandatDb, session: Session) {
                         ),
                         selected = stance, onPick = { stance = it },
                     )
+                    TextButton(onClick = { stanceByMatter = !stanceByMatter }) {
+                        Text(stringResource(if (stanceByMatter) R.string.hide_by_matter else R.string.show_by_matter))
+                    }
+                    if (stanceByMatter) {
+                        val perMatter = links.filter { it.stance != null }.groupBy { it.matterId }
+                            .entries.sortedByDescending { it.value.size }
+                        val shownRows = if (allStance) perMatter else perMatter.take(8)
+                        val allyL = stringResource(R.string.strip_allies)
+                        val undL = stringResource(R.string.strip_undecided)
+                        val oppL = stringResource(R.string.strip_opponents)
+                        val neuL = stringResource(R.string.stance_neutral_many)
+                        shownRows.forEach { (mid, ls) ->
+                            ByMatterRow(titleOf[mid] ?: "—", listOf(
+                                Slice("a", allyL, ls.count { it.stance == "ALLY" }, ChartColors.teal),
+                                Slice("u", undL, ls.count { it.stance == "UNDECIDED" }, ChartColors.amberLight),
+                                Slice("o", oppL, ls.count { it.stance == "OPPONENT" }, ChartColors.salmon),
+                                Slice("n", neuL, ls.count { it.stance == "NEUTRAL" }, ChartColors.grayLight),
+                            )) { session.influenceFor = mid }
+                        }
+                        if (perMatter.size > 8) TextButton(onClick = { allStance = !allStance }) {
+                            Text(if (allStance) stringResource(R.string.show_less) else stringResource(R.string.show_more, perMatter.size - 8))
+                        }
+                        Text(stringResource(R.string.by_matter_map_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
+                    }
                 }
             }
         }

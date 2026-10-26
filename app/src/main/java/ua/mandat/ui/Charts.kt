@@ -78,7 +78,27 @@ fun DonutChart(
     val total = parts.sumOf { it.value }.coerceAtLeast(1)
     val track = MaterialTheme.colorScheme.surfaceVariant
     val description = parts.joinToString(", ") { "${it.label} ${it.value}" }
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    // With many parts the legend is tall: the ring goes on top and the legend below in two columns
+    val stacked = parts.size > 5
+    val ringSize = if (stacked) 150.dp else size
+    androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth()) {
+    if (stacked) Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Ring(parts, total, track, description, center, centerLabel, selected, onPick, ringSize)
+        Spacer(Modifier.height(10.dp))
+        LegendGrid(parts, selected, onPick)
+    } else Row(verticalAlignment = Alignment.CenterVertically) {
+        Ring(parts, total, track, description, center, centerLabel, selected, onPick, ringSize)
+        Spacer(Modifier.width(14.dp))
+        Legend(parts, selected, onPick, Modifier.weight(1f))
+    }
+    }
+}
+
+@Composable
+private fun Ring(
+    parts: List<Slice>, total: Int, track: Color, description: String, center: String, centerLabel: String,
+    selected: String?, onPick: (String?) -> Unit, size: Dp,
+) {
         Box(Modifier.size(size), contentAlignment = Alignment.Center) {
             Canvas(
                 Modifier.size(size).semantics { contentDescription = description }.pointerInput(parts, selected) {
@@ -126,8 +146,18 @@ fun DonutChart(
                 Text(centerLabel, style = MaterialTheme.typography.labelSmall, color = Muted)
             }
         }
-        Spacer(Modifier.width(14.dp))
-        Legend(parts, selected, onPick, Modifier.weight(1f))
+}
+
+/** The legend in two columns, for charts with many parts. */
+@Composable
+fun LegendGrid(parts: List<Slice>, selected: String?, onPick: (String?) -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        parts.chunked(2).forEach { pair ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                pair.forEach { p -> Legend(listOf(p), selected, onPick, Modifier.weight(1f)) }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
     }
 }
 
@@ -325,3 +355,28 @@ val SeriesColors = listOf(
     ChartColors.blue, ChartColors.teal, ChartColors.coral, ChartColors.purple, ChartColors.green,
     ChartColors.amber, ChartColors.pink, ChartColors.sky, ChartColors.purpleLight, ChartColors.gray, ChartColors.grayLight,
 )
+
+/** A small bar for one row of a list (for example one matter), parts in proportion. */
+@Composable
+fun MiniBar(slices: List<Slice>, modifier: Modifier = Modifier) {
+    val parts = slices.filter { it.value > 0 }
+    Row(modifier.height(8.dp).clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
+        parts.forEach { p -> Box(Modifier.weight(p.value.toFloat()).fillMaxHeight().background(p.color)) }
+    }
+}
+
+/** One matter in a "by matter" list: title, a small bar, the numbers; tap to open. */
+@Composable
+fun ByMatterRow(title: String, slices: List<Slice>, onClick: () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick).padding(vertical = 6.dp),
+    ) {
+        Text(title, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            MiniBar(slices, Modifier.weight(1f))
+            Spacer(Modifier.width(8.dp))
+            Text(slices.filter { it.value > 0 }.joinToString(" · ") { it.value.toString() }, style = MaterialTheme.typography.labelSmall, color = Muted)
+        }
+    }
+}
