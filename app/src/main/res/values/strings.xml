@@ -903,7 +903,7 @@
     <string name="import_done">Imported: %1$d</string>
     <string name="export_pdf">Documents also as PDF</string>
     <string name="export_mandat">Mandat file with a password (strongest)</string>
-    <string name="export_mandat_hint">Encrypted the same way as a backup; file names are hidden too. Opens only in Mandat: the calendar and contacts in it can be imported.</string>
+    <string name="export_mandat_hint">Contacts and the calendar only. Encrypted the same way as a backup, file names hidden too. Opens only in Mandat (on another phone, say).</string>
     <string name="export_suggested_note">Write this password down now and keep it apart from the file:</string>
     <string name="export_password_weak">Too simple: at least 16 characters, without common words. Or tap "Suggest a password".</string>
     <string name="export_everything_hidden">"Everything (.json)" is not offered while the lens or trip mode hides something.</string>
@@ -913,4 +913,10 @@
     <string name="import_mandat_summary">Events: %1$d, contacts: %2$d. Other files (tables, documents) are not imported: %3$d.</string>
     <string name="import_done_short">Imported</string>
     <string name="import_delete_offer">The source file on the phone is not encrypted. Delete it now? The data is already safe in Mandat.</string>
+    <string name="export_mandat_only">A Mandat file holds contacts and the calendar only. Tables, the diary and documents go in a ZIP with a password.</string>
+    <string name="export_lens_note">The lens hides matters of other roles: they and what is linked to them are left out.</string>
+    <string name="export_too_big">The file came out larger than 16 MB, and Mandat could not open it later. Nothing was written: choose less, or a ZIP.</string>
+    <string name="import_mandat_not">This is not a Mandat export file.</string>
+    <string name="import_mandat_is_backup">This is a backup, not an export file. Restore it in Settings, under Backup.</string>
+    <string name="notice_is_export">This is an export file (.mandatx), not a backup. Open it in Export and import. Nothing was changed.</string>
 </resources>

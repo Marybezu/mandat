@@ -30,6 +30,15 @@ object BackupCrypto {
     const val MIN_PASSWORD_LENGTH = 16
     const val MAX_FILE_BYTES = 16L * 1024 * 1024
 
+    /**
+     * The first bytes inside an export file (.mandatx), after decryption. A backup holds JSON
+     * instead, so each kind of file is recognised and never taken for the other.
+     */
+    val EXPORT_MARK: ByteArray = "MANDATX1".toByteArray(Charsets.US_ASCII)
+
+    fun startsWithExportMark(plain: ByteArray): Boolean =
+        plain.size >= EXPORT_MARK.size && EXPORT_MARK.indices.all { plain[it] == EXPORT_MARK[it] }
+
     private const val SALT_BYTES = 16
     private const val NONCE_BYTES = 12
     private const val TAG_BYTES = 16

@@ -23,6 +23,8 @@ sealed interface BackupNotice {
     data object WrongPassword : BackupNotice
     data object NotABackup : BackupNotice
     data object Incompatible : BackupNotice
+    /** The file is an export (.mandatx), not a backup. */
+    data object IsExport : BackupNotice
     data class Restored(val rows: Int) : BackupNotice
     data object RestoreFailed : BackupNotice
     data object AutoOn : BackupNotice
@@ -160,6 +162,10 @@ class Backups(private val context: Context, private val session: Session) {
     fun open(uri: Uri, password: String, startedAt: Int) = run(onCrash = { BackupNotice.NotABackup }) {
         try {
             val json = BackupCrypto.decrypt(read(uri), password)
+            if (BackupCrypto.startsWithExportMark(json)) {
+                json.fill(0)
+                return@run BackupNotice.IsExport
+            }
             val summary = try {
                 BackupData.summary(json)
             } catch (e: Exception) {

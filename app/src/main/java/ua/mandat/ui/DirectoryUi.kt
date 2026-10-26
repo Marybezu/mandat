@@ -399,6 +399,7 @@ fun VcfPreviewScreen(session: Session, job: VcfImport) {
 @Composable
 fun VcfDoneDialog(session: Session, count: Int, uri: Uri?) {
     val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     var failed by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = { session.vcfDone = null },
@@ -407,12 +408,10 @@ fun VcfDoneDialog(session: Session, count: Int, uri: Uri?) {
         text = if (uri == null) null else { { Text(stringResource(if (failed) R.string.vcf_delete_failed else R.string.vcf_delete_offer)) } },
         confirmButton = {
             if (uri != null && !failed) TextButton(onClick = {
-                val ok = try {
-                    android.provider.DocumentsContract.deleteDocument(context.contentResolver, uri)
-                } catch (e: Exception) {
-                    false
+                scope.launch {
+                    val ok = deleteDocumentQuietly(context, uri)
+                    if (ok) session.vcfDone = null else failed = true
                 }
-                if (ok) session.vcfDone = null else failed = true
             }) { Text(stringResource(R.string.vcf_delete)) }
         },
         dismissButton = { TextButton(onClick = { session.vcfDone = null }) { Text(stringResource(if (failed || uri == null) R.string.ok else R.string.vcf_keep)) } },

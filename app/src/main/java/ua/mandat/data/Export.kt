@@ -126,7 +126,10 @@ object Export {
             if (ch in MD_SPECIAL) out.append('\\')
             out.append(ch)
         }
-        return out.toString()
+        // A line that would start a heading underline, a list or a quote stays plain text
+        return out.toString().lineSequence().joinToString("\n") { l ->
+            if (l.isNotEmpty() && (l[0] in "-+=" || Regex("^\\d+[.)]").containsMatchIn(l))) "\\$l" else l
+        }
     }
 
     private const val MD_SPECIAL = "\\*_#`<>[]!"

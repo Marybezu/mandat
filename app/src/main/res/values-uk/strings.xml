@@ -905,7 +905,7 @@
     <string name="import_done">Імпортовано: %1$d</string>
     <string name="export_pdf">Документи також у PDF</string>
     <string name="export_mandat">Файл Мандата з паролем (найнадійніше)</string>
-    <string name="export_mandat_hint">Зашифровано так само, як резервну копію; приховано й назви файлів. Відкрити можна лише в Мандаті: календар і контакти з нього імпортуються.</string>
+    <string name="export_mandat_hint">Лише контакти й календар. Зашифровано так само, як резервну копію, назви файлів теж приховано. Відкривається тільки в Мандаті (наприклад, на іншому телефоні).</string>
     <string name="export_suggested_note">Запишіть цей пароль зараз і зберігайте окремо від файлу:</string>
     <string name="export_password_weak">Надто простий: щонайменше 16 символів, без поширених слів. Або натисніть «Запропонувати пароль».</string>
     <string name="export_everything_hidden">«Усе (.json)» недоступне, поки лінза чи режим поїздки щось ховають.</string>
@@ -915,4 +915,10 @@
     <string name="import_mandat_summary">Подій: %1$d, контактів: %2$d. Інших файлів (таблиці, документи) не імпортується: %3$d.</string>
     <string name="import_done_short">Імпортовано</string>
     <string name="import_delete_offer">Вихідний файл на телефоні не зашифрований. Видалити його зараз? Дані вже надійно в Мандаті.</string>
+    <string name="export_mandat_only">У файл Мандата йдуть лише контакти й календар. Таблиці, щоденник і документи — через ZIP з паролем.</string>
+    <string name="export_lens_note">Лінза ховає справи інших ролей: вони й пов\'язане з ними не вивантажуються.</string>
+    <string name="export_too_big">Файл вийшов більшим за 16 МБ, і Мандат потім не зміг би його відкрити. Нічого не записано: виберіть менше або ZIP.</string>
+    <string name="import_mandat_not">Це не файл експорту Мандата.</string>
+    <string name="import_mandat_is_backup">Це резервна копія, а не файл експорту. Відновіть її в «Налаштуваннях», розділ «Резервна копія».</string>
+    <string name="notice_is_export">Це файл експорту (.mandatx), а не резервна копія. Відкрийте його в «Експорт і імпорт». Нічого не змінено.</string>
 </resources>

@@ -71,6 +71,15 @@ class ExportTest {
         assertEquals("\\!\\[\\](x) \\<b\\>", Export.md("![](x) <b>"))
     }
 
+    @Test fun markdownLineStartsStayText() {
+        assertEquals("\\- not a list\n\\1. nor this", Export.md("- not a list\n1. nor this"))
+    }
+
+    @Test fun exportMark() {
+        assertTrue(ua.mandat.backup.BackupCrypto.startsWithExportMark(ua.mandat.backup.BackupCrypto.EXPORT_MARK + byteArrayOf(1, 2)))
+        assertTrue(!ua.mandat.backup.BackupCrypto.startsWithExportMark("{\"schema\":1}".toByteArray()))
+    }
+
     @Test fun longContinuationIsLinearAndBounded() {
         val text = "BEGIN:VCALENDAR\nBEGIN:VEVENT\nDTSTART:20260101T100000Z\nSUMMARY:a\n" + " x\n".repeat(300_000) + "END:VEVENT\n"
         val started = System.nanoTime()

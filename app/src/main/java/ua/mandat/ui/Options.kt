@@ -299,6 +299,7 @@ fun Options(session: Session, onBack: () -> Unit) {
             BackupNotice.WrongPassword -> stringResource(R.string.notice_wrong_password)
             BackupNotice.NotABackup -> stringResource(R.string.notice_not_backup)
             BackupNotice.Incompatible -> stringResource(R.string.notice_incompatible)
+            BackupNotice.IsExport -> stringResource(R.string.notice_is_export)
             is BackupNotice.Restored -> stringResource(R.string.notice_restored, notice.rows)
             BackupNotice.RestoreFailed -> stringResource(R.string.notice_restore_failed)
             BackupNotice.AutoOn -> stringResource(R.string.notice_auto_on)
