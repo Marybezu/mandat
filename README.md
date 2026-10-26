@@ -1,15 +1,63 @@
 # Мандат · Mandat
 
-Приватний офлайн-органайзер для Android. Українська та англійська.
+Приватний офлайн-органайзер для Android: справи, люди, календар, доручення й обіцянки в одному зашифрованому місці. Українська та англійська. Безкоштовно, без реклами й акаунтів.
 
-> **Статус: проєктування.** Коду й релізів ще немає.
+> **Статус: тестова версія.** Помилки й побажання: [Issues](../../issues).
 
-- Без дозволу на інтернет, дані лише на телефоні й завжди зашифровані.
-- Не призначено для відомостей з грифом.
-- Код створено за допомогою ШІ (Claude, Anthropic) під керівництвом і з тестуванням автора.
+## Особливості
 
-Ліцензія GPL-3.0 (буде додано разом із кодом).
+- 🔒 **Приватність.** Дозволу на інтернет немає, дані лише на телефоні й завжди зашифровані (SQLCipher). Вхід відбитком або PIN-кодом, знімки екрана заборонені. Резервна копія лише з паролем (Argon2id + AES-256).
+- 🗂️ **Справи й увага.** Фокус, фон і сплячі справи, наступний крок, застряглі й без кроку, розбір давніх прострочених.
+- 👥 **Люди.** Свої категорії, позиції в справах, команда, розмова віч-на-віч, довідник контактів з імпортом .vcf і CSV.
+- 📅 **Календар і час.** Місяць, тиждень із сіткою годин, список; щільність тижня з вільними вікнами; строки, доручення й обіцянки на одній стрічці.
+- 📊 **Наочність.** Зведення за тиждень, місяць, рік; кожне число відкриває записи, з яких воно складається. Кольори завжди з підписом чи відсотком.
+- 🧳 **Режим поїздки й лінза.** Позначені справи й усе пов'язане з ними зникають з екранів, пошуку й експорту одним перемикачем.
+- 📤 **Експорт і імпорт.** .vcf, .ics, CSV, Markdown, PDF; за замовчуванням із паролем.
+- 📓 **Щоденник, бюджет, вхідні.**
+
+## Встановлення
+
+Завантажте `.apk` з [Releases](../../releases/latest). Для автооновлень — [Obtainium](https://obtainium.imranr.dev/). Перед оновленням радимо зробити резервну копію.
+
+## Прозорість
+
+- **Дозволи:** сповіщення й перезапуск нагадувань після ввімкнення телефона; читання календаря телефона — лише якщо ви ввімкнете його показ. Збірка зупиняється, якщо з'являється дозвіл на інтернет.
+- **Шифрування:** не шифруються лише налаштування вигляду, вмикачі нагадувань і дати, на які є нагадування (щоб сповіщення приходили без розблокування; у тексті сповіщення нічого немає). Відкритий файл експорту — лише за вашим вибором і з попередженням.
+- **Збірка:** APK збирається з цього коду в GitHub Actions і підписується лише після схвалення автора. Контрольні суми залежностей перевіряються.
+- **Межі:** не призначено для відомостей з грифом — для них потрібні спеціально захищені системи, а не застосунок на особистому телефоні. Режим поїздки не захищає від того, хто змусить відкрити Мандат; резервні копії містять усе.
+- **Як створено:** код написано за допомогою ШІ (Claude, Anthropic) під керівництвом і з тестуванням автора.
+
+Kotlin · Jetpack Compose · Room · SQLCipher. Сторонні матеріали — [NOTICE.md](NOTICE.md). Ліцензія GPL-3.0.
 
 ---
 
-**English.** A private, offline, always-encrypted organiser for Android. Design phase, no code yet. Not for classified information. Written with AI assistance (Claude, Anthropic), directed and tested by the author. GPL-3.0.
+# Mandat · English
+
+A private, offline organiser for Android: matters, people, calendar, delegations and promises in one encrypted place. Ukrainian and English. Free, no ads, no accounts.
+
+> **Status: test version.** Bugs and wishes: [Issues](../../issues).
+
+## Features
+
+- 🔒 **Privacy.** No internet permission, data stays on the phone and is always encrypted (SQLCipher). Fingerprint or PIN to open, screenshots blocked. Backups only with a password (Argon2id + AES-256).
+- 🗂️ **Matters and attention.** Focus, background and sleeping matters, next steps, stuck ones and ones without a step, sorting out old overdue items.
+- 👥 **People.** Your own categories, stances in matters, a team, one-to-one talks, an address book with .vcf and CSV import.
+- 📅 **Calendar and time.** Month, week with an hour grid, list; week density with free windows; deadlines, delegations and promises on one strip.
+- 📊 **At a glance.** Week, month and year overviews; every number opens the records it counts. Colours always come with a label or a percentage.
+- 🧳 **Trip mode and lens.** Marked matters and everything linked to them disappear from screens, search and export with one switch.
+- 📤 **Export and import.** .vcf, .ics, CSV, Markdown, PDF; with a password by default.
+- 📓 **Diary, budget, inbox.**
+
+## Install
+
+Download the `.apk` from [Releases](../../releases/latest). For updates, use [Obtainium](https://obtainium.imranr.dev/). Make a backup before updating.
+
+## Transparency
+
+- **Permissions:** notifications and restoring reminders after a restart; reading the phone's calendar only if you turn on showing it. The build stops if an internet permission appears.
+- **Encryption:** the only things not encrypted are appearance settings, reminder switches and the dates that have reminders (so notifications arrive without unlocking; the notification text says nothing). An open export file only by your choice and after a warning.
+- **Build:** the APK is built from this code in GitHub Actions and signed only after the author's approval. Dependency checksums are verified.
+- **Limits:** not for classified information, which needs specially protected systems rather than an app on a personal phone. Trip mode does not protect against someone who forces you to open Mandat; backups contain everything.
+- **How it was made:** written with AI assistance (Claude, Anthropic), directed and tested by the author.
+
+Kotlin · Jetpack Compose · Room · SQLCipher. Third-party material: [NOTICE.md](NOTICE.md). GPL-3.0 licence.
