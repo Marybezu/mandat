@@ -72,7 +72,7 @@ class ExportTest {
     }
 
     @Test fun markdownLineStartsStayText() {
-        assertEquals("\\- not a list\n\\1. nor this", Export.md("- not a list\n1. nor this"))
+        assertEquals("\\- not a list\n1\\. nor this\n  \\+ indented", Export.md("- not a list\n1. nor this\n  + indented"))
     }
 
     @Test fun exportMark() {

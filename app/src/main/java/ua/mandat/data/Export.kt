@@ -127,10 +127,20 @@ object Export {
             out.append(ch)
         }
         // A line that would start a heading underline, a list or a quote stays plain text
-        return out.toString().lineSequence().joinToString("\n") { l ->
-            if (l.isNotEmpty() && (l[0] in "-+=" || Regex("^\\d+[.)]").containsMatchIn(l))) "\\$l" else l
+        return out.toString().lineSequence().joinToString("\n") { line ->
+            val indent = line.takeWhile { it == ' ' }
+            val l = line.substring(indent.length)
+            val number = LIST_NUMBER.find(l)
+            indent + when {
+                l.isNotEmpty() && l[0] in "-+=~" -> "\\$l"
+                // A backslash works only before punctuation: "1\." rather than "\1."
+                number != null -> l.substring(0, number.range.last) + "\\" + l.substring(number.range.last)
+                else -> l
+            }
         }
     }
+
+    private val LIST_NUMBER = Regex("^\\d+[.)]")
 
     private const val MD_SPECIAL = "\\*_#`<>[]!"
 }

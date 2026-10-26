@@ -425,12 +425,23 @@ private suspend fun runExport(context: Context, session: Session, plan: ExportPl
     // Only a file Mandat began to write into is deleted after a failure: the owner may have
     // picked an existing file to replace, and that must stay as it was
     var touched = false
-    fun discard() { if (touched) try { android.provider.DocumentsContract.deleteDocument(context.contentResolver, uri) } catch (x: Exception) { } }
+    fun discard() {
+        // An empty file is the one the save dialog just made, never one the owner chose to replace
+        val empty = !touched && try {
+            context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.SIZE), null, null, null)?.use { c -> c.moveToFirst() && !c.isNull(0) && c.getLong(0) == 0L } == true
+        } catch (x: Exception) { false }
+        if (touched || empty) try { android.provider.DocumentsContract.deleteDocument(context.contentResolver, uri) } catch (x: Exception) { }
+    }
     return try {
-        files = session.withOpenDb { db -> buildFiles(context, db, session.hiddenMatters.value, plan) }.orEmpty()
+        // For Mandat's own file only contacts and the calendar are even built
+        val wanted = if (own) ExportPlan().also { p ->
+            p.people = plan.people; p.peopleCategory = plan.peopleCategory; p.book = plan.book; p.bookGroup = plan.bookGroup
+            p.calendar = plan.calendar; p.calendarSpan = plan.calendarSpan; p.pdf = false
+        } else plan
+        files = session.withOpenDb { db -> buildFiles(context, db, session.hiddenMatters.value, wanted) }.orEmpty()
         // Mandat's own file carries only what Mandat can take back in
         if (own) files = files.filter { (name, bytes) -> (name.endsWith(".vcf") || name.endsWith(".ics")).also { keep -> if (!keep) bytes.fill(0) } }
-        if (files.isEmpty()) return false
+        if (files.isEmpty()) { discard(); return false }
         // Mandat's own file is sealed before anything is written, so a file too big to open again is never made
         val sealed: ByteArray? = if (password != null && own) {
             // The same encryption as a backup (Argon2id and AES-256-GCM); file names are hidden too
@@ -439,7 +450,7 @@ private suspend fun runExport(context: Context, session: Session, plan: ExportPl
             inner.fill(0)
             try { ua.mandat.backup.BackupCrypto.encrypt(marked, String(password)) } finally { marked.fill(0) }
         } else null
-        if (sealed != null && sealed.size > ua.mandat.backup.BackupCrypto.MAX_FILE_BYTES) { tooBig(); return false }
+        if (sealed != null && sealed.size > ua.mandat.backup.BackupCrypto.MAX_FILE_BYTES) { tooBig(); discard(); return false }
         val written = context.contentResolver.openOutputStream(uri, "wt")?.use { out ->
             touched = true
             when {
@@ -815,7 +826,7 @@ object PdfText {
         }
         newPage()
         // Markup first (bold, italics), then the escaped characters back to themselves
-        fun plain(s: String) = s.replace("**", "").replace(Regex("(?<!\\\\)_"), "").replace(Regex("\\\\([*_#`<>\\[\\]!\\\\])"), "$1")
+        fun plain(s: String) = s.replace("**", "").replace(Regex("(?<!\\\\)_"), "").replace(Regex("\\\\([*_#`<>\\[\\]!\\\\+=~.)-])"), "$1")
         for (raw in markdown.split("\n")) {
             val (paint, text, gap) = when {
                 raw.startsWith("# ") -> Triple(h1, plain(raw.removePrefix("# ")), 10f)
