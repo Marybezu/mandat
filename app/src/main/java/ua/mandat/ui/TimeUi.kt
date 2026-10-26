@@ -186,7 +186,7 @@ fun TimeScreen(db: MandatDb, session: Session) {
     val dueMonth = allDeadlines.filter { it.day in month && it.day <= today && TaskStatus.of(it.status) != TaskStatus.CANCELLED }
     val onTimeMonth = dueMonth.count { TaskStatus.of(it.status) == TaskStatus.DONE && it.closedAt != null && Dates.dayOf(it.closedAt) <= it.day }
 
-    val dayFmt = java.time.format.DateTimeFormatter.ofPattern("EEEEEE")
+    val dayFmt = java.time.format.DateTimeFormatter.ofPattern("EEE")
     val days = (0L until 14L).map { i ->
         val d = today + i
         val onDay = all.filter { it.day == d && (kind == null || it.kind == kind) }
