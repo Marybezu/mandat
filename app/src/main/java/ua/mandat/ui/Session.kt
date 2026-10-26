@@ -331,7 +331,6 @@ class Session(app: Application) : AndroidViewModel(app) {
                         state = LockState.Open(db)
                         // Record the automatic copy made when Mandat last closed
                         background.launch { reconcileAuto(db) }
-                        }
                     }
                 }
             }
