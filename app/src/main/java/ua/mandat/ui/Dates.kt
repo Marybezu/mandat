@@ -37,4 +37,10 @@ object Dates {
     /** Noon of a calendar day in the phone's time zone, as epoch milliseconds. */
     fun noonOf(day: Long): Long =
         LocalDate.ofEpochDay(day).atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+    /** "28 жовт." for this year, the full date otherwise: short enough for a label. */
+    fun short(day: Long): String {
+        val d = LocalDate.ofEpochDay(day)
+        return if (d.year == LocalDate.now().year) d.format(java.time.format.DateTimeFormatter.ofPattern("d MMM")) else format(day)
+    }
 }

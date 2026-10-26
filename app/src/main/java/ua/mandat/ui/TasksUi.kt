@@ -96,7 +96,7 @@ fun DueChip(due: Long, open: Boolean) {
         open && due < today -> MiniChip(stringResource(R.string.overdue_days, (today - due).toInt()), scheme.errorContainer, scheme.onErrorContainer)
         due == today -> MiniChip(stringResource(R.string.due_today), scheme.primaryContainer, scheme.onPrimaryContainer)
         due == today + 1 -> MiniChip(stringResource(R.string.due_tomorrow), scheme.primaryContainer, scheme.onPrimaryContainer)
-        else -> MiniChip(Dates.format(due))
+        else -> MiniChip(Dates.short(due))
     }
 }
 
@@ -167,7 +167,7 @@ fun DelegationRow(d: Delegation, personName: String?, matterTitle: String?, sess
         kind = TaskKind.DELEGATION,
         chips = listOfNotNull(
             personName, matterTitle,
-            d.checkIn?.takeIf { TaskStatus.of(d.status) == TaskStatus.OPEN }?.let { stringResource(R.string.check_in_chip, Dates.format(it)) },
+            d.checkIn?.takeIf { TaskStatus.of(d.status) == TaskStatus.OPEN }?.let { stringResource(R.string.check_in_chip, Dates.short(it)) },
             if (d.returned) stringResource(R.string.returned_chip) else null,
             ua.mandat.data.Freedom.of(d.freedom)?.let { stringResource(it.label()) },
         ),
