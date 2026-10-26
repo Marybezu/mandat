@@ -126,5 +126,6 @@ class ScreensTest {
     @Test fun diary() = shot("20-diary") { ua.mandat.ui.DiaryScreen(db, session) }
     @Test fun district() = shot("21-district") { ua.mandat.ui.DistrictScreen(db, session) }
     @Test fun community() = shot("22-community") { ua.mandat.ui.CommunityScreen(db, session, 1L) }
+    @Test fun weekGrid() = shot("23-week") { ua.mandat.ui.CalendarScreenForTest(db, session, 1) }
     @Test fun next() = shot("07-smart-next") { SmartListScreen(db, session, SmartList.NEXT) }
 }

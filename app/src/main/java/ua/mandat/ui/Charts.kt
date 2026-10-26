@@ -344,16 +344,26 @@ fun SectionCard(
     attention: Boolean = false,
     /** A colour with meaning for the icon (for example the level of attention). */
     tint: Color? = null,
+    /** With a fixed name, the card can be folded by tapping its title, and stays so. */
+    foldKey: String? = null,
     content: @Composable () -> Unit,
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var folded by androidx.compose.runtime.remember(foldKey) { androidx.compose.runtime.mutableStateOf(foldKey != null && Appearance.isFolded(context, foldKey)) }
     MCard(modifier) {
         val color = if (attention) MaterialTheme.colorScheme.error else Muted
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp).let { m ->
+                if (foldKey == null) m else m.clickable { folded = !folded; Appearance.setFolded(context, foldKey, folded) }
+            },
+        ) {
             Icon(icon, contentDescription = null, tint = tint ?: color, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
-            Text(title + (count?.let { " · $it" } ?: ""), style = MaterialTheme.typography.labelLarge, color = color)
+            Text(title + (count?.let { " · $it" } ?: ""), style = MaterialTheme.typography.labelLarge, color = color, modifier = Modifier.weight(1f))
+            if (foldKey != null) Text(if (folded) "▸" else "▾", color = Muted)
         }
-        content()
+        if (!folded) content()
     }
 }
 

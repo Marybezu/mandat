@@ -192,7 +192,7 @@ private fun spanText(period: Period, span: Span, cadenceStart: Long?): String {
 /** A titled block of the dashboard. */
 @Composable
 private fun Block(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, content: @Composable () -> Unit) =
-    SectionCard(icon, title) {
+    SectionCard(icon, title, foldKey = "dash:" + title) {
         Spacer(Modifier.height(6.dp))
         content()
     }

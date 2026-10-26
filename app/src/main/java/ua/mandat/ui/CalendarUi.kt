@@ -1,6 +1,10 @@
 package ua.mandat.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -46,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -126,10 +131,16 @@ private fun weekStart(day: Long): Long {
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun CalendarScreen(db: MandatDb, session: Session) {
+fun CalendarScreen(db: MandatDb, session: Session) = CalendarScreenForTest(db, session, 0)
+
+/** The calendar, opened in a given view (0 month, 1 week with hours, 2 week as a list). */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun CalendarScreenForTest(db: MandatDb, session: Session, view0: Int) {
     val today = Dates.today()
     var selected by rememberSaveable { mutableStateOf(today) }
-    var weekMode by rememberSaveable { mutableStateOf(false) }
+    var view by rememberSaveable { mutableStateOf(view0) }
+    val weekMode = view != 0
     // The month shown (its first day); follows the chosen day
     val sel = LocalDate.ofEpochDay(selected)
     val monthFirst = sel.withDayOfMonth(1).toEpochDay()
@@ -168,6 +179,19 @@ fun CalendarScreen(db: MandatDb, session: Session) {
         if (phoneOn(d).isNotEmpty()) add(ChartColors.gray)
     }.take(4)
 
+    if (view == 1) {
+        WeekGrid(
+            from = from, today = today, events = events, phone = phone,
+            tasksOn = { d -> deadlines.count { it.day == d } + delegations.count { it.due == d } + promises.count { it.due == d } },
+            hardOn = { d -> deadlines.any { it.day == d && DeadlineKind.of(it.kind) == DeadlineKind.HARD } },
+            onPrev = { selected -= 7 }, onNext = { selected += 7 }, onToday = { selected = today },
+            view = view, onView = { view = it },
+            onDay = { d -> selected = d; view = 2 },
+            onNew = { d, min -> session.eventDraft = newEvent(day = d).also { it.startMin = min; it.endMin = (min + 60).coerceAtMost(24 * 60) } },
+            session = session,
+        )
+        return
+    }
     LazyColumn(
         contentPadding = PaddingValues(start = Space.screen, end = Space.screen, top = 4.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(Space.gap),
@@ -182,8 +206,7 @@ fun CalendarScreen(db: MandatDb, session: Session) {
                     IconButton(onClick = { selected = if (weekMode) selected + 7 else sel.plusMonths(1).toEpochDay() }) { Text("›", style = MaterialTheme.typography.titleLarge) }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    FilterChip(selected = !weekMode, onClick = { weekMode = false }, label = { Text(stringResource(R.string.cal_month)) })
-                    FilterChip(selected = weekMode, onClick = { weekMode = true }, label = { Text(stringResource(R.string.cal_week)) })
+                    ViewChips(view) { view = it }
                     Spacer(Modifier.weight(1f))
                     if (selected != today) TextButton(onClick = { selected = today }) { Text(stringResource(R.string.cal_today)) }
                 }
@@ -235,7 +258,7 @@ fun CalendarScreen(db: MandatDb, session: Session) {
         // What the shown period holds, by kind: the calendar's own small infographic
         val shown = events.filter { it.day >= from && it.day <= to }
         if (shown.isNotEmpty()) item(key = "kinds") {
-            SectionCard(Sym.layers, stringResource(if (weekMode) R.string.cal_week_kinds else R.string.cal_month_kinds), count = shown.size) {
+            SectionCard(Sym.layers, stringResource(if (weekMode) R.string.cal_week_kinds else R.string.cal_month_kinds), count = shown.size, foldKey = "cal:kinds") {
                 Spacer(Modifier.height(4.dp))
                 StackBar(
                     EventKind.entries.map { k -> Slice(k.name, stringResource(k.label()), shown.count { it.kind == k.name }, k.color()) }
@@ -541,5 +564,188 @@ fun EventLinks(db: MandatDb, session: Session, flow: kotlinx.coroutines.flow.Flo
     Row {
         if (past.size > 3) TextButton(onClick = { all = !all }) { Text(stringResource(R.string.show_more, past.size - 3)) }
         TextButton(onClick = { session.eventDraft = newEvent(matterId = matterId, personId = personId) }) { Text("+ " + stringResource(R.string.event_new)) }
+    }
+}
+
+@Composable
+private fun ViewChips(view: Int, onView: (Int) -> Unit) {
+    listOf(R.string.cal_month, R.string.cal_week, R.string.cal_list).forEachIndexed { i, label ->
+        FilterChip(selected = view == i, onClick = { onView(i) }, label = { Text(stringResource(label)) })
+    }
+}
+
+private val HOUR = 52.dp
+
+/**
+ * A week with hours, as in usual calendar apps: seven columns, events as coloured blocks by kind,
+ * whole-day events and the number of dated tasks on top, a line for "now". Tapping an empty hour
+ * starts a new event at that time; tapping a day's name opens its list.
+ */
+@Composable
+private fun WeekGrid(
+    from: Long, today: Long, events: List<Event>, phone: List<PhoneEvent>,
+    tasksOn: (Long) -> Int, hardOn: (Long) -> Boolean,
+    onPrev: () -> Unit, onNext: () -> Unit, onToday: () -> Unit,
+    view: Int, onView: (Int) -> Unit, onDay: (Long) -> Unit, onNew: (Long, Int) -> Unit, session: Session,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val days = (0 until 7).map { from + it }
+    val scroll = rememberScrollState()
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    // Open at eight in the morning
+    androidx.compose.runtime.LaunchedEffect(Unit) { scroll.scrollTo(with(density) { (HOUR * 8).roundToPx() }) }
+    val nowMin = java.time.LocalTime.now().let { it.hour * 60 + it.minute }
+    Column(Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onPrev) { Text("‹", style = MaterialTheme.typography.titleLarge) }
+            Text("${Dates.short(from)} – ${Dates.short(from + 6)}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            IconButton(onClick = onNext) { Text("›", style = MaterialTheme.typography.titleLarge) }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            ViewChips(view, onView)
+            Spacer(Modifier.weight(1f))
+            if (today !in from..(from + 6)) TextButton(onClick = onToday) { Text(stringResource(R.string.cal_today)) }
+        }
+        // Day names, whole-day events and tasks
+        Row {
+            Spacer(Modifier.width(40.dp))
+            days.forEach { d ->
+                val date = LocalDate.ofEpochDay(d)
+                val isToday = d == today
+                Column(
+                    Modifier.weight(1f).clip(RoundedCornerShape(8.dp)).clickable { onDay(d) }.padding(vertical = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(date.dayOfWeek.getDisplayName(TextStyle.SHORT_STANDALONE, Locale.getDefault()), style = MaterialTheme.typography.labelSmall, color = Muted)
+                    Box(
+                        Modifier.size(28.dp).clip(CircleShape).background(if (isToday) scheme.primary else Color.Transparent),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(date.dayOfMonth.toString(), style = MaterialTheme.typography.titleSmall, color = if (isToday) scheme.onPrimary else scheme.onSurface)
+                    }
+                    val n = tasksOn(d)
+                    if (n > 0) Text("• $n", style = MaterialTheme.typography.labelSmall, color = if (hardOn(d)) ChartColors.coral else ChartColors.amber)
+                    events.filter { it.covers(d) && (it.startMin == null || it.lastDay > it.day) }.take(2).forEach { e ->
+                        Text(e.title, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            color = Color.White,
+                            modifier = Modifier.padding(top = 2.dp).fillMaxWidth().padding(horizontal = 1.dp).clip(RoundedCornerShape(4.dp))
+                                .background(EventKind.of(e.kind).color()).clickable { session.openEvent(e.id) }.padding(horizontal = 3.dp, vertical = 1.dp))
+                    }
+                }
+            }
+        }
+        // Hours
+        Row(Modifier.weight(1f).verticalScroll(scroll)) {
+            Column(Modifier.width(40.dp)) {
+                (0 until 24).forEach { h ->
+                    Box(Modifier.height(HOUR)) { Text("%02d:00".format(h), style = MaterialTheme.typography.labelSmall, color = Muted) }
+                }
+            }
+            days.forEach { d ->
+                Box(
+                    Modifier.weight(1f).height(HOUR * 24)
+                        .background(if (d == today) scheme.primaryContainer.copy(alpha = 0.18f) else Color.Transparent)
+                        .pointerInput(d) {
+                            detectTapGestures { pos ->
+                                val minute = ((pos.y / HOUR.toPx()) * 60).toInt()
+                                onNew(d, (minute / 30) * 30)
+                            }
+                        },
+                ) {
+                    // Hour lines
+                    (0 until 24).forEach { h ->
+                        Box(Modifier.offset(y = HOUR * h).fillMaxWidth().height(1.dp).background(scheme.outlineVariant.copy(alpha = 0.6f)))
+                    }
+                    Box(Modifier.fillMaxHeight().width(1.dp).background(scheme.outlineVariant.copy(alpha = 0.6f)))
+                    // Timed events of the day, side by side when they overlap
+                    val timed = events.filter { it.startMin != null && it.day == d && (it.endDay == null || it.endDay <= it.day) }.sortedBy { it.startMin }
+                    val phoneTimed = phone.filter { it.day == d && it.startMin != null }
+                    val blocks = timed.map { Triple(it.startMin!!, it.endMin ?: (it.startMin + 60), it as Any) } +
+                        phoneTimed.map { Triple(it.startMin!!, it.endMin ?: (it.startMin + 60), it as Any) }
+                    val lanes = layoutLanes(blocks.map { it.first to it.second })
+                    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+                        val w = maxWidth
+                        blocks.forEachIndexed { i, (s, e, item) ->
+                            val (lane, count) = lanes[i]
+                            val top = HOUR * (s / 60f)
+                            val height = (HOUR * ((e - s).coerceAtLeast(30) / 60f))
+                            val color = if (item is Event) EventKind.of(item.kind).color() else ChartColors.gray
+                            val title = if (item is Event) item.title else (item as PhoneEvent).title
+                            Box(
+                                Modifier.offset(x = w / count * lane, y = top).width(w / count).height(height).padding(1.dp)
+                                    .clip(RoundedCornerShape(4.dp)).background(color.copy(alpha = if (item is Event) 0.9f else 0.5f))
+                                    .let { m -> if (item is Event) m.clickable { session.openEvent(item.id) } else m }
+                                    .padding(2.dp),
+                            ) {
+                                Text(title.ifBlank { "—" }, style = MaterialTheme.typography.labelSmall, color = Color.White, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                    }
+                    if (d == today) {
+                        Box(Modifier.offset(y = HOUR * (nowMin / 60f)).fillMaxWidth().height(2.dp).background(ChartColors.coral))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Places overlapping blocks side by side: for each, its lane and how many lanes its group has. */
+private fun layoutLanes(blocks: List<Pair<Int, Int>>): List<Pair<Int, Int>> {
+    val order = blocks.indices.sortedBy { blocks[it].first }
+    val lane = IntArray(blocks.size)
+    val group = IntArray(blocks.size)
+    var groupStart = 0
+    var groupEnd = -1
+    var groupId = 0
+    val laneEnds = mutableListOf<Int>()
+    val groupLanes = mutableMapOf<Int, Int>()
+    for (idx in order) {
+        val (s, e) = blocks[idx]
+        if (s >= groupEnd) { groupId++; laneEnds.clear(); groupStart = s }
+        val free = laneEnds.indexOfFirst { it <= s }
+        val l = if (free >= 0) free else laneEnds.size.also { laneEnds.add(0) }
+        laneEnds[l] = maxOf(e, s + 30)
+        lane[idx] = l
+        group[idx] = groupId
+        groupEnd = maxOf(groupEnd, maxOf(e, s + 30))
+        groupLanes[groupId] = maxOf(groupLanes[groupId] ?: 0, laneEnds.size)
+    }
+    return blocks.indices.map { lane[it] to (groupLanes[group[it]] ?: 1) }
+}
+
+/**
+ * Today's events as a strip of the day: in order of time, with a "now" line between what has
+ * passed and what is coming. Shown on Today only when there is something in the calendar.
+ */
+@Composable
+fun DayStrip(db: MandatDb, session: Session) {
+    val today = Dates.today()
+    val events by remember(db, today) { db.events().observeRange(today, today).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    if (events.isEmpty()) return
+    val nowMin = java.time.LocalTime.now().let { it.hour * 60 + it.minute }
+    val sorted = events.sortedWith(compareBy({ it.startMin != null }, { it.startMin }))
+    SectionCard(Sym.calendar, stringResource(R.string.day_strip), count = events.size) {
+        var nowShown = false
+        sorted.forEachIndexed { i, e ->
+            val past = e.startMin != null && (e.endMin ?: (e.startMin + 60)) <= nowMin
+            if (!nowShown && e.startMin != null && !past) {
+                nowShown = true
+                NowLine(nowMin)
+            }
+            if (i > 0) RowDivider()
+            Box(Modifier.let { if (past) it.alpha(0.5f) else it }) { EventRow(e, emptyList(), e.matterId?.let { null }, today, session) }
+        }
+        if (!nowShown && sorted.any { it.startMin != null }) NowLine(nowMin)
+        TextButton(onClick = { session.tabRequest = "Time" }) { Text(stringResource(R.string.day_strip_open)) }
+    }
+}
+
+@Composable
+private fun NowLine(nowMin: Int) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+        Text(stringResource(R.string.now_at, timeText(nowMin)), style = MaterialTheme.typography.labelSmall, color = ChartColors.coral)
+        Spacer(Modifier.width(6.dp))
+        Box(Modifier.weight(1f).height(2.dp).background(ChartColors.coral))
     }
 }

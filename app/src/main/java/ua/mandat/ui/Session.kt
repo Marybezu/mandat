@@ -80,6 +80,10 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     /** Material You colours on or off; changing it recolours the app right away. */
     var dynamicColors by mutableStateOf(Appearance.dynamic(app))
+
+    init {
+        Space.compact = Appearance.compact(app)
+    }
     /** Shown as a visible strip while screenshots are allowed, so the choice is not forgotten. */
     var screenshotsAllowed by mutableStateOf(Appearance.screenshotsAllowed(app))
 
@@ -179,10 +183,14 @@ class Session(app: Application) : AndroidViewModel(app) {
     val hiddenMatters = kotlinx.coroutines.flow.MutableStateFlow<Set<Long>>(emptySet())
     /** Trip mode is on (also keeps the phone's calendar events off the screen). */
     val tripOn = kotlinx.coroutines.flow.MutableStateFlow(false)
+    /** The lens: look at everything through one role (0 = matters without a role), or null for all. */
+    val lensRole = kotlinx.coroutines.flow.MutableStateFlow<Long?>(null)
 
     private suspend fun computeHidden(db: MandatDb): Pair<Boolean, Set<Long>> {
         val on = db.settings().get(ua.mandat.ui.SETTING_TRIP)?.value == "1"
-        return on to (if (on) db.matters().sensitiveIds().toSet() else emptySet())
+        val trip = if (on) db.matters().sensitiveIds().toSet() else emptySet()
+        val lens = lensRole.value?.let { db.matters().outsideRole(it).toSet() } ?: emptySet()
+        return on to (trip + lens)
     }
 
     /** Sorting out people without a category. */

@@ -1,5 +1,8 @@
 package ua.mandat.ui
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
@@ -104,10 +107,12 @@ fun MandatTheme(dynamic: Boolean = false, content: @Composable () -> Unit) {
 
 /** Spacing used everywhere, so screens line up. */
 object Space {
-    val screen = 16.dp
-    val card = 14.dp
-    val gap = 8.dp
-    val section = 20.dp
+    /** Compact view: less space around everything, more fits on the screen. */
+    var compact by androidx.compose.runtime.mutableStateOf(false)
+    val screen get() = if (compact) 12.dp else 16.dp
+    val card get() = if (compact) 10.dp else 14.dp
+    val gap get() = if (compact) 5.dp else 8.dp
+    val section get() = if (compact) 14.dp else 20.dp
 }
 
 /** A calm colour pair (background, text) for a matter type's tag; meaning, not decoration. */

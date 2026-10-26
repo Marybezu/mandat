@@ -845,4 +845,12 @@
     <string name="categorize_skip">Skip</string>
     <string name="categorize_open">Open the card</string>
     <string name="categorize_open_list">Sort out people without a category: %1$d</string>
+    <string name="cal_list">List</string>
+    <string name="day_strip">Today in the calendar</string>
+    <string name="day_strip_open">Open the calendar</string>
+    <string name="now_at">now %1$s</string>
+    <string name="lens_on">Lens: %1$s</string>
+    <string name="lens_off">Lens: all roles</string>
+    <string name="look_compact">Compact view</string>
+    <string name="look_compact_hint">Less space around cards: more fits on the screen.</string>
 </resources>

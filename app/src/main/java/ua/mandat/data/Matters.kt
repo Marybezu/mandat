@@ -123,6 +123,13 @@ interface MatterDao {
     @Query("SELECT id FROM matters WHERE sensitive = 1")
     suspend fun sensitiveIds(): List<Long>
 
+    /** Matters outside a role (for the lens); roleId 0 means "matters without a role". */
+    @Query("SELECT id FROM matters WHERE (:roleId = 0 AND roleId IS NOT NULL) OR (:roleId <> 0 AND (roleId IS NULL OR roleId <> :roleId))")
+    fun observeOutsideRole(roleId: Long): Flow<List<Long>>
+
+    @Query("SELECT id FROM matters WHERE (:roleId = 0 AND roleId IS NOT NULL) OR (:roleId <> 0 AND (roleId IS NULL OR roleId <> :roleId))")
+    suspend fun outsideRole(roleId: Long): List<Long>
+
     @Insert
     suspend fun insert(matter: Matter): Long
 

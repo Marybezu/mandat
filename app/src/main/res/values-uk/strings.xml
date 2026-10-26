@@ -847,4 +847,12 @@
     <string name="categorize_skip">Пропустити</string>
     <string name="categorize_open">Відкрити картку</string>
     <string name="categorize_open_list">Розібрати людей без категорії: %1$d</string>
+    <string name="cal_list">Список</string>
+    <string name="day_strip">Сьогодні в календарі</string>
+    <string name="day_strip_open">Відкрити календар</string>
+    <string name="now_at">зараз %1$s</string>
+    <string name="lens_on">Лінза: %1$s</string>
+    <string name="lens_off">Лінза: усі ролі</string>
+    <string name="look_compact">Компактний вигляд</string>
+    <string name="look_compact_hint">Менше відступів: на екран вміщується більше.</string>
 </resources>

@@ -22,6 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flatMapLatest
 import ua.mandat.data.Matter
 import ua.mandat.data.SETTING_ROLES_ASKED
 import ua.mandat.data.matterFromNote
@@ -200,7 +201,7 @@ private enum class Tab(val title: Int, val icon: Int, val central: Boolean = fal
     Time(R.string.tab_time, R.drawable.sym_calendar_month),
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @Composable
 private fun Main(db: MandatDb, session: Session) {
     var tab by rememberSaveable { mutableStateOf(session.lastTab?.let { n -> Tab.entries.firstOrNull { it.name == n } } ?: Tab.Today) }
@@ -219,9 +220,12 @@ private fun Main(db: MandatDb, session: Session) {
     androidx.compose.runtime.LaunchedEffect(modeSetting) { AppMode.council = modeSetting?.value == ua.mandat.data.MODE_COUNCIL }
     // Trip mode follows its setting and the marks on matters, while Mandat is open
     androidx.compose.runtime.LaunchedEffect(db) {
-        kotlinx.coroutines.flow.combine(db.settings().observe(SETTING_TRIP), db.matters().observeSensitiveIds()) { trip, ids ->
+        val lensHidden = session.lensRole.flatMapLatest { r ->
+            if (r == null) kotlinx.coroutines.flow.flowOf(emptyList()) else db.matters().observeOutsideRole(r)
+        }
+        kotlinx.coroutines.flow.combine(db.settings().observe(SETTING_TRIP), db.matters().observeSensitiveIds(), lensHidden) { trip, ids, lens ->
             val on = trip?.value == "1"
-            on to (if (on) ids.toSet() else emptySet())
+            on to ((if (on) ids.toSet() else emptySet()) + lens)
         }.collect { (on, hidden) ->
             session.tripOn.value = on
             session.hiddenMatters.value = hidden
@@ -333,6 +337,7 @@ private fun Main(db: MandatDb, session: Session) {
     Scaffold(
         topBar = {
             Column(Modifier.statusBarsPadding()) {
+                LensBar(db, session)
                 ScreenHeader(
                     title = stringResource(tab.title),
                     subtitle = if (tab == Tab.Today) Dates.longToday() else null,
@@ -512,6 +517,7 @@ internal fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onT
         }
 
         SmartListChips(smartCounts(active, openD.size, openP.size, today)) { session.smartList = it }
+        DayStrip(db, session)
 
         // Overdue for more than a month is "old": folded into one line to sort out, so the list shows what is current
         val oldLimit = today - OLD_OVERDUE_DAYS

@@ -218,7 +218,7 @@ fun PeopleList(db: MandatDb, session: Session) {
         if (people.any { it.teamRole != null }) item(key = "team") { TeamCard(people, delegations, session) }
         if (openD.isNotEmpty() || done30 > 0) {
             item(key = "delegations") {
-                SectionCard(Sym.checkCircle, stringResource(R.string.delegations)) {
+                SectionCard(Sym.checkCircle, stringResource(R.string.delegations), foldKey = "people:delegations") {
                     Spacer(Modifier.height(4.dp))
                     StackBar(
                         listOf(
@@ -254,7 +254,7 @@ fun PeopleList(db: MandatDb, session: Session) {
         }
         if (links.any { it.stance != null }) {
             item(key = "stances") {
-                SectionCard(Sym.group, stringResource(R.string.stances_title)) {
+                SectionCard(Sym.group, stringResource(R.string.stances_title), foldKey = "people:stances") {
                     Spacer(Modifier.height(4.dp))
                     StackBar(
                         listOf(

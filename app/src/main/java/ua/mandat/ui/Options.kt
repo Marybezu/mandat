@@ -611,6 +611,13 @@ private fun LookSection(session: Session) {
             Appearance.setDynamic(context, it)
         })
     }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.look_compact), style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.look_compact_hint), style = MaterialTheme.typography.labelMedium, color = Muted)
+        }
+        androidx.compose.material3.Switch(checked = Space.compact, onCheckedChange = { Appearance.setCompact(context, it) })
+    }
 }
 
 /** The district section: for those elected in a district; off by default. */

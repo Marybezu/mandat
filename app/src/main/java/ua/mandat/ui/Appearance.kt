@@ -29,6 +29,22 @@ object Appearance {
         prefs(context).edit().putBoolean("dynamic", on).apply()
     }
 
+    /** Folded cards (by a fixed name, never by content), so a folded block stays folded. */
+    fun isFolded(context: Context, key: String) = prefs(context).getStringSet("folded", emptySet())?.contains(key) == true
+
+    fun setFolded(context: Context, key: String, folded: Boolean) {
+        val now = prefs(context).getStringSet("folded", emptySet()).orEmpty().toMutableSet()
+        if (folded) now += key else now -= key
+        prefs(context).edit().putStringSet("folded", now).apply()
+    }
+
+    fun compact(context: Context) = prefs(context).getBoolean("compact", false)
+
+    fun setCompact(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean("compact", on).apply()
+        Space.compact = on
+    }
+
     /**
      * "PIN only": the unlock prompt does not accept a fingerprint, only the phone's PIN or
      * password (a finger can be forced onto the sensor; a PIN has to be said). Kept here because
