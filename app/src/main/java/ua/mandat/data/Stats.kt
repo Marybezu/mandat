@@ -141,7 +141,7 @@ fun overview(
         moved = moved.size,
         started = matters.count { day(it.createdAt) in span },
         finished = matters.count { MatterStatus.of(it.status) == MatterStatus.DONE && day(it.updatedAt) in span },
-        evenings = reviews.count { it.day in span },
+        evenings = reviews.count { it.day in span && it.progress.isNotBlank() },
         deadlinesDue = due.size,
         deadlinesOnTime = onTime,
         delegationsGiven = delegations.count { day(it.createdAt) in span },

@@ -404,9 +404,17 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
     }
 
     if (confirmDelete) {
+        val aidRecords by remember(db, request.matter.id) { db.money().observeAidFor(request.matter.id) }.collectAsStateWithLifecycle(emptyList())
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            text = { Text(stringResource(R.string.matter_delete_confirm)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.matter_delete_confirm))
+                    // The aid ledger belongs to the matter and goes with it: say so plainly
+                    if (aidRecords.isNotEmpty()) Text(stringResource(R.string.matter_delete_aid, aidRecords.size),
+                        color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
+                }
+            },
             confirmButton = {
                 TextButton(onClick = {
                     confirmDelete = false

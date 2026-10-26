@@ -75,6 +75,9 @@ import ua.mandat.data.summarize
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
+/** Whole hryvnias for a chart, never past what an Int holds. */
+private fun hInt(minor: Long): Int = (minor / 100).coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
+
 /** "12 500 ₴" from kopiyky. */
 fun hryvnias(minor: Long) = formatAmount(minor) + " ₴"
 
@@ -206,7 +209,7 @@ fun BudgetScreen(db: MandatDb, session: Session) {
                     Spacer(Modifier.height(4.dp))
                     val byCat = expenses.groupBy { it.category }.mapValues { (_, l) -> l.sumOf { it.uah } }.entries.sortedByDescending { it.value }
                     RankedBars(
-                        byCat.mapIndexed { i, (k, v) -> Slice(k, categoryName(k), (v / 100).toInt(), categoryColor(i)) },
+                        byCat.mapIndexed { i, (k, v) -> Slice(k, categoryName(k), hInt(v), categoryColor(i)) },
                         center = hryvnias(sum.expense), centerLabel = "", selected = catPick, onPick = { catPick = it },
                     )
                 }
@@ -225,7 +228,7 @@ fun BudgetScreen(db: MandatDb, session: Session) {
                 SectionCard(Sym.checkCircle, stringResource(R.string.money_from)) {
                     Spacer(Modifier.height(4.dp))
                     val byCat = incomes.groupBy { it.category }.mapValues { (_, l) -> l.sumOf { it.uah } }.entries.sortedByDescending { it.value }
-                    StackBar(byCat.mapIndexed { i, (k, v) -> Slice(k, categoryName(k), (v / 100).toInt(), categoryColor(i + 3)) },
+                    StackBar(byCat.mapIndexed { i, (k, v) -> Slice(k, categoryName(k), hInt(v), categoryColor(i + 3)) },
                         selected = catPick, onPick = { catPick = it })
                 }
             }
@@ -249,8 +252,8 @@ fun BudgetScreen(db: MandatDb, session: Session) {
                         Spacer(Modifier.height(4.dp))
                         StackBar(
                             CharityKind.entries.mapIndexed { i, k ->
-                                Slice(k.name, stringResource(k.label()), (charity.filter { it.charityKind == k.name }.sumOf { it.uah } / 100).toInt(), categoryColor(i))
-                            } + Slice("NONE", stringResource(R.string.not_set), (charity.filter { it.charityKind == null }.sumOf { it.uah } / 100).toInt(), ChartColors.grayLight),
+                                Slice(k.name, stringResource(k.label()), hInt(charity.filter { it.charityKind == k.name }.sumOf { it.uah }), categoryColor(i))
+                            } + Slice("NONE", stringResource(R.string.not_set), hInt(charity.filter { it.charityKind == null }.sumOf { it.uah }), ChartColors.grayLight),
                         )
                     }
                     if (aidInSpan.isNotEmpty()) {

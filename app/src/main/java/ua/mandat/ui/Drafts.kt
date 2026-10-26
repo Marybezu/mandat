@@ -390,13 +390,13 @@ class MoneyDraft(val entry: ua.mandat.data.MoneyEntry, val isNew: Boolean) {
     var awaitingRefund by mutableStateOf(entry.awaitingRefund)
     var refunded by mutableStateOf(entry.refunded)
 
-    fun rate(): Double? = rateText.trim().replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 && it < 1_000_000 }
+    fun rate(): Double? = rateText.trim().replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 && it < 10_000 }
     fun amount(): Long? = ua.mandat.data.parseAmount(amountText)
-    fun valid() = amount() != null && category.isNotBlank() && (currency == "UAH" || rate() != null)
+    fun valid() = amount() != null && category.isNotBlank() && currency.matches(Regex("[A-Z]{3}")) && (currency == "UAH" || rate() != null)
 
     suspend fun persist(db: MandatDb) {
         val a = amount() ?: return
-        if (currency != "UAH" && rate() == null) return
+        if (!currency.matches(Regex("[A-Z]{3}")) || (currency != "UAH" && rate() == null)) return
         val now = System.currentTimeMillis()
         val edited = ua.mandat.data.cleanMoney(
             entry.copy(

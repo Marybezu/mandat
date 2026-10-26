@@ -151,7 +151,7 @@ fun PeriodScreen(db: MandatDb, session: Session, kind: PeriodKind, span: Span) {
         PeriodKind.FINISHED -> matters.filter { MatterStatus.of(it.status) == MatterStatus.DONE && inSpan(it.updatedAt) }
         PeriodKind.EVENINGS -> emptyList()
     }.sortedByDescending { it.updatedAt }
-    val shownEvenings = if (kind == PeriodKind.EVENINGS) reviews.filter { it.day in span }.sortedByDescending { it.day } else emptyList()
+    val shownEvenings = if (kind == PeriodKind.EVENINGS) reviews.filter { it.day in span && it.progress.isNotBlank() }.sortedByDescending { it.day } else emptyList()
     val count = if (kind == PeriodKind.EVENINGS) shownEvenings.size else shownMatters.size
     Scaffold(
         topBar = {

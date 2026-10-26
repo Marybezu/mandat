@@ -128,7 +128,8 @@ fun parseAmount(text: String): Long? {
     if (!t.all { it.isDigit() || it == '.' }) return null
     val parts = t.split('.')
     val whole = parts[0].ifEmpty { "0" }
-    if (whole.length > 12) return null
+    // Up to 999 999 999.99: more than enough, and totals never overflow
+    if (whole.length > 9) return null
     val frac = parts.getOrNull(1).orEmpty()
     if (frac.length > 2) return null
     val minor = whole.toLong() * 100 + frac.padEnd(2, '0').ifEmpty { "00" }.toLong()

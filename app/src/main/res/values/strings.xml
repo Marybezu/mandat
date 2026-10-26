@@ -766,4 +766,5 @@
     <string name="money_trend">Twelve months</string>
     <string name="money_where">Where the money goes</string>
     <string name="diary_dots_hint">Dots: energy, then mood.</string>
+    <string name="matter_delete_aid">Its aid ledger (%1$d entries) will be deleted too.</string>
 </resources>
