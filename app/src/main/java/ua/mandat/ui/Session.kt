@@ -278,6 +278,23 @@ class Session(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Export and import screen. */
+    var showExport by mutableStateOf(false)
+
+    /** Contacts read from another file (CSV) go through the same preview as a .vcf. */
+    fun previewContacts(list: List<ua.mandat.data.Contact>, source: android.net.Uri) {
+        val startedAt = generation
+        background.launch {
+            val plan = withOpenDb { db -> ua.mandat.data.planImport(list, db.contacts().all(), db.people().all()) }
+            withContext(Dispatchers.Main) {
+                if (plan == null || startedAt != generation || state !is LockState.Open) return@withContext
+                vcfImport = VcfImport(source, plan, list.size >= ua.mandat.data.VCard.MAX_CONTACTS)
+                showExport = false
+                showDirectory = true
+            }
+        }
+    }
+
     /** Saves the chosen entries in one transaction, with the group given by the owner. */
     fun importVcf(chosen: List<ua.mandat.data.Contact>, label: String) {
         val job = vcfImport ?: return

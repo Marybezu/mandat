@@ -272,6 +272,10 @@ private fun Main(db: MandatDb, session: Session) {
         CommunityScreen(db, session, it)
         return
     }
+    if (session.showExport) {
+        ExportScreen(db, session)
+        return
+    }
     if (session.showCategorize) {
         CategorizeScreen(db, session)
         return

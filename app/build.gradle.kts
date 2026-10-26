@@ -88,6 +88,9 @@ dependencies {
     // Argon2id for backup passwords (Bouncy Castle, a widely audited crypto library)
     implementation("org.bouncycastle:bcprov-jdk18on:1.79")
 
+    // Password-protected export: standard ZIP with AES-256, opened by 7-Zip and similar apps
+    implementation("net.lingala.zip4j:zip4j:2.11.5")
+
     testImplementation("junit:junit:4.13.2")
 
     // Screen checks only (never in the app): draw each screen with neutral test data,

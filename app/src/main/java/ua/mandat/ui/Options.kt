@@ -201,6 +201,13 @@ fun Options(session: Session, onBack: () -> Unit) {
             }
 
             Spacer(Modifier.height(8.dp))
+            Section(stringResource(R.string.export_title))
+            Text(stringResource(R.string.export_options_hint), style = MaterialTheme.typography.bodyMedium)
+            androidx.compose.material3.OutlinedButton(onClick = { session.showExport = true; onBack() }, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.export_title))
+            }
+
+            Spacer(Modifier.height(8.dp))
             Section(stringResource(R.string.look_title))
             LookSection(session)
 
