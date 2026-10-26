@@ -201,8 +201,9 @@ fun DistrictScreen(db: MandatDb, session: Session) {
                     all.sortedBy { it.c.name }.forEach { s ->
                         val kept = s.promises.count { TaskStatus.of(it.status) == TaskStatus.DONE }
                         val open = s.promises.count { TaskStatus.of(it.status) == TaskStatus.OPEN }
-                        Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-                            Text(s.c.name, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        // A row opens the community, where each of these numbers is listed
+                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { session.communityOpen = s.c.id }.padding(vertical = 3.dp)) {
+                            Text(s.c.name + " →", style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(stringResource(R.string.district_report_row, s.visitsYear, s.doneYear, kept, open), style = MaterialTheme.typography.labelMedium, color = Muted)
                         }
                     }
