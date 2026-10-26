@@ -91,7 +91,7 @@ fun TopicsScreen(db: MandatDb, session: Session) {
     var adding by remember { mutableStateOf<String?>(null) }
 
     val texts = remember(matters, delegations, promises, deadlines, inbox) {
-        matters.map { "${it.title} ${it.goal} ${it.nextStep}" } + delegations.map { it.what } + promises.map { it.what } +
+        matters.map { "${it.title} ${it.goal} ${it.nextStep}" } + delegations.map { it.what } + promises.map { "${it.what} ${it.toWhom}" } +
             deadlines.map { it.title } + inbox.map { it.text }
     }
     val suggestions = remember(texts, topics) { suggestTopics(texts, topics) }
@@ -121,7 +121,7 @@ fun TopicsScreen(db: MandatDb, session: Session) {
                         val counts = listOf(
                             R.string.topic_matters to matters.count { matches("${it.title} ${it.goal} ${it.nextStep} ${it.description}", t) },
                             R.string.delegations to delegations.count { matches(it.what, t) },
-                            R.string.promises to promises.count { matches(it.what, t) },
+                            R.string.promises to promises.count { matches("${it.what} ${it.toWhom}", t) },
                             R.string.deadlines to deadlines.count { matches("${it.title} ${it.basis}", t) },
                             R.string.inbox to inbox.count { matches(it.text, t) },
                             R.string.topic_evenings to reviews.count { matches(it.progress, t) },
@@ -237,7 +237,7 @@ private fun TopicDetail(db: MandatDb, session: Session, name: String) {
         if (topic == null) return@Scaffold
         val m = matters.filter { matches("${it.title} ${it.goal} ${it.nextStep} ${it.description}", topic) }
         val d = delegations.filter { matches(it.what, topic) }
-        val p = promises.filter { matches(it.what, topic) }
+        val p = promises.filter { matches("${it.what} ${it.toWhom}", topic) }
         val dl = deadlines.filter { matches("${it.title} ${it.basis}", topic) }
         val ib = inbox.filter { matches(it.text, topic) }
         val rv = reviews.filter { matches(it.progress, topic) }
