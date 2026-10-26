@@ -10,7 +10,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.test.core.app.ActivityScenario
+import android.content.ComponentName
 import androidx.compose.ui.test.onRoot
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -47,7 +51,7 @@ import java.util.concurrent.Executor
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "uk-w400dp-h1400dp-xhdpi")
 class ScreensTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule val compose = createEmptyComposeRule()
 
     private lateinit var db: MandatDb
     private lateinit var session: Session
@@ -60,14 +64,18 @@ class ScreensTest {
             .allowMainThreadQueries().setQueryExecutor(direct).setTransactionExecutor(direct).build()
         runBlocking { NeutralData.fill(db) }
         session = Session(app)
+        // The empty activity that hosts each screen (only known to this test, never to the app)
+        shadowOf(app.packageManager).addActivityIfNotPresent(ComponentName(app, ComponentActivity::class.java))
     }
 
     @After fun tearDown() = db.close()
 
-    private fun shot(name: String, content: @Composable () -> Unit) {
-        compose.setContent {
-            MandatTheme {
-                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { content() }
+    private fun shot(name: String, content: @Composable () -> Unit) = ActivityScenario.launch(ComponentActivity::class.java).use { scenario ->
+        scenario.onActivity { activity ->
+            activity.setContent {
+                MandatTheme {
+                    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { content() }
+                }
             }
         }
         // Let the database flows deliver and the screen settle
@@ -78,6 +86,7 @@ class ScreensTest {
         val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
         val dir = File("build/screens").apply { mkdirs() }
         File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        Unit
     }
 
     @Test fun today() = shot("01-today") { Today(db, session, onOpen = {}, onToMatter = {}) }
