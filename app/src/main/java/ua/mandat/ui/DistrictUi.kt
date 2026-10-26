@@ -52,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import ua.mandat.R
 import ua.mandat.data.Community
 import ua.mandat.data.CommunityKind
@@ -166,7 +167,7 @@ fun DistrictScreen(db: MandatDb, session: Session) {
                 MCard {
                     Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
                         StatTile(communities.size, stringResource(R.string.district_communities)) { only = 0 }
-                        StatTile(all.sumOf { it.visitsYear }, stringResource(R.string.district_visits_year))
+                        StatTile(all.sumOf { it.visitsYear }, stringResource(R.string.district_visits_year)) { only = if (only == 3) 0 else 3 }
                     }
                     Spacer(Modifier.height(Space.gap))
                     Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
@@ -188,9 +189,10 @@ fun DistrictScreen(db: MandatDb, session: Session) {
                     val list = when (only) {
                         1 -> all.filter { it.lastVisit == null || it.lastVisit < today - 90 }
                         2 -> all.filter { s -> s.promises.any { TaskStatus.of(it.status) == TaskStatus.OPEN } }
+                        3 -> all.filter { it.visitsYear > 0 }.sortedByDescending { it.visitsYear }
                         else -> all
                     }
-                    if (only != 0) Row { FilterBadge(stringResource(if (only == 1) R.string.district_long_ago else R.string.district_open_promises)) { only = 0 } }
+                    if (only != 0) Row { FilterBadge(stringResource(when (only) { 1 -> R.string.district_long_ago; 3 -> R.string.district_visits_year; else -> R.string.district_open_promises })) { only = 0 } }
                     Paged(list) { s -> CommunityLine(s, today) { session.communityOpen = s.c.id } }
                 }
             }
@@ -316,8 +318,16 @@ fun CommunityScreen(db: MandatDb, session: Session, id: Long) {
             )
         },
     ) { padding ->
+        // Each number at the top scrolls to the list it counts
+        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+        val scope = androidx.compose.runtime.rememberCoroutineScope()
+        fun goTo(key: String) {
+            val i = listOf("card", "visits", "matters", "promises", "people").indexOf(key)
+            if (i >= 0) scope.launch { listState.animateScrollToItem(i) }
+        }
         LazyColumn(
             Modifier.padding(padding).fillMaxSize(),
+            state = listState,
             contentPadding = PaddingValues(start = Space.screen, end = Space.screen, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(Space.gap),
         ) {
@@ -329,9 +339,9 @@ fun CommunityScreen(db: MandatDb, session: Session, id: Long) {
                     if (c.notes.isNotBlank()) Text(c.notes, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 6.dp))
                     Spacer(Modifier.height(Space.gap))
                     Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
-                        StatTile(s.visitsYear, stringResource(R.string.district_visits_year))
-                        StatTile(s.doneYear, stringResource(R.string.district_done_year))
-                        StatTile(s.promises.count { TaskStatus.of(it.status) == TaskStatus.OPEN }, stringResource(R.string.district_open_promises))
+                        StatTile(s.visitsYear, stringResource(R.string.district_visits_year)) { goTo("visits") }
+                        StatTile(s.doneYear, stringResource(R.string.district_done_year)) { goTo("matters") }
+                        StatTile(s.promises.count { TaskStatus.of(it.status) == TaskStatus.OPEN }, stringResource(R.string.district_open_promises)) { goTo("promises") }
                     }
                     Text(s.lastVisit?.let { stringResource(R.string.district_last_visit, Dates.format(it)) } ?: stringResource(R.string.district_never),
                         style = MaterialTheme.typography.labelMedium, color = Muted, modifier = Modifier.padding(top = 6.dp))
