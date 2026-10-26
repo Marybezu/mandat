@@ -765,4 +765,5 @@
     <string name="money_to_whom">To whom (optional)</string>
     <string name="money_trend">Twelve months</string>
     <string name="money_where">Where the money goes</string>
+    <string name="diary_dots_hint">Dots: energy, then mood.</string>
 </resources>

@@ -767,4 +767,5 @@
     <string name="money_to_whom">Кому (за бажанням)</string>
     <string name="money_trend">Дванадцять місяців</string>
     <string name="money_where">Куди йдуть гроші</string>
+    <string name="diary_dots_hint">Кружечки: енергія, потім настрій.</string>
 </resources>

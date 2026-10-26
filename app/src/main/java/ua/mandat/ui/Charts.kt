@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
@@ -136,7 +137,8 @@ private fun BarRow(label: String, value: Int, fraction: Float, color: Color, isS
             Box(Modifier.fillMaxWidth(fraction.coerceIn(0.02f, 1f)).height(10.dp).clip(RoundedCornerShape(5.dp))
                 .background(if (dim) color.copy(alpha = 0.3f) else color))
         }
-        Text(value.toString(), style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(36.dp).padding(start = 8.dp))
+        Text(groupDigits(value), style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false,
+            modifier = Modifier.widthIn(min = 36.dp).padding(start = 8.dp))
     }
 }
 
@@ -211,7 +213,7 @@ fun Legend(parts: List<Slice>, selected: String?, onPick: (String?) -> Unit, mod
                 Spacer(Modifier.width(8.dp))
                 Text(p.label, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f))
-                Text(p.value.toString(), style = MaterialTheme.typography.labelLarge)
+                Text(groupDigits(p.value), style = MaterialTheme.typography.labelLarge)
             }
         }
     }
@@ -290,7 +292,7 @@ fun StackBar(slices: List<Slice>, selected: String? = null, onPick: ((String?) -
             ) {
                 Box(Modifier.size(9.dp).clip(CircleShape).background(p.color))
                 Spacer(Modifier.width(5.dp))
-                Text("${p.label} ${p.value}", style = MaterialTheme.typography.labelMedium, color = Muted)
+                Text("${p.label} ${groupDigits(p.value)}", style = MaterialTheme.typography.labelMedium, color = Muted)
             }
         }
     }
@@ -432,3 +434,6 @@ fun <T> Paged(items: List<T>, page: Int = 20, row: @Composable (T) -> Unit) {
         }
     }
 }
+
+/** A whole number with thin spaces between thousands: 14 040. */
+fun groupDigits(n: Int): String = ua.mandat.data.formatAmount(n.toLong() * 100)

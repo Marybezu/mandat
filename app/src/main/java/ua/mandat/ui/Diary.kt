@@ -222,6 +222,7 @@ fun DiaryScreen(db: MandatDb, session: Session) {
             if (shown.isEmpty()) item(key = "empty") { EmptyHint(Sym.bedtime, stringResource(R.string.smart_empty)) }
             item(key = "list") {
                 if (shown.isNotEmpty()) SectionCard(Sym.bedtime, stringResource(R.string.diary_entries), count = shown.size) {
+                    Text(stringResource(R.string.diary_dots_hint), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(bottom = 4.dp))
                     Paged(shown) { r ->
                         Column(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
