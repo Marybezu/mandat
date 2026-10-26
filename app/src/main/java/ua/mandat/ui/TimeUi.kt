@@ -66,7 +66,8 @@ fun DeadlineRow(d: Deadline, matterTitle: String?, session: Session) {
     TaskRow(
         what = d.title,
         kind = if (hard) TaskKind.HARD else TaskKind.SOFT,
-        chips = listOfNotNull(kind, d.basis.ifBlank { null }, matterTitle),
+        // The coloured picture already says hard or soft; only the basis is written out
+        chips = listOfNotNull(d.basis.ifBlank { null }, matterTitle),
         due = d.day,
         status = d.status,
         onToggleDone = {

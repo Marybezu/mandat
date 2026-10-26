@@ -378,4 +378,5 @@
     <string name="smart_no_next_hint">Matters where the next step is not written down. One line is enough.</string>
     <string name="smart_empty">Nothing here.</string>
     <string name="no_matter_group">Without a matter</string>
+    <string name="chip_public">public</string>
 </resources>

@@ -178,11 +178,11 @@ fun DelegationRow(d: Delegation, personName: String?, matterTitle: String?, sess
 @Composable
 fun PromiseRow(p: Promise, personName: String?, matterTitle: String?, session: Session) {
     val whom = personName ?: p.toWhom.ifBlank { null }
-    val kind = stringResource(if (p.isPublic) R.string.promise_public else R.string.promise_personal)
+    val publicLabel = stringResource(R.string.chip_public)
     TaskRow(
         what = p.what,
         kind = TaskKind.PROMISE,
-        chips = listOfNotNull(kind, whom, matterTitle),
+        chips = listOfNotNull(if (p.isPublic) publicLabel else null, whom, matterTitle),
         due = p.due,
         status = p.status,
         onToggleDone = {

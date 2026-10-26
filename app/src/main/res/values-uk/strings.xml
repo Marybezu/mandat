@@ -380,4 +380,5 @@
     <string name="smart_no_next_hint">Справи, де не записано наступного кроку. Досить одного рядка.</string>
     <string name="smart_empty">Тут порожньо.</string>
     <string name="no_matter_group">Без справи</string>
+    <string name="chip_public">публічна</string>
 </resources>
