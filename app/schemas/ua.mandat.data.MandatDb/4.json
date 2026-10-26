@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 4,
-    "identityHash": "57395b4b1109e4f8c49373db5cbfac94",
+    "identityHash": "2ee7aadb56e30e448e6389da56aa3a37",
     "entities": [
       {
         "tableName": "inbox",
@@ -324,7 +324,7 @@
       },
       {
         "tableName": "promises",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `what` TEXT NOT NULL, `personId` INTEGER, `toWhom` TEXT NOT NULL, `isPublic` INTEGER NOT NULL, `matterId` INTEGER, `due` INTEGER, `status` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `closedAt` INTEGER)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `what` TEXT NOT NULL, `personId` INTEGER, `toWhom` TEXT NOT NULL, `isPublic` INTEGER NOT NULL, `matterId` INTEGER, `due` INTEGER, `status` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `closedAt` INTEGER, `source` TEXT NOT NULL DEFAULT '', `statusNote` TEXT NOT NULL DEFAULT '')",
         "fields": [
           {
             "fieldPath": "id",
@@ -381,6 +381,20 @@
             "fieldPath": "closedAt",
             "columnName": "closedAt",
             "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "statusNote",
+            "columnName": "statusNote",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
           }
         ],
         "primaryKey": {
@@ -499,7 +513,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '57395b4b1109e4f8c49373db5cbfac94')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2ee7aadb56e30e448e6389da56aa3a37')"
     ]
   }
 }
