@@ -25,4 +25,8 @@ object Dates {
     }
 
     fun addDays(day: Long, days: Long): Long = day + days
+
+    /** The local calendar day of a moment (epoch milliseconds). */
+    fun dayOf(millis: Long): Long =
+        java.time.Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate().toEpochDay()
 }

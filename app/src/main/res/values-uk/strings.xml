@@ -254,4 +254,10 @@
     <string name="reminders_denied">Сповіщення для Мандата заборонені. Їх можна дозволити в налаштуваннях телефона.</string>
     <string name="reminders_channel">Нагадування</string>
     <string name="reminder_text">Сьогодні є строки. Відкрийте Мандат, щоб побачити.</string>
+    <string name="my_promises">Мої обіцянки за весь час</string>
+    <string name="promises_public">Публічні</string>
+    <string name="promises_personal">Особисті</string>
+    <string name="promises_summary">Обіцянок: %1$d · дотримано %2$d · відкрито %3$d · скасовано %4$d</string>
+    <string name="promises_empty">Тут поки немає обіцянок.</string>
+    <string name="promised_on">обіцяно %1$s</string>
 </resources>

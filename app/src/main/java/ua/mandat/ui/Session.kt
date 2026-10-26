@@ -58,6 +58,9 @@ class Session(app: Application) : AndroidViewModel(app) {
     /** Today's answer to the evening question while it is being typed; null when not editing. */
     var reviewDraft by mutableStateOf<String?>(null)
 
+    /** The "My promises" screen is open. */
+    var showPromises by mutableStateOf(false)
+
     /** The search screen is open. */
     var searching by mutableStateOf(false)
 

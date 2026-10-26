@@ -203,6 +203,10 @@ interface PromiseDao {
     @Query("SELECT * FROM promises WHERE status = 'OPEN'")
     suspend fun open(): List<Promise>
 
+    /** All promises ever made, newest first: the owner's own record of what was promised. */
+    @Query("SELECT * FROM promises ORDER BY createdAt DESC")
+    fun observeAll(): Flow<List<Promise>>
+
     @Query("SELECT * FROM promises WHERE id = :id")
     suspend fun get(id: Long): Promise?
 

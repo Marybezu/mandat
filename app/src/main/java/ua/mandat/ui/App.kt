@@ -198,6 +198,10 @@ private fun Main(db: MandatDb, session: Session) {
         PersonEditor(db, session, draft)
         return
     }
+    if (session.showPromises) {
+        PromisesScreen(db, session)
+        return
+    }
     if (session.searching) {
         SearchScreen(db, session)
         return

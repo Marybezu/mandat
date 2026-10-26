@@ -24,6 +24,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -233,6 +234,11 @@ fun ReviewScreen(db: MandatDb, session: Session) {
                 }
             }
         }
+        item(key = "promises") {
+            OutlinedButton(onClick = { session.showPromises = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.my_promises))
+            }
+        }
         val earlier = recent.filter { it.day != today }
         if (earlier.isNotEmpty()) {
             item(key = "earlier_h") { Text(stringResource(R.string.evening_earlier), style = MaterialTheme.typography.titleMedium) }
@@ -313,5 +319,81 @@ private fun openHit(db: MandatDb, session: Session, kind: String, id: Long) {
         "promise" -> session.openTask(kind, id)
         "deadline" -> session.openTask(kind, id)
         else -> session.searching = false
+    }
+}
+
+/** All promises ever made: public, personal or all; open, kept and cancelled. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PromisesScreen(db: MandatDb, session: Session) {
+    BackHandler { session.showPromises = false }
+    val allFlow = remember(db) { db.promises().observeAll() }
+    val peopleFlow = remember(db) { db.people().observeAll() }
+    val titlesFlow = remember(db) { db.matters().observeAllTitles() }
+    val all by allFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val people by peopleFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val titles by titlesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val nameOf = people.associate { it.id to it.name }
+    val titleOf = titles.associate { it.id to it.title }
+    // true = public only, false = personal only, null = all
+    var publicOnly by remember { mutableStateOf<Boolean?>(true) }
+
+    val shown = all.filter { publicOnly == null || it.isPublic == publicOnly }
+    val byStatus = TaskStatus.entries.associateWith { s -> shown.filter { TaskStatus.of(it.status) == s } }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.my_promises)) },
+                navigationIcon = {
+                    IconButton(onClick = { session.showPromises = false }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        LazyColumn(Modifier.padding(padding).fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
+            item(key = "filters") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = publicOnly == true, onClick = { publicOnly = true },
+                        label = { Text(stringResource(R.string.promises_public)) })
+                    FilterChip(selected = publicOnly == false, onClick = { publicOnly = false },
+                        label = { Text(stringResource(R.string.promises_personal)) })
+                    FilterChip(selected = publicOnly == null, onClick = { publicOnly = null },
+                        label = { Text(stringResource(R.string.matters_all_roles)) })
+                }
+            }
+            item(key = "summary") {
+                Text(
+                    stringResource(
+                        R.string.promises_summary, shown.size,
+                        byStatus.getValue(TaskStatus.DONE).size,
+                        byStatus.getValue(TaskStatus.OPEN).size,
+                        byStatus.getValue(TaskStatus.CANCELLED).size,
+                    ),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(vertical = 12.dp),
+                )
+            }
+            if (shown.isEmpty()) item(key = "empty") { Text(stringResource(R.string.promises_empty), color = MaterialTheme.colorScheme.secondary) }
+            listOf(TaskStatus.OPEN, TaskStatus.DONE, TaskStatus.CANCELLED).forEach { status ->
+                val list = byStatus.getValue(status)
+                if (list.isNotEmpty()) {
+                    item(key = "h$status") {
+                        Text(stringResource(status.promiseLabel()), style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp))
+                    }
+                    items(list, key = { "p${it.id}" }) { p ->
+                        Column {
+                            PromiseRow(p, p.personId?.let(nameOf::get), p.matterId?.let(titleOf::get), session)
+                            Text(stringResource(R.string.promised_on, Dates.format(Dates.dayOf(p.createdAt))),
+                                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.padding(start = 48.dp, bottom = 4.dp))
+                        }
+                    }
+                }
+            }
+        }
     }
 }

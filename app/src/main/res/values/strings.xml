@@ -252,4 +252,10 @@
     <string name="reminders_denied">Notifications are not allowed for Mandat. You can allow them in the phone settings.</string>
     <string name="reminders_channel">Reminders</string>
     <string name="reminder_text">Something is due today. Open Mandat to see.</string>
+    <string name="my_promises">My promises, all time</string>
+    <string name="promises_public">Public</string>
+    <string name="promises_personal">Personal</string>
+    <string name="promises_summary">Promises: %1$d · kept %2$d · open %3$d · cancelled %4$d</string>
+    <string name="promises_empty">No promises here yet.</string>
+    <string name="promised_on">promised on %1$s</string>
 </resources>
