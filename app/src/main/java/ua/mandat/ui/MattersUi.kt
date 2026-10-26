@@ -417,6 +417,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                             db.delegations().clearMatter(id)
                             db.promises().clearMatter(id)
                             db.deadlines().clearMatter(id)
+                            db.events().clearMatter(id)
                             db.matters().delete(id)
                         }
                     }
@@ -497,6 +498,8 @@ private fun MatterLinks(db: MandatDb, session: Session, matterId: Long) {
     LinkSection(stringResource(R.string.deadlines))
     deadlines.forEach { DeadlineRow(it, null, session) }
     TextButton(onClick = { session.deadlineDraft = newDeadline(matterId = matterId) }) { Text("+ " + stringResource(R.string.add_deadline)) }
+
+    EventLinks(db, session, db.events().observeForMatter(matterId), matterId = matterId)
 
     LinkSection(stringResource(R.string.delegations))
     delegations.forEach { DelegationRow(it, it.personId?.let(nameOf::get), null, session) }

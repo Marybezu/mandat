@@ -204,6 +204,10 @@ fun Options(session: Session, onBack: () -> Unit) {
             RemindersSection(session)
 
             Spacer(Modifier.height(8.dp))
+            Section(stringResource(R.string.phone_cal_title))
+            PhoneCalendarSwitch(session)
+
+            Spacer(Modifier.height(8.dp))
             Section(stringResource(R.string.security_title))
             Text(stringResource(R.string.security_text), style = MaterialTheme.typography.bodyLarge)
             ScreenshotsSwitch(session)
@@ -494,6 +498,41 @@ private fun RemindersSection(session: Session) {
                 ua.mandat.notify.Reminders.setHour(context, it)
             },
         )
+    }
+}
+
+/** Showing the phone's calendar: off by default; the permission is asked only when turned on. */
+@Composable
+private fun PhoneCalendarSwitch(session: Session) {
+    val context = LocalContext.current
+    var on by remember { mutableStateOf(PhoneCalendar.isOn(context)) }
+    var denied by remember { mutableStateOf(false) }
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        session.pickingFile = false
+        PhoneCalendar.setOn(context, granted)
+        on = PhoneCalendar.isOn(context)
+        denied = !granted
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.phone_cal_switch), style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.phone_cal_hint), style = MaterialTheme.typography.labelMedium, color = Muted)
+            if (denied) Text(stringResource(R.string.phone_cal_denied), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+        }
+        androidx.compose.material3.Switch(checked = on, onCheckedChange = { want ->
+            denied = false
+            if (!want) {
+                PhoneCalendar.setOn(context, false)
+                on = false
+            } else if (PhoneCalendar.allowed(context)) {
+                PhoneCalendar.setOn(context, true)
+                on = true
+            } else {
+                // The system question may briefly cover Mandat; it must not lock it
+                session.pickingFile = true
+                ask.launch(android.Manifest.permission.READ_CALENDAR)
+            }
+        })
     }
 }
 

@@ -155,6 +155,30 @@ object NeutralData {
                     status = TaskStatus.OPEN.name, createdAt = ms(-150), closedAt = null),
             )
         }
+        // Calendar: meetings, sessions, a trip, receptions; some with people
+        val kinds = ua.mandat.data.EventKind.entries
+        (-10..20).filter { it % 2 == 0 || it in 0..2 }.forEachIndexed { n, d ->
+            val kind = kinds[n % kinds.size]
+            val id = db.events().insert(
+                ua.mandat.data.Event(
+                    title = "Тестова подія ${n + 1}", day = today + d,
+                    endDay = if (kind == ua.mandat.data.EventKind.TRIP) today + d + 2 else null,
+                    startMin = if (kind == ua.mandat.data.EventKind.TRIP) null else (9 + n % 8) * 60 + (n % 2) * 30,
+                    endMin = if (kind == ua.mandat.data.EventKind.TRIP) null else (10 + n % 8) * 60 + (n % 2) * 30,
+                    kind = kind.name, place = if (n % 3 == 0) "Тестове місце ${n % 4}" else "",
+                    matterId = if (n % 2 == 0) matters[n % matters.size] else null,
+                    outcome = if (d < 0 && n % 2 == 0) "Тестовий підсумок ${n + 1}" else "",
+                    remind = n % 4 == 0, createdAt = ms(-30), updatedAt = ms(-30),
+                ),
+            )
+            if (n % 3 != 2) db.events().setPeople(id, listOf(people[5 + n % 8], people[n % 5]))
+        }
+        // Address book: plain made-up entries in three groups
+        db.contacts().insertAll((1..140).map { i ->
+            val name = "${listOf("Абонент", "Контакт", "Знайомий", "Колега", "Дописувач")[i % 5]} ${letters[i % letters.size]}$i"
+            ua.mandat.data.Contact(name = name, phones = "+38000000${(1000 + i)}", organization = if (i % 3 == 0) "Організація ${i % 9}" else "",
+                label = listOf("Список 1", "Список 2", "", "Список 3")[i % 4], sortKey = ua.mandat.data.sortKeyOf(name), createdAt = ms(-10))
+        })
         (1..12).forEach { i -> db.reviews().insert(Review(day = today - i, progress = "Тестовий запис вечора $i", createdAt = ms(-i.toLong()))) }
         (1..3).forEach { i -> db.inbox().insert(InboxItem(text = "Тестовий запис у вхідних $i", createdAt = ms(-i.toLong()))) }
     }

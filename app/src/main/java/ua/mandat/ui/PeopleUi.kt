@@ -81,8 +81,12 @@ fun PeopleList(db: MandatDb, session: Session) {
     val titleOf = titles.associate { it.id to it.title }
     val today = Dates.today()
 
+    val bookSize by remember(db) { db.contacts().observeCount() }.collectAsStateWithLifecycle(0)
     if (people.isEmpty()) {
-        Column(Modifier.padding(Space.screen)) { EmptyHint(Sym.group, stringResource(R.string.people_empty)) }
+        Column(Modifier.padding(Space.screen)) {
+            EmptyHint(Sym.group, stringResource(R.string.people_empty))
+            OutlinedButton(onClick = { session.showDirectory = true }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.dir_open, bookSize)) }
+        }
         return
     }
 
@@ -135,8 +139,13 @@ fun PeopleList(db: MandatDb, session: Session) {
             }
         }
         item(key = "map") {
-            OutlinedButton(onClick = { session.influenceFor = 0L }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.influence_map_all))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { session.influenceFor = 0L }, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.influence_map_all), maxLines = 1)
+                }
+                OutlinedButton(onClick = { session.showDirectory = true }, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.dir_open, bookSize), maxLines = 1)
+                }
             }
         }
         if (people.any { it.teamRole != null }) item(key = "team") { TeamCard(people, delegations, session) }
@@ -349,6 +358,7 @@ fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
                 label = { Text(stringResource(R.string.person_org)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = draft.contact, onValueChange = { draft.contact = it },
                 label = { Text(stringResource(R.string.person_contact)) }, modifier = Modifier.fillMaxWidth())
+            ReachButtons(ua.mandat.data.phonesIn(draft.contact), ua.mandat.data.emailsIn(draft.contact))
             Picker(
                 label = stringResource(R.string.person_category),
                 current = draft.category?.let { stringResource(it.label()) } ?: stringResource(R.string.not_set),
@@ -436,6 +446,7 @@ fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
                     session.write { db ->
                         db.withTransaction {
                             db.people().unlinkPerson(id)
+                            db.events().unlinkPerson(id)
                             db.people().clearReportsTo(id)
                             db.delegations().clearPerson(id)
                             db.promises().clearPerson(id)
@@ -470,6 +481,8 @@ private fun PersonLinks(db: MandatDb, session: Session, personId: Long) {
             Stance.of(m.stance)?.let { Text(stringResource(it.label()), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary) }
         }
     }
+
+    EventLinks(db, session, db.events().observeForPerson(personId), personId = personId)
 
     LinkSection(stringResource(R.string.delegations))
     val openD = delegations.filter { TaskStatus.of(it.status) == TaskStatus.OPEN }

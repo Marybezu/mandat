@@ -21,6 +21,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import androidx.room.withTransaction
+import ua.mandat.R
 import ua.mandat.data.MandatDb
 import ua.mandat.data.reminderDays
 import ua.mandat.notify.Reminders
@@ -56,6 +58,7 @@ class Session(app: Application) : AndroidViewModel(app) {
     var delegationDraft by mutableStateOf<DelegationDraft?>(null)
     var promiseDraft by mutableStateOf<PromiseDraft?>(null)
     var deadlineDraft by mutableStateOf<DeadlineDraft?>(null)
+    var eventDraft by mutableStateOf<EventDraft?>(null)
 
     /** Today's answer to the evening question while it is being typed; null when not editing. */
     var reviewDraft by mutableStateOf<String?>(null)
@@ -95,6 +98,91 @@ class Session(app: Application) : AndroidViewModel(app) {
         write { d.persist(it) }
     }
 
+    fun saveEventDraft() {
+        val d = eventDraft ?: return
+        eventDraft = null
+        vcfImport = null
+        vcfDone = null
+        vcfBusy = false
+        write { d.persist(it) }
+    }
+
+    /** Opens an event in its dialog, with the people taking part. */
+    fun openEvent(id: Long) {
+        val startedAt = generation
+        background.launch {
+            val found = withOpenDb { db -> db.events().get(id)?.let { it to db.events().peopleOf(id).toSet() } }
+            withContext(Dispatchers.Main) {
+                if (found != null && startedAt == generation && state is LockState.Open) eventDraft = EventDraft(found.first, isNew = false, found.second)
+            }
+        }
+    }
+
+    /** The address book screen is open. */
+    var showDirectory by mutableStateOf(false)
+
+    /** A .vcf file read and waiting for the owner's choice (memory only; dropped on lock). */
+    var vcfImport by mutableStateOf<VcfImport?>(null)
+    /** Reading a .vcf file is under way, or it failed (a message key). */
+    var vcfBusy by mutableStateOf(false)
+    var vcfError by mutableStateOf<Int?>(null)
+    /** After an import: how many were added, and the file to offer for deletion. */
+    var vcfDone by mutableStateOf<Pair<Int, android.net.Uri>?>(null)
+
+    /** Reads a .vcf file chosen by the owner, leaving out entries already known. Nothing is saved yet. */
+    fun readVcf(uri: android.net.Uri) {
+        val startedAt = generation
+        vcfBusy = true
+        vcfError = null
+        background.launch {
+            val app = getApplication<Application>()
+            val result: Any = try {
+                val size = app.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
+                if (size > MAX_VCF_BYTES) R.string.vcf_too_big
+                else app.contentResolver.openInputStream(uri)?.use { input ->
+                    // Never more than the limit, even if the size was not known in advance
+                    val limited = object : java.io.FilterInputStream(input) {
+                        var count = 0L
+                        override fun read(): Int = super.read().also { if (it >= 0 && ++count > MAX_VCF_BYTES) throw java.io.IOException() }
+                        override fun read(b: ByteArray, off: Int, len: Int): Int =
+                            super.read(b, off, len).also { if (it > 0) { count += it; if (count > MAX_VCF_BYTES) throw java.io.IOException() } }
+                    }
+                    ua.mandat.data.VCard.read(limited.bufferedReader(Charsets.UTF_8))
+                } ?: R.string.vcf_failed
+            } catch (e: Exception) {
+                R.string.vcf_failed
+            } catch (e: OutOfMemoryError) {
+                R.string.vcf_too_big
+            }
+            val plan = (result as? ua.mandat.data.VCard.Result)?.let { r ->
+                withOpenDb { db -> ua.mandat.data.planImport(r.contacts, db.contacts().all(), db.people().all()) }?.let { it to r }
+            }
+            withContext(Dispatchers.Main) {
+                if (startedAt != generation || state !is LockState.Open) return@withContext
+                vcfBusy = false
+                when {
+                    result is Int -> vcfError = result
+                    plan == null -> vcfError = R.string.vcf_failed
+                    plan.second.contacts.isEmpty() -> vcfError = R.string.vcf_empty
+                    else -> vcfImport = VcfImport(uri, plan.first, plan.second.tooMany)
+                }
+            }
+        }
+    }
+
+    /** Saves the chosen entries in one transaction, with the group given by the owner. */
+    fun importVcf(chosen: List<ua.mandat.data.Contact>, label: String) {
+        val job = vcfImport ?: return
+        vcfImport = null
+        val clean = label.trim().take(100)
+        write { db ->
+            db.withTransaction {
+                chosen.chunked(500).forEach { part -> db.contacts().insertAll(part.map { it.copy(label = clean) }) }
+            }
+            withContext(Dispatchers.Main) { vcfDone = chosen.size to job.uri }
+        }
+    }
+
     fun saveReviewDraft() {
         val text = reviewDraft
         reviewDraft = null
@@ -110,7 +198,8 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     private suspend fun storeReminderDays(db: MandatDb) {
         if (!Reminders.isOn(getApplication())) return
-        val days = reminderDays(db.deadlines().open(), db.delegations().open(), db.promises().open(), Dates.today())
+        val today = Dates.today()
+        val days = reminderDays(db.deadlines().open(), db.delegations().open(), db.promises().open(), today, db.events().withReminder(today))
         Reminders.storeDays(getApplication(), days)
     }
 
@@ -420,6 +509,8 @@ class Session(app: Application) : AndroidViewModel(app) {
         val openDelegation = delegationDraft
         val openPromise = promiseDraft
         val openDeadline = deadlineDraft
+        val openEvent = eventDraft
+        eventDraft = null
         val openReview = reviewDraft
         deadlineDraft = null
         reviewDraft = null
@@ -446,6 +537,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                             { openDelegation?.persist(current.db) },
                             { openPromise?.persist(current.db) },
                             { openDeadline?.persist(current.db) },
+                            { openEvent?.persist(current.db) },
                             { persistReview(current.db, openReview) },
                             // Last: only the days on which something is due, for reminders
                             { storeReminderDays(current.db) },
@@ -477,6 +569,8 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     companion object {
         private const val PICKER_TIMEOUT_MS = 90 * 1000L
+        /** A larger .vcf is refused (photos make files big; 6 000 contacts without photos are a few MB). */
+        const val MAX_VCF_BYTES = 200L * 1024 * 1024
         private const val AUTO_WAIT_MS = 30 * 1000L
         private const val AUTO_STUCK_MS = 24 * 60 * 60 * 1000L
     }

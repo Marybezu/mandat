@@ -225,6 +225,8 @@ private fun Main(db: MandatDb, session: Session) {
     session.delegationDraft?.let { DelegationDialog(db, session, it) }
     session.promiseDraft?.let { PromiseDialog(db, session, it) }
     session.deadlineDraft?.let { DeadlineDialog(db, session, it) }
+    session.eventDraft?.let { EventDialog(db, session, it) }
+    session.vcfDone?.let { (n, uri) -> VcfDoneDialog(session, n, uri) }
 
     session.draft?.let { draft ->
         MatterEditor(db, session, draft)
@@ -241,6 +243,11 @@ private fun Main(db: MandatDb, session: Session) {
     }
     session.influenceFor?.let {
         InfluenceMapScreen(db, session, it.takeIf { id -> id != 0L })
+        return
+    }
+    if (session.showDirectory) {
+        val job = session.vcfImport
+        if (job != null) VcfPreviewScreen(session, job) else DirectoryScreen(db, session)
         return
     }
     if (session.showTopics) {
@@ -350,7 +357,7 @@ private fun Main(db: MandatDb, session: Session) {
                 )
                 Tab.Matters -> MattersList(db, onOpen = { session.draft = MatterDraft(EditRequest(it, isNew = false)) }, onTopics = { session.showTopics = true }, session = session)
                 Tab.People -> PeopleList(db, session)
-                Tab.Time -> TimeScreen(db, session)
+                Tab.Time -> TimeTab(db, session)
                 Tab.Review -> ReviewScreen(db, session)
             }
         }

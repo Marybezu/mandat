@@ -38,7 +38,7 @@ interface InboxDao {
     entities = [
         InboxItem::class, Role::class, Matter::class, Setting::class,
         Person::class, MatterPerson::class, Delegation::class, Promise::class,
-        Deadline::class, Review::class,
+        Deadline::class, Review::class, Event::class, EventPerson::class, Contact::class,
     ],
     version = DB_VERSION,
     exportSchema = true,
@@ -54,6 +54,8 @@ abstract class MandatDb : RoomDatabase() {
     abstract fun deadlines(): DeadlineDao
     abstract fun reviews(): ReviewDao
     abstract fun search(): SearchDao
+    abstract fun events(): EventDao
+    abstract fun contacts(): ContactDao
 
     companion object {
         const val FILE_NAME = "mandat.db"
@@ -183,7 +185,32 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
-val MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // The owner's own calendar
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `events` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, " +
+                "`day` INTEGER NOT NULL, `endDay` INTEGER, `startMin` INTEGER, `endMin` INTEGER, `kind` TEXT NOT NULL, " +
+                "`place` TEXT NOT NULL, `matterId` INTEGER, `notes` TEXT NOT NULL, `outcome` TEXT NOT NULL, " +
+                "`remind` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_events_day` ON `events` (`day`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `event_people` (`eventId` INTEGER NOT NULL, `personId` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`eventId`, `personId`))",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_event_people_personId` ON `event_people` (`personId`)")
+        // The address book
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `contacts` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, " +
+                "`phones` TEXT NOT NULL, `emails` TEXT NOT NULL, `organization` TEXT NOT NULL, `jobTitle` TEXT NOT NULL, " +
+                "`notes` TEXT NOT NULL, `label` TEXT NOT NULL, `sortKey` TEXT NOT NULL, `createdAt` INTEGER NOT NULL)",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_contacts_sortKey` ON `contacts` (`sortKey`)")
+    }
+}
+
+val MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
 
 /** The current database layout version; raise it together with a new migration. */
-const val DB_VERSION = 6
+const val DB_VERSION = 7

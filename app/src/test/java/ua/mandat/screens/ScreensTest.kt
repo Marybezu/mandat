@@ -116,5 +116,12 @@ class ScreensTest {
         val t = ua.mandat.ui.Dates.today()
         ua.mandat.ui.PeriodScreen(db, session, ua.mandat.ui.PeriodKind.MOVED, ua.mandat.data.Span(t - 30, t))
     }
+    @Test fun calendar() = shot("14-calendar") { ua.mandat.ui.CalendarScreen(db, session) }
+    @Config(qualifiers = "+night")
+    @Test fun calendarDark() = shot("14-calendar-dark") { ua.mandat.ui.CalendarScreen(db, session) }
+    @Test fun directory() = shot("15-directory") { ua.mandat.ui.DirectoryScreen(db, session) }
+    @Test fun eventDialog() = shot("16-event") {
+        ua.mandat.ui.EventDialog(db, session, ua.mandat.ui.newEvent().also { it.title = "Тестова зустріч"; it.startMin = 600; it.endMin = 660; it.place = "Тестове місце" })
+    }
     @Test fun next() = shot("07-smart-next") { SmartListScreen(db, session, SmartList.NEXT) }
 }

@@ -390,6 +390,8 @@ private fun kindLabel(kind: String): Int = when (kind) {
     "delegation" -> R.string.delegation_new
     "promise" -> R.string.promise_new
     "deadline" -> R.string.deadline
+    "event" -> R.string.event
+    "contact" -> R.string.directory
     else -> R.string.tab_review
 }
 
@@ -400,6 +402,8 @@ private fun openHit(db: MandatDb, session: Session, kind: String, id: Long) {
         "delegation" -> session.openTask(kind, id)
         "promise" -> session.openTask(kind, id)
         "deadline" -> session.openTask(kind, id)
+        "event" -> session.openEvent(id)
+        "contact" -> { session.searching = false; session.showDirectory = true }
         else -> session.searching = false
     }
 }

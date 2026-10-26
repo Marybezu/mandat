@@ -216,3 +216,46 @@ suspend fun persistReview(db: MandatDb, text: String?) {
         db.reviews().update(existing.copy(progress = clean))
     }
 }
+
+/** An event being edited in its dialog; the people taking part are saved with it. */
+class EventDraft(val event: ua.mandat.data.Event, val isNew: Boolean, people: Set<Long> = emptySet()) {
+    var title by mutableStateOf(event.title)
+    var day by mutableStateOf(event.day)
+    var endDay by mutableStateOf(event.endDay)
+    var startMin by mutableStateOf(event.startMin)
+    var endMin by mutableStateOf(event.endMin)
+    var kind by mutableStateOf(ua.mandat.data.EventKind.of(event.kind))
+    var place by mutableStateOf(event.place)
+    var matterId by mutableStateOf(event.matterId)
+    var notes by mutableStateOf(event.notes)
+    var outcome by mutableStateOf(event.outcome)
+    var remind by mutableStateOf(event.remind)
+    var people by mutableStateOf(people)
+
+    fun valid() = title.isNotBlank()
+
+    fun current(now: Long) = event.copy(
+        title = title, day = day, endDay = endDay, startMin = startMin, endMin = endMin, kind = kind.name,
+        place = place, matterId = matterId, notes = notes, outcome = outcome, remind = remind, updatedAt = now,
+    )
+
+    suspend fun persist(db: MandatDb) {
+        val now = System.currentTimeMillis()
+        val edited = ua.mandat.data.cleanEvent(current(now)) ?: return
+        db.withTransaction {
+            val id = if (isNew) db.events().insert(edited.copy(id = 0, createdAt = now)) else edited.id.also { db.events().update(edited) }
+            db.events().setPeople(id, people)
+            // A meeting that has happened is the last contact with the people in it
+            if (edited.day <= Dates.today()) people.forEach { db.people().touchLastContact(it, edited.day) }
+        }
+    }
+}
+
+fun newEvent(day: Long = Dates.today(), matterId: Long? = null, personId: Long? = null) = EventDraft(
+    ua.mandat.data.Event(
+        title = "", day = day, kind = ua.mandat.data.EventKind.MEETING.name, matterId = matterId,
+        createdAt = 0, updatedAt = 0,
+    ),
+    isNew = true,
+    people = setOfNotNull(personId),
+)

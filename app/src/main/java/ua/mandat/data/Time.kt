@@ -116,7 +116,9 @@ interface SearchDao {
             "UNION ALL SELECT 'delegation', id, what, '', what FROM delegations " +
             "UNION ALL SELECT 'promise', id, what, toWhom, what || ' ' || toWhom FROM promises " +
             "UNION ALL SELECT 'deadline', id, title, basis, title || ' ' || basis FROM deadlines " +
-            "UNION ALL SELECT 'review', id, progress, '', progress FROM reviews",
+            "UNION ALL SELECT 'review', id, progress, '', progress FROM reviews " +
+            "UNION ALL SELECT 'event', id, title, place, title || ' ' || place || ' ' || notes || ' ' || outcome FROM events " +
+            "UNION ALL SELECT 'contact', id, name, organization, name || ' ' || organization || ' ' || jobTitle || ' ' || phones || ' ' || emails || ' ' || label FROM contacts",
     )
     fun everything(): Flow<List<SearchRow>>
 }
@@ -149,8 +151,13 @@ fun cleanDeadline(d: Deadline): Deadline? {
  * its "days before" day, and the due day of open delegations and promises. Only days are kept,
  * never what is due, so the reminder itself carries no details.
  */
-fun reminderDays(deadlines: List<Deadline>, delegations: List<Delegation>, promises: List<Promise>, today: Long): List<Long> {
+fun reminderDays(
+    deadlines: List<Deadline>, delegations: List<Delegation>, promises: List<Promise>, today: Long,
+    events: List<Event> = emptyList(),
+): List<Long> {
     val days = mutableSetOf<Long>()
+    // Events marked for a reminder: their first day only
+    events.filter { it.remind }.mapTo(days) { it.day }
     for (d in deadlines) {
         if (TaskStatus.of(d.status) != TaskStatus.OPEN) continue
         days += d.day

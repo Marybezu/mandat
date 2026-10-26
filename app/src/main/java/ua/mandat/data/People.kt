@@ -183,6 +183,9 @@ interface PersonDao {
     @Query("SELECT * FROM people WHERE id = :id")
     suspend fun get(id: Long): Person?
 
+    @Query("SELECT * FROM people")
+    suspend fun all(): List<Person>
+
     @Insert
     suspend fun insert(person: Person): Long
 
@@ -225,6 +228,10 @@ interface PersonDao {
 
     @Query("UPDATE people SET lastContact = :day WHERE id = :personId")
     suspend fun setLastContact(personId: Long, day: Long)
+
+    /** Moves the last contact forward only, never back to an older day. */
+    @Query("UPDATE people SET lastContact = :day WHERE id = :personId AND (lastContact IS NULL OR lastContact < :day)")
+    suspend fun touchLastContact(personId: Long, day: Long)
 
     @Query("DELETE FROM matter_people WHERE matterId = :matterId AND personId = :personId")
     suspend fun unlink(matterId: Long, personId: Long)
