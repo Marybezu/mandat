@@ -107,7 +107,7 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit) {
             }
         }
         if (active.isEmpty() && closed.isEmpty()) {
-            Column(Modifier.padding(Space.screen)) { EmptyHint(Icons.Filled.List, stringResource(R.string.matters_empty)) }
+            Column(Modifier.padding(Space.screen)) { EmptyHint(Sym.folder, stringResource(R.string.matters_empty)) }
             return@Column
         }
         LazyColumn(
@@ -136,9 +136,9 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit) {
 @Composable
 private fun AttentionHeader(level: Attention) {
     val icon = when (level) {
-        Attention.FOCUS -> Icons.Filled.Star
-        Attention.BACKGROUND -> Icons.Filled.List
-        Attention.SLEEPING -> Icons.Filled.Refresh
+        Attention.FOCUS -> Sym.target
+        Attention.BACKGROUND -> Sym.layers
+        Attention.SLEEPING -> Sym.bedtime
     }
     Column {
         SectionHeader(icon, stringResource(level.label()))

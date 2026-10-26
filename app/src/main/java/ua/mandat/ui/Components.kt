@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
@@ -127,3 +128,30 @@ fun ScreenHeader(title: String, subtitle: String? = null, actions: @Composable R
 
 /** Plain colour helper for text that is not important. */
 val Muted: Color @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+
+/** Material Symbols (Apache 2.0) shipped as drawables: clearer pictures than the basic set. */
+object Sym {
+    val inbox @Composable get() = sym(ua.mandat.R.drawable.sym_inbox)
+    val folder @Composable get() = sym(ua.mandat.R.drawable.sym_folder)
+    val explore @Composable get() = sym(ua.mandat.R.drawable.sym_explore)
+    val group @Composable get() = sym(ua.mandat.R.drawable.sym_group)
+    val calendar @Composable get() = sym(ua.mandat.R.drawable.sym_calendar_month)
+    val home @Composable get() = sym(ua.mandat.R.drawable.sym_home)
+    val target @Composable get() = sym(ua.mandat.R.drawable.sym_target)
+    val warning @Composable get() = sym(ua.mandat.R.drawable.sym_warning)
+    val schedule @Composable get() = sym(ua.mandat.R.drawable.sym_schedule)
+    val layers @Composable get() = sym(ua.mandat.R.drawable.sym_layers)
+    val bedtime @Composable get() = sym(ua.mandat.R.drawable.sym_bedtime)
+    val checkCircle @Composable get() = sym(ua.mandat.R.drawable.sym_check_circle)
+    val save @Composable get() = sym(ua.mandat.R.drawable.sym_save)
+    val badge @Composable get() = sym(ua.mandat.R.drawable.sym_badge)
+    val notifications @Composable get() = sym(ua.mandat.R.drawable.sym_notifications)
+    val palette @Composable get() = sym(ua.mandat.R.drawable.sym_palette)
+    val info @Composable get() = sym(ua.mandat.R.drawable.sym_info)
+    val lock @Composable get() = sym(ua.mandat.R.drawable.sym_lock)
+    val search @Composable get() = sym(ua.mandat.R.drawable.sym_search)
+    val settings @Composable get() = sym(ua.mandat.R.drawable.sym_settings)
+}
+
+@Composable
+private fun sym(id: Int): ImageVector = ImageVector.vectorResource(id)

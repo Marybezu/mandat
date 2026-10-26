@@ -66,6 +66,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -153,7 +154,7 @@ private fun Welcome(onStart: () -> Unit) = Centered {
 
 @Composable
 private fun Locked(failed: Boolean, onUnlock: () -> Unit) = Centered {
-    Icon(Icons.Filled.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+    Icon(Sym.lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
     Spacer(Modifier.height(16.dp))
     Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge)
     Text(stringResource(R.string.tagline), style = MaterialTheme.typography.bodyMedium)
@@ -167,12 +168,12 @@ private fun Locked(failed: Boolean, onUnlock: () -> Unit) = Centered {
 }
 
 // "Review" sits in the middle and stands out: the place to step back and see the whole picture
-private enum class Tab(val title: Int, val icon: ImageVector, val central: Boolean = false) {
-    Today(R.string.tab_today, Icons.Filled.Home),
-    Matters(R.string.tab_matters, Icons.Filled.List),
-    Review(R.string.tab_review, Icons.Filled.CheckCircle, central = true),
-    People(R.string.tab_people, Icons.Filled.Person),
-    Time(R.string.tab_time, Icons.Filled.DateRange),
+private enum class Tab(val title: Int, val icon: Int, val central: Boolean = false) {
+    Today(R.string.tab_today, R.drawable.sym_home),
+    Matters(R.string.tab_matters, R.drawable.sym_folder),
+    Review(R.string.tab_review, R.drawable.sym_explore, central = true),
+    People(R.string.tab_people, R.drawable.sym_group),
+    Time(R.string.tab_time, R.drawable.sym_calendar_month),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -229,13 +230,13 @@ private fun Main(db: MandatDb, session: Session) {
                     subtitle = if (tab == Tab.Today) Dates.longToday() else null,
                 ) {
                     IconButton(onClick = { session.searching = true }) {
-                        Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search), tint = Muted)
+                        Icon(Sym.search, contentDescription = stringResource(R.string.search), tint = Muted)
                     }
                     IconButton(onClick = { options = true }) {
-                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.options), tint = Muted)
+                        Icon(Sym.settings, contentDescription = stringResource(R.string.options), tint = Muted)
                     }
                     IconButton(onClick = { session.lock() }) {
-                        Icon(Icons.Filled.Lock, contentDescription = stringResource(R.string.lock_now), tint = Muted)
+                        Icon(Sym.lock, contentDescription = stringResource(R.string.lock_now), tint = Muted)
                     }
                 }
             }
@@ -256,11 +257,11 @@ private fun Main(db: MandatDb, session: Session) {
                                     modifier = Modifier.size(44.dp),
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
-                                        Icon(t.icon, contentDescription = null, modifier = Modifier.size(24.dp))
+                                        Icon(ImageVector.vectorResource(t.icon), contentDescription = null, modifier = Modifier.size(24.dp))
                                     }
                                 }
                             } else {
-                                Icon(t.icon, contentDescription = null)
+                                Icon(ImageVector.vectorResource(t.icon), contentDescription = null)
                             }
                         },
                         label = { Text(stringResource(t.title), style = MaterialTheme.typography.labelMedium) },
@@ -370,30 +371,30 @@ private fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onTo
             }
         }
         if (overdueCount > 0) {
-            item(key = "overdue_h") { SectionHeader(Icons.Filled.Warning, stringResource(R.string.overdue_title), attention = true) }
+            item(key = "overdue_h") { SectionHeader(Sym.warning, stringResource(R.string.overdue_title), attention = true) }
             items(overdueDl, key = { "odl${it.id}" }) { DeadlineRow(it, it.matterId?.let(titleOf::get), session) }
             items(overdueD, key = { "od${it.id}" }) { DelegationRow(it, it.personId?.let(nameOf::get), it.matterId?.let(titleOf::get), session) }
             items(overdueP, key = { "op${it.id}" }) { PromiseRow(it, it.personId?.let(nameOf::get), it.matterId?.let(titleOf::get), session) }
         }
         if (soonDl.isNotEmpty() || soonD.isNotEmpty() || soonP.isNotEmpty()) {
-            item(key = "soon_h") { SectionHeader(Icons.Filled.DateRange, stringResource(R.string.soon_title)) }
+            item(key = "soon_h") { SectionHeader(Sym.schedule, stringResource(R.string.soon_title)) }
             items(soonDl, key = { "sdl${it.id}" }) { DeadlineRow(it, it.matterId?.let(titleOf::get), session) }
             items(soonD, key = { "sd${it.id}" }) { DelegationRow(it, it.personId?.let(nameOf::get), it.matterId?.let(titleOf::get), session) }
             items(soonP, key = { "sp${it.id}" }) { PromiseRow(it, it.personId?.let(nameOf::get), it.matterId?.let(titleOf::get), session) }
         }
-        item(key = "focus_h") { SectionHeader(Icons.Filled.Star, stringResource(R.string.focus_title)) }
+        item(key = "focus_h") { SectionHeader(Sym.target, stringResource(R.string.focus_title)) }
         if (focus.isEmpty()) {
-            item(key = "focus_empty") { EmptyHint(Icons.Filled.Star, stringResource(R.string.focus_empty)) }
+            item(key = "focus_empty") { EmptyHint(Sym.target, stringResource(R.string.focus_empty)) }
         } else {
             items(focus, key = { "m${it.id}" }) { m ->
                 MatterCard(m, roleNames[m.roleId], onOpen, Modifier.padding(bottom = Space.gap))
             }
         }
         item(key = "inbox_h") {
-            SectionHeader(Icons.Filled.MailOutline, stringResource(R.string.inbox) + if (items.isNotEmpty()) " · ${items.size}" else "")
+            SectionHeader(Sym.inbox, stringResource(R.string.inbox) + if (items.isNotEmpty()) " · ${items.size}" else "")
         }
         if (items.isEmpty()) {
-            item(key = "inbox_empty") { EmptyHint(Icons.Filled.MailOutline, stringResource(R.string.inbox_empty)) }
+            item(key = "inbox_empty") { EmptyHint(Sym.inbox, stringResource(R.string.inbox_empty)) }
         } else {
             items(items, key = { "i${it.id}" }) { item ->
                 Column {

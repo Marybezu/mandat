@@ -67,7 +67,7 @@ fun PeopleList(db: MandatDb, session: Session) {
     val openBy = open.groupBy { it.personId }
 
     if (people.isEmpty()) {
-        Column(Modifier.padding(Space.screen)) { EmptyHint(Icons.Filled.Person, stringResource(R.string.people_empty)) }
+        Column(Modifier.padding(Space.screen)) { EmptyHint(Sym.group, stringResource(R.string.people_empty)) }
         return
     }
     LazyColumn(
@@ -99,7 +99,7 @@ fun PeopleList(db: MandatDb, session: Session) {
 
 @Composable
 private fun GroupTitle(text: String) {
-    SectionHeader(Icons.Filled.Person, text)
+    SectionHeader(Sym.group, text)
 }
 
 /** Plain facts only: who it is and how much is open. No scores, no ranking. */

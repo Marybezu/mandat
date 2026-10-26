@@ -238,12 +238,12 @@ fun Options(session: Session, onBack: () -> Unit) {
 private fun Section(title: String) {
     SectionHeader(
         when (title) {
-            stringResource(R.string.backup_title) -> Icons.Filled.Done
-            stringResource(R.string.roles_manage) -> Icons.Filled.AccountBox
-            stringResource(R.string.reminders_title) -> Icons.Filled.Notifications
-            stringResource(R.string.security_title) -> Icons.Filled.Lock
-            stringResource(R.string.look_title) -> Icons.Filled.Face
-            else -> Icons.Filled.Info
+            stringResource(R.string.backup_title) -> Sym.save
+            stringResource(R.string.roles_manage) -> Sym.badge
+            stringResource(R.string.reminders_title) -> Sym.notifications
+            stringResource(R.string.security_title) -> Sym.lock
+            stringResource(R.string.look_title) -> Sym.palette
+            else -> Sym.info
         },
         title,
     )

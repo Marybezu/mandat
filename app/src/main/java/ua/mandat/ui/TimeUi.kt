@@ -178,7 +178,7 @@ fun TimeScreen(db: MandatDb, session: Session) {
         R.string.time_later to entries.filter { it.day > today + 7 },
     )
     if (entries.isEmpty()) {
-        Column(Modifier.padding(Space.screen)) { EmptyHint(Icons.Filled.DateRange, stringResource(R.string.time_empty)) }
+        Column(Modifier.padding(Space.screen)) { EmptyHint(Sym.calendar, stringResource(R.string.time_empty)) }
         return
     }
     LazyColumn(contentPadding = PaddingValues(start = Space.screen, end = Space.screen, bottom = 96.dp)) {
@@ -186,7 +186,7 @@ fun TimeScreen(db: MandatDb, session: Session) {
             if (list.isNotEmpty()) {
                 item(key = "h$title") {
                     val overdue = title == R.string.overdue_title
-                    SectionHeader(if (overdue) Icons.Filled.Warning else Icons.Filled.DateRange, stringResource(title), attention = overdue)
+                    SectionHeader(if (overdue) Sym.warning else Sym.schedule, stringResource(title), attention = overdue)
                 }
                 items(list, key = { it.key }) { it.content() }
             }
@@ -244,7 +244,7 @@ fun ReviewScreen(db: MandatDb, session: Session) {
         }
         val earlier = recent.filter { it.day != today }
         if (earlier.isNotEmpty()) {
-            item(key = "earlier_h") { SectionHeader(Icons.Filled.DateRange, stringResource(R.string.evening_earlier)) }
+            item(key = "earlier_h") { SectionHeader(Sym.calendar, stringResource(R.string.evening_earlier)) }
             items(earlier, key = { it.id }) { r ->
                 Column {
                     Text(Dates.format(r.day), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
@@ -409,7 +409,7 @@ fun PromisesScreen(db: MandatDb, session: Session) {
                 val list = byStatus.getValue(status)
                 if (list.isNotEmpty()) {
                     item(key = "h$status") {
-                            SectionHeader(Icons.Filled.CheckCircle, stringResource(status.promiseLabel()))
+                            SectionHeader(Sym.checkCircle, stringResource(status.promiseLabel()))
                     }
                     items(list, key = { "p${it.id}" }) { p ->
                         Column {
