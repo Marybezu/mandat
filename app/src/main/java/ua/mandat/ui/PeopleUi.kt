@@ -439,9 +439,9 @@ fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
             OutlinedTextField(value = draft.notes, onValueChange = { draft.notes = it },
                 label = { Text(stringResource(R.string.person_notes)) }, minLines = 3, modifier = Modifier.fillMaxWidth())
 
-            if (!draft.isNew && draft.teamRole != null) {
+            if (!draft.isNew) {
                 OutlinedButton(onClick = { session.savePersonDraft(); session.oneOnOne = id }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.one_on_one))
+                    Text(stringResource(if (draft.teamRole != null) R.string.one_on_one else R.string.brief_title))
                 }
             }
             if (!draft.isNew) {

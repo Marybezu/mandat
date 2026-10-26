@@ -107,6 +107,7 @@ class ScreensTest {
     @Test fun influenceAll() = shot("09-influence-all") { ua.mandat.ui.InfluenceMapScreen(db, session, null) }
     @Test fun influenceMatter() = shot("09-influence-matter") { ua.mandat.ui.InfluenceMapScreen(db, session, 1L) }
     @Test fun oneOnOne() = shot("10-one-on-one") { ua.mandat.ui.OneOnOneScreen(db, session, 2L) }
+    @Test fun brief() = shot("10-brief") { ua.mandat.ui.OneOnOneScreen(db, session, 9L) }
     @Test fun matterCard() = shot("11-matter") {
         val m = runBlocking { db.matters().get(1L)!! }
         ua.mandat.ui.MatterEditor(db, session, ua.mandat.ui.MatterDraft(ua.mandat.ui.EditRequest(m, isNew = false)))

@@ -124,8 +124,13 @@ fun TeamCard(people: List<Person>, delegations: List<Delegation>, session: Sessi
     }
 }
 
-/** Before a one-to-one with someone in the team: an agenda that gathers itself. */
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Before meeting someone: everything about them on one screen, gathered by itself. For the team
+ * it is a one-to-one agenda (check-ins, open and done delegations); for anyone else a brief: who
+ * they are, shared matters with their stance and next step, what was promised and asked, the
+ * last meetings with their outcome and diary notes about them.
+ */
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun OneOnOneScreen(db: MandatDb, session: Session, personId: Long) {
     BackHandler { session.oneOnOne = null }
@@ -135,13 +140,25 @@ fun OneOnOneScreen(db: MandatDb, session: Session, personId: Long) {
     val matters by remember(db, personId) { db.people().observeMattersOf(personId).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val titleOf = titles.associate { it.id to it.title }
+    val allMatters by remember(db) { db.matters().observeAll().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
+    val nextOf = allMatters.associate { it.id to it.nextStep }
+    val events by remember(db, personId) { db.events().observeForPerson(personId).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val reviews by remember(db) { db.reviews().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val reviewLinks by remember(db) { db.reviews().observeLinks() }.collectAsStateWithLifecycle(emptyList())
+    val hidden by session.hiddenMatters.collectAsStateWithLifecycle()
     val p = people.firstOrNull { it.id == personId }
     val today = Dates.today()
+    // Diary notes about this person, leaving out those tied to a hidden matter
+    val notesAbout = remember(reviews, reviewLinks, hidden, personId) {
+        val byReview = reviewLinks.groupBy { it.reviewId }
+        val mine = byReview.filterValues { l -> l.any { it.kind == "person" && it.refId == personId } && l.none { it.kind == "matter" && it.refId in hidden } }.keys
+        reviews.filter { it.id in mine && it.progress.isNotBlank() }.sortedByDescending { it.day }.take(3)
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.one_on_one)) },
+                title = { Text(stringResource(if (p?.teamRole != null) R.string.one_on_one else R.string.brief_title)) },
                 navigationIcon = {
                     IconButton(onClick = { session.oneOnOne = null }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
@@ -151,6 +168,7 @@ fun OneOnOneScreen(db: MandatDb, session: Session, personId: Long) {
         },
     ) { padding ->
         if (p == null) return@Scaffold
+        val team = p.teamRole != null
         val open = delegations.filter { TaskStatus.of(it.status) == TaskStatus.OPEN }
         val done = delegations.filter { TaskStatus.of(it.status) == TaskStatus.DONE && it.closedAt != null && Dates.dayOf(it.closedAt) > today - 30 }
         LazyColumn(
@@ -161,10 +179,12 @@ fun OneOnOneScreen(db: MandatDb, session: Session, personId: Long) {
             item(key = "who") {
                 MCard {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Initials(p.name, team = true)
+                        Initials(p.name, team = team)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(p.name, style = MaterialTheme.typography.titleMedium)
+                            val role = listOf(p.jobTitle, p.organization).filter { it.isNotBlank() }.joinToString(" · ")
+                            if (role.isNotEmpty()) Text(role, style = MaterialTheme.typography.bodyMedium)
                             Text(
                                 p.lastContact?.let { stringResource(R.string.last_talk, Dates.format(it)) } ?: stringResource(R.string.last_talk_unknown),
                                 style = MaterialTheme.typography.labelMedium, color = Muted,
@@ -174,7 +194,27 @@ fun OneOnOneScreen(db: MandatDb, session: Session, personId: Long) {
                     TextButton(onClick = { session.write { it.people().setLastContact(p.id, today) } }) {
                         Text(stringResource(R.string.talked_today))
                     }
+                    if (!team && p.allCategories.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        p.allCategories.forEach { MiniChip(categoryLabel(it)) }
+                    }
                     if (p.notes.isNotBlank()) Text(p.notes, style = MaterialTheme.typography.bodyMedium, color = Muted, maxLines = 4)
+                    Spacer(Modifier.height(6.dp))
+                    ReachButtons(ua.mandat.data.phonesIn(p.contact), ua.mandat.data.emailsIn(p.contact))
+                }
+            }
+            // The next meeting and the last ones, with what came of them
+            val next = events.filter { it.lastDay >= today }.minByOrNull { it.day }
+            val past = events.filter { it.lastDay < today }.sortedByDescending { it.day }.take(3)
+            if (next != null || past.isNotEmpty()) item(key = "meetings") {
+                SectionCard(Sym.calendar, stringResource(R.string.brief_meetings), count = events.size) {
+                    next?.let { e ->
+                        Text(stringResource(R.string.brief_next), style = MaterialTheme.typography.labelMedium, color = Muted)
+                        EventRow(e, emptyList(), e.matterId?.let(titleOf::get), null, session)
+                    }
+                    if (past.isNotEmpty()) {
+                        Text(stringResource(R.string.brief_last), style = MaterialTheme.typography.labelMedium, color = Muted, modifier = Modifier.padding(top = 6.dp))
+                        past.forEachIndexed { i, e -> if (i > 0) RowDivider(); EventRow(e, emptyList(), e.matterId?.let(titleOf::get), null, session) }
+                    }
                 }
             }
             val checkIns = open.filter { it.checkIn != null && it.checkIn <= today + 7 }
@@ -184,11 +224,11 @@ fun OneOnOneScreen(db: MandatDb, session: Session, personId: Long) {
                 }
             }
             if (open.isNotEmpty()) item(key = "open") {
-                SectionCard(Sym.checkCircle, stringResource(R.string.agenda_open), count = open.size) {
+                SectionCard(Sym.checkCircle, stringResource(if (team) R.string.agenda_open else R.string.brief_asked), count = open.size) {
                     Paged(open) { d -> DelegationRow(d, null, d.matterId?.let(titleOf::get), session) }
                 }
             }
-            if (done.isNotEmpty()) item(key = "done") {
+            if (team && done.isNotEmpty()) item(key = "done") {
                 SectionCard(Sym.checkCircle, stringResource(R.string.agenda_done), count = done.size) {
                     done.forEachIndexed { i, d ->
                         if (i > 0) RowDivider()
@@ -199,13 +239,22 @@ fun OneOnOneScreen(db: MandatDb, session: Session, personId: Long) {
             }
             if (matters.isNotEmpty()) item(key = "matters") {
                 SectionCard(Sym.folder, stringResource(R.string.agenda_matters), count = matters.size) {
-                    Paged(matters) { m -> TextTile(m.title) { session.openMatter(m.matterId) } }
+                    Paged(matters) { m ->
+                        val stance = ua.mandat.data.Stance.of(m.stance)?.let { stringResource(it.label()) }
+                        val sub = listOfNotNull(stance, nextOf[m.matterId]?.takeIf { it.isNotBlank() }?.let { "→ $it" }).joinToString(" · ")
+                        TextTile(m.title, sub.ifEmpty { null }) { session.openMatter(m.matterId) }
+                    }
                 }
             }
             val openP = promises.filter { TaskStatus.of(it.status) == TaskStatus.OPEN }
             if (openP.isNotEmpty()) item(key = "promises") {
                 SectionCard(Sym.checkCircle, stringResource(R.string.agenda_promises), count = openP.size) {
                     Paged(openP) { x -> PromiseRow(x, null, x.matterId?.let(titleOf::get), session) }
+                }
+            }
+            if (notesAbout.isNotEmpty()) item(key = "diary") {
+                SectionCard(Sym.bedtime, stringResource(R.string.brief_diary), count = notesAbout.size) {
+                    notesAbout.forEach { r -> TextTile(r.progress, Dates.format(r.day)) }
                 }
             }
         }

@@ -436,6 +436,12 @@ fun EventDialog(db: MandatDb, session: Session, draft: EventDraft) {
                     }
                     TextButton(onClick = { pickingPerson = true }) { Text("+ " + stringResource(R.string.add_person)) }
                 }
+                // Before the meeting: a brief on each person taking part (the event is saved first)
+                val briefable = if (draft.isNew) emptyList() else draft.people.mapNotNull { id -> people.firstOrNull { it.id == id } }
+                if (briefable.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(R.string.brief_title) + ":", style = MaterialTheme.typography.labelMedium, color = Muted)
+                    briefable.forEach { p -> MiniChip(p.name + " →", onClick = { session.saveEventDraft(); session.oneOnOne = p.id }) }
+                }
                 MatterPicker(matters, allMatters, draft.matterId) { draft.matterId = it }
                 OutlinedTextField(value = draft.notes, onValueChange = { draft.notes = it },
                     label = { Text(stringResource(R.string.event_notes)) }, minLines = 2, modifier = Modifier.fillMaxWidth())

@@ -920,4 +920,10 @@
     <string name="import_mandat_not">Це не файл експорту Мандата.</string>
     <string name="import_mandat_is_backup">Це резервна копія, а не файл експорту. Відновіть її в «Налаштуваннях», розділ «Резервна копія».</string>
     <string name="notice_is_export">Це файл експорту (.mandatx), а не резервна копія. Відкрийте його в «Експорт і імпорт». Нічого не змінено.</string>
+    <string name="brief_title">Бриф перед зустріччю</string>
+    <string name="brief_meetings">Зустрічі</string>
+    <string name="brief_next">Наступна</string>
+    <string name="brief_last">Останні, з підсумком</string>
+    <string name="brief_asked">Що ви доручили</string>
+    <string name="brief_diary">Зі щоденника</string>
 </resources>

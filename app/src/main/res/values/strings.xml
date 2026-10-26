@@ -918,4 +918,10 @@
     <string name="import_mandat_not">This is not a Mandat export file.</string>
     <string name="import_mandat_is_backup">This is a backup, not an export file. Restore it in Settings, under Backup.</string>
     <string name="notice_is_export">This is an export file (.mandatx), not a backup. Open it in Export and import. Nothing was changed.</string>
+    <string name="brief_title">Brief before a meeting</string>
+    <string name="brief_meetings">Meetings</string>
+    <string name="brief_next">Next</string>
+    <string name="brief_last">Last ones, with the outcome</string>
+    <string name="brief_asked">What you asked of them</string>
+    <string name="brief_diary">From the diary</string>
 </resources>
