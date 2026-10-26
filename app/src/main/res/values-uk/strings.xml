@@ -521,8 +521,8 @@
     <string name="event_new">Подія</string>
     <string name="event">Подія</string>
     <string name="events">Події</string>
-    <string name="cal_week_kinds">Тиждень за видами</string>
-    <string name="cal_month_kinds">Місяць за видами</string>
+    <string name="cal_week_kinds">Чим зайнятий тиждень</string>
+    <string name="cal_month_kinds">Чим зайнятий місяць</string>
     <string name="cal_with_people">З людьми: %1$d з %2$d</string>
     <string name="cal_legend_events">події</string>
     <string name="cal_legend_dates">строки й доручення</string>
@@ -835,4 +835,16 @@
     <string name="trip_how">Як це працює</string>
     <string name="trip_turn_on">Увімкнути</string>
     <string name="trip_explain">Що робить: справи, позначені як чутливі, і все, що з ними пов\'язано (доручення, обіцянки, строки, події, записи медіа, меседжі, союзи, гроші, облік допомоги, зв\'язки з людьми), зникають з усіх екранів, списків, графіків і пошуку. Події з календаря телефона теж не показуються. Дані лишаються зашифрованими в телефоні, нічого не видаляється.\n\nЩо лишається видним: люди, громади, записи щоденника, «Вхідні» й назви тем (зникають лише їхні зв\'язки зі схованими справами), сам перемикач і позначка «Чутлива».\n\nЧого не робить: не захищає від того, хто змусить вас відкрити Мандат і знає, де вимкнути режим (один перемикач у «Налаштуваннях»). Резервні копії, зокрема автоматичні на телефоні, містять усе. Копії подій, додані в календар телефона, там і лишаються. Відновлення старої копії знімає позначки.\n\nДля перетину кордону надійніше ще ввімкнути «Лише PIN», зробити резервну копію з паролем, перенести автоматичні копії з телефона й на час поїздки прибрати чутливі справи. У GrapheneOS є також «PIN під примусом», який стирає телефон.\n\nПозначити справу чутливою можна в її картці.</string>
+    <string name="dash_idle_row">Ролей без руху за цей період: %1$d</string>
+    <string name="category_suggest">Схоже на: %1$s — вибрати</string>
+    <string name="category_own">Своя…</string>
+    <string name="category_own_name">Своя категорія (наприклад, «Медики»)</string>
+    <string name="category_more">Також належить до</string>
+    <string name="categorize_title">Люди без категорії</string>
+    <string name="categorize_left">Лишилося: %1$d</string>
+    <string name="categorize_done">У всіх є категорія.</string>
+    <string name="categorize_suggested">Підказка за організацією й посадою</string>
+    <string name="categorize_skip">Пропустити</string>
+    <string name="categorize_open">Відкрити картку</string>
+    <string name="categorize_open_list">Розібрати людей без категорії: %1$d</string>
 </resources>

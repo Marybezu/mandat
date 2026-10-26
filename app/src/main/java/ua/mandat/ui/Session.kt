@@ -185,6 +185,39 @@ class Session(app: Application) : AndroidViewModel(app) {
         return on to (if (on) db.matters().sensitiveIds().toSet() else emptySet())
     }
 
+    /** Sorting out people without a category. */
+    var showCategorize by mutableStateOf(false)
+
+    /** The tab shown, kept here so it survives locking. */
+    var lastTab by mutableStateOf<String?>(null)
+
+    /** Where the owner was when Mandat locked: numbers only. Used once, within a quarter of an hour. */
+    class Resume(val at: Long, val matterId: Long?, val personId: Long?, val eventId: Long?, val contactId: Long?, val directory: Boolean, val task: Pair<String, Long>?)
+    private var resume: Resume? = null
+
+    private fun applyResume() {
+        val r = resume ?: return
+        resume = null
+        if (System.currentTimeMillis() - r.at > RESUME_WINDOW_MS) {
+            lastTab = null
+            return
+        }
+        if (r.directory) showDirectory = true
+        r.matterId?.let { openMatter(it) }
+        r.personId?.let { openPerson(it) }
+        r.eventId?.let { openEvent(it) }
+        r.task?.let { (kind, id) -> openTask(kind, id) }
+        r.contactId?.let { id ->
+            val startedAt = generation
+            background.launch {
+                val c = withOpenDb { db -> db.contacts().get(id) }
+                withContext(Dispatchers.Main) {
+                    if (c != null && startedAt == generation && state is LockState.Open) contactDraft = ContactDraft(c)
+                }
+            }
+        }
+    }
+
     /** The address book screen is open. */
     var showDirectory by mutableStateOf(false)
 
@@ -544,6 +577,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                         tripOn.value = hidden.first
                         hiddenMatters.value = hidden.second
                         state = LockState.Open(db)
+                        applyResume()
                         // Record the automatic copy made when Mandat last closed
                         background.launch { reconcileAuto(db) }
                     }
@@ -584,6 +618,19 @@ class Session(app: Application) : AndroidViewModel(app) {
         // Anything still being typed is saved first, in the same step as closing,
         // so leaving the app for a moment never loses it
         val openDraft = draft
+        // Where the owner was: only the tab and the numbers of open cards (never their content),
+        // so the same card opens again after unlocking
+        resume = Resume(
+            at = System.currentTimeMillis(),
+            matterId = draft?.request?.takeIf { !it.isNew }?.matter?.id,
+            personId = personDraft?.takeIf { !it.isNew }?.person?.id,
+            eventId = eventDraft?.takeIf { !it.isNew }?.event?.id,
+            contactId = contactDraft?.takeIf { !it.isNew }?.contact?.id,
+            directory = showDirectory,
+            task = delegationDraft?.takeIf { !it.isNew }?.let { "delegation" to it.delegation.id }
+                ?: promiseDraft?.takeIf { !it.isNew }?.let { "promise" to it.promise.id }
+                ?: deadlineDraft?.takeIf { !it.isNew }?.let { "deadline" to it.deadline.id },
+        ).takeIf { current is LockState.Open }
         val openInbox = inboxDraft
         val openPerson = personDraft
         val openDelegation = delegationDraft
@@ -673,6 +720,7 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     companion object {
         private const val PICKER_TIMEOUT_MS = 90 * 1000L
+        private const val RESUME_WINDOW_MS = 15 * 60 * 1000L
         /** A larger .vcf is refused (6 000 contacts without photos are a few MB; with photos tens of MB). */
         const val MAX_VCF_BYTES = 50L * 1024 * 1024
         private const val AUTO_WAIT_MS = 30 * 1000L

@@ -158,15 +158,12 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {
             item(key = "attention") {
                 SectionCard(Sym.layers, stringResource(R.string.attention_title)) {
                     Spacer(Modifier.height(4.dp))
+                    val totalActive = active.size.coerceAtLeast(1)
                     StackBar(
                         Attention.entries.map { a ->
-                            Slice(a.name, stringResource(a.label()), active.count { it.attention == a.name },
-                                when (a) {
-                                    // Focus stands out; the rest is quiet grey
-                                    Attention.FOCUS -> ChartColors.blue
-                                    Attention.BACKGROUND -> ChartColors.gray
-                                    Attention.SLEEPING -> ChartColors.grayLight
-                                })
+                            val n = active.count { it.attention == a.name }
+                            // The share as well as the colour, so it reads without telling colours apart
+                            Slice(a.name, stringResource(a.label()), n, a.color(), suffix = " · ${n * 100 / totalActive} %")
                         },
                         selected = level, onPick = { level = it },
                     )
@@ -201,7 +198,7 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {
         Attention.entries.forEach { lv ->
             val group = active.filter { Attention.of(it.attention) == lv && visible(it) }
             if (group.isNotEmpty()) item(key = "g_$lv") {
-                SectionCard(lv.icon(), stringResource(lv.label()), count = group.size, attention = lv == Attention.FOCUS && group.size > FOCUS_LIMIT) {
+                SectionCard(lv.icon(), stringResource(lv.label()), count = group.size, attention = lv == Attention.FOCUS && group.size > FOCUS_LIMIT, tint = lv.color()) {
                     Text(stringResource(lv.hint()), style = MaterialTheme.typography.labelMedium, color = Muted,
                         modifier = Modifier.padding(bottom = 6.dp))
                     Paged(group) { m -> MatterLine(m, roleNames[m.roleId]) { onOpen(m) } }

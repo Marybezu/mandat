@@ -44,7 +44,7 @@ import kotlin.math.atan2
 import kotlin.math.hypot
 
 /** One part of a ring or a bar: how many, its colour, its name, and a key for filtering. */
-data class Slice(val key: String, val label: String, val value: Int, val color: Color)
+data class Slice(val key: String, val label: String, val value: Int, val color: Color, val suffix: String = "")
 
 /** Calm colours with meaning, readable in light and dark themes. */
 object ChartColors {
@@ -62,6 +62,8 @@ object ChartColors {
     val gray = Color(0xFF888780)
     val grayLight = Color(0xFFB4B2A9)
     val salmon = Color(0xFFF0997B)
+    /** Focus: amber-yellow, readable on light and dark backgrounds. */
+    val focus = Color(0xFFF2B300)
 }
 
 /**
@@ -292,7 +294,7 @@ fun StackBar(slices: List<Slice>, selected: String? = null, onPick: ((String?) -
             ) {
                 Box(Modifier.size(9.dp).clip(CircleShape).background(p.color))
                 Spacer(Modifier.width(5.dp))
-                Text("${p.label} ${groupDigits(p.value)}", style = MaterialTheme.typography.labelMedium, color = Muted)
+                Text("${p.label} ${groupDigits(p.value)}${p.suffix}", style = MaterialTheme.typography.labelMedium, color = Muted)
             }
         }
     }
@@ -340,12 +342,14 @@ fun SectionCard(
     modifier: Modifier = Modifier,
     count: Int? = null,
     attention: Boolean = false,
+    /** A colour with meaning for the icon (for example the level of attention). */
+    tint: Color? = null,
     content: @Composable () -> Unit,
 ) {
     MCard(modifier) {
         val color = if (attention) MaterialTheme.colorScheme.error else Muted
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
-            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
+            Icon(icon, contentDescription = null, tint = tint ?: color, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
             Text(title + (count?.let { " · $it" } ?: ""), style = MaterialTheme.typography.labelLarge, color = color)
         }
@@ -437,3 +441,10 @@ fun <T> Paged(items: List<T>, page: Int = 20, row: @Composable (T) -> Unit) {
 
 /** A whole number with thin spaces between thousands: 14 040. */
 fun groupDigits(n: Int): String = ua.mandat.data.formatAmount(n.toLong() * 100)
+
+/** Attention at a glance: focus is warm and bright, the working background calm blue, sleeping pale. */
+fun ua.mandat.data.Attention.color(): Color = when (this) {
+    ua.mandat.data.Attention.FOCUS -> ChartColors.focus
+    ua.mandat.data.Attention.BACKGROUND -> ChartColors.sky
+    ua.mandat.data.Attention.SLEEPING -> ChartColors.grayLight
+}

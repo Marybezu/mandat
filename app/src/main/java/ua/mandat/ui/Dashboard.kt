@@ -261,15 +261,17 @@ private fun RolesBlock(o: Overview, names: Map<Long, String>, hintIdle: Boolean,
         val max = o.roles.maxOf { it.moved }.coerceAtLeast(1)
         val noRole = stringResource(R.string.dash_no_role)
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            o.roles.sortedByDescending { it.moved }.forEach { r ->
+            fun openRole(id: Long?) {
+                session.mattersRequest = 1 to (id?.toString() ?: "none")
+                session.tabRequest = "Matters"
+            }
+            // Roles that moved get a bar; those without a step are folded into one line below
+            o.roles.filter { it.moved > 0 }.sortedByDescending { it.moved }.forEach { r ->
                 val name = r.roleId?.let(names::get) ?: noRole
                 // Tap a role: its matters, filtered, in Matters
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable {
-                        session.mattersRequest = 1 to (r.roleId?.toString() ?: "none")
-                        session.tabRequest = "Matters"
-                    }.padding(vertical = 2.dp),
+                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { openRole(r.roleId) }.padding(vertical = 2.dp),
                 ) {
                     Text(name, style = MaterialTheme.typography.labelMedium, maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.width(140.dp))
@@ -279,10 +281,22 @@ private fun RolesBlock(o: Overview, names: Map<Long, String>, hintIdle: Boolean,
                 }
             }
             if (hintIdle) {
-                val idle = o.roles.filter { it.moved == 0 && it.active > 0 }.map { it.roleId?.let(names::get) ?: noRole }
+                val idle = o.roles.filter { it.moved == 0 && it.active > 0 }
                 if (idle.isNotEmpty()) {
-                    Text(stringResource(R.string.dash_idle, idle.joinToString(", ")),
-                        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                    var open by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f))
+                            .clickable { open = !open }.padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(stringResource(R.string.dash_idle_row, idle.size), style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.weight(1f))
+                        Text(if (open) "▾" else "▸", color = MaterialTheme.colorScheme.onErrorContainer)
+                    }
+                    if (open) idle.forEach { r ->
+                        Text(r.roleId?.let(names::get) ?: noRole, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).clickable { openRole(r.roleId) }.padding(horizontal = 10.dp, vertical = 6.dp))
+                    }
                 }
             }
         }

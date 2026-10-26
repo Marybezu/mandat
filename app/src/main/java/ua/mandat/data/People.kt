@@ -39,7 +39,42 @@ data class Person(
     val reportsToId: Long? = null,
     /** The last day the owner talked with them (calendar day), or null. */
     val lastContact: Long? = null,
-)
+    /** Other categories the person also belongs to: keys, or "OTHER:" plus the owner's own word, one per line. */
+    @ColumnInfo(defaultValue = "") val moreCategories: String = "",
+) {
+    /** The main category as a key: a [PersonCategory] name, "OTHER:word" for the owner's own, or null. */
+    val categoryKey: String?
+        get() = when {
+            category == null -> null
+            category == PersonCategory.OTHER.name && categoryCustom.isNotBlank() -> "OTHER:" + categoryCustom.trim()
+            else -> category
+        }
+
+    /** The main category and the others, without repeats. */
+    val allCategories: List<String> get() = (listOfNotNull(categoryKey) + moreCategories.lines().map { it.trim() }.filter { it.isNotEmpty() }).distinct()
+}
+
+/**
+ * A guess of the category from the organisation and position, by plain word rules (no AI).
+ * Only a suggestion: the owner confirms it.
+ */
+fun suggestCategory(organization: String, jobTitle: String): PersonCategory? {
+    val t = " " + (organization + " " + jobTitle).lowercase().replace('’', '\'') + " "
+    fun has(vararg w: String) = w.any { t.contains(it) }
+    return when {
+        has("фракці", "депутатська група", "народний депутат", "народна депутатка", "депутат ради", "депутатка ради") -> PersonCategory.COLLEAGUE_MP
+        has("посольств", "представництво єс", " оон", "міжнародн", "pace", "оебсє", "обсє", "нато") -> PersonCategory.INTERNATIONAL
+        has("телеканал", "радіо", "газет", "вісник", "медіа", "редакц", "журналіст", "кореспондент", "ведуч", "видання") -> PersonCategory.JOURNALIST
+        has(" го ", "го «", "громадськ", " бф ", "бф «", "благодійн", "фонд", "асоціац", "спілк", "волонтер") -> PersonCategory.NGO
+        has("університет", "інститут", "академі", "кафедр", "аналітичн", "дослідж", "експерт", "науков") -> PersonCategory.EXPERT
+        has("міністерств", "адміністрац", "департамент", "управлінн", "служб", "агентств", "інспекці", "кабінет міністрів",
+            "офіс президента", "міська рада", "сільська рада", "селищна рада", "обласна рада", "районна рада", "прокуратур",
+            "поліці", "заступник міністра", "староста") -> PersonCategory.OFFICIAL
+        has(" тов ", "тов «", " пп ", " фоп", " ат ", "прат", "корпорац", "компані", "кооператив", "підприєм", "директор") -> PersonCategory.BUSINESS
+        has("мешкан", "пенсіонер", "виборец", "виборчин") -> PersonCategory.VOTER
+        else -> null
+    }
+}
 
 /** Who takes part in a matter, and (optionally) where they stand on it. */
 @Entity(tableName = "matter_people", primaryKeys = ["matterId", "personId"])
@@ -360,6 +395,8 @@ fun cleanPerson(p: Person): Person? {
         notes = p.notes.trim().take(MAX_NOTE_LENGTH),
         categoryCustom = if (PersonCategory.of(p.category) == PersonCategory.OTHER) p.categoryCustom.trim().take(100) else "",
         teamCustom = if (TeamRole.of(p.teamRole) == TeamRole.OTHER) p.teamCustom.trim().take(100) else "",
+        moreCategories = p.moreCategories.lines().map { it.trim().take(110) }.filter { it.isNotEmpty() && it != p.categoryKey }
+            .distinct().take(10).joinToString("\n"),
         influence = p.influence?.coerceIn(1, 3),
         // Only someone in the team reports to someone, and never to themselves
         reportsToId = if (p.teamRole != null && p.reportsToId != p.id) p.reportsToId else null,

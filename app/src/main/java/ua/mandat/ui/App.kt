@@ -203,7 +203,8 @@ private enum class Tab(val title: Int, val icon: Int, val central: Boolean = fal
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun Main(db: MandatDb, session: Session) {
-    var tab by rememberSaveable { mutableStateOf(Tab.Today) }
+    var tab by rememberSaveable { mutableStateOf(session.lastTab?.let { n -> Tab.entries.firstOrNull { it.name == n } } ?: Tab.Today) }
+    androidx.compose.runtime.LaunchedEffect(tab) { session.lastTab = tab.name }
     var options by rememberSaveable { mutableStateOf(false) }
     // Links from one screen to another (for example a role on the dashboard opens its matters)
     androidx.compose.runtime.LaunchedEffect(session.tabRequest) {
@@ -265,6 +266,10 @@ private fun Main(db: MandatDb, session: Session) {
     }
     session.communityOpen?.let {
         CommunityScreen(db, session, it)
+        return
+    }
+    if (session.showCategorize) {
+        CategorizeScreen(db, session)
         return
     }
     if (session.showDistrict) {
@@ -496,7 +501,7 @@ internal fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onT
                     text = "${focus.size}/$FOCUS_LIMIT", label = stringResource(R.string.stat_focus),
                     fraction = (focus.size.toFloat() / FOCUS_LIMIT).coerceAtMost(1f),
                     overflow = if (focus.size > FOCUS_LIMIT) (focus.size - FOCUS_LIMIT).toFloat() / focus.size else 0f,
-                    color = ChartColors.blue, modifier = Modifier.weight(1f),
+                    color = ChartColors.focus, modifier = Modifier.weight(1f),
                 ) { jump(focusAt) }
                 RingStat(
                     text = overdueCount.toString(), label = stringResource(R.string.stat_overdue),

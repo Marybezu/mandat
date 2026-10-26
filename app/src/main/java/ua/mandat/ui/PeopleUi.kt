@@ -51,6 +51,7 @@ import androidx.room.withTransaction
 import ua.mandat.R
 import ua.mandat.data.MandatDb
 import ua.mandat.data.Person
+import ua.mandat.data.PersonCategory
 import ua.mandat.data.Stance
 import ua.mandat.data.TaskStatus
 import ua.mandat.data.TeamRole
@@ -90,14 +91,16 @@ fun PeopleList(db: MandatDb, session: Session) {
         return
     }
 
-    fun categoryKey(p: Person) = if (p.teamRole != null) "TEAM" else (p.category ?: "NONE")
+    fun categoryKey(p: Person) = if (p.teamRole != null) "TEAM" else (p.categoryKey ?: "NONE")
     val notSet = stringResource(R.string.not_set)
     val teamLabel = stringResource(R.string.team)
     val categorySlices = buildList {
         add(Slice("TEAM", teamLabel, people.count { it.teamRole != null }, ChartColors.blue))
-        ua.mandat.data.PersonCategory.entries.forEachIndexed { i, c ->
-            add(Slice(c.name, stringResource(c.label()), people.count { it.teamRole == null && it.category == c.name }, SeriesColors[(i + 1) % SeriesColors.size]))
-        }
+        // Standard categories, then the owner's own words, each with its own row
+        (PersonCategory.entries.filter { it != PersonCategory.OTHER }.map { it.name } + ownCategories(people) + PersonCategory.OTHER.name)
+            .forEachIndexed { i, key ->
+                add(Slice(key, categoryLabel(key), people.count { it.teamRole == null && categoryKey(it) == key }, SeriesColors[(i + 1) % SeriesColors.size]))
+            }
         add(Slice("NONE", notSet, people.count { it.teamRole == null && it.category == null }, ChartColors.grayLight))
     }.sortedByDescending { it.value }
     val team = people.filter { it.teamRole != null }
@@ -108,7 +111,7 @@ fun PeopleList(db: MandatDb, session: Session) {
     val stanceOf = links.groupBy { it.personId }.mapValues { (_, l) -> l.mapNotNull { it.stance }.toSet() }
     val shown = people.filter { p ->
         (query.isBlank() || listOf(p.name, p.organization, p.jobTitle).any { f -> f.contains(query.trim(), ignoreCase = true) }) &&
-            (pick == null || (if (byTeam) p.teamRole == pick else categoryKey(p) == pick)) &&
+            (pick == null || (if (byTeam) p.teamRole == pick else categoryKey(p) == pick || pick in p.allCategories)) &&
             (stance == null || stanceOf[p.id]?.contains(stance) == true) &&
             (letter == null || p.name.trim().uppercase().startsWith(letter!!))
     }
@@ -120,7 +123,64 @@ fun PeopleList(db: MandatDb, session: Session) {
         ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.DONE && it.closedAt != null && Dates.dayOf(it.closedAt) > today - 30
     }
 
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    // After a choice in a chart, the list jumps to the result (just under the chart)
+    androidx.compose.runtime.LaunchedEffect(pick, stance) { if (pick != null || stance != null) listState.animateScrollToItem(0) }
+    fun androidx.compose.foundation.lazy.LazyListScope.results() {
+        if (pick != null || stance != null) {
+            item(key = "filters") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    pick?.let { k ->
+                        val slices = if (byTeam) teamSlices else categorySlices
+                        FilterBadge(slices.firstOrNull { it.key == k }?.label ?: k) { pick = null }
+                    }
+                    stance?.let { st ->
+                        val label = when (st) {
+                            "ALLY" -> R.string.strip_allies
+                            "UNDECIDED" -> R.string.strip_undecided
+                            "OPPONENT" -> R.string.strip_opponents
+                            else -> R.string.stance_neutral_many
+                        }
+                        FilterBadge(stringResource(label)) { stance = null }
+                    }
+                }
+            }
+        }
+        // Team first, then one card per kind of person, largest groups first
+        val groups = listOf(teamLabel to shown.filter { it.teamRole != null }) +
+            categorySlices.filter { it.key != "TEAM" }.map { sl -> sl.label to shown.filter { it.teamRole == null && categoryKey(it) == sl.key } }
+        // Many people: groups start folded (the team open), unless a search or filter narrows the list
+        val narrowed = query.isNotBlank() || pick != null || stance != null || letter != null
+        groups.forEach { (title, list) ->
+            if (list.isNotEmpty()) item(key = "group_$title") {
+                val open = narrowed || people.size <= 30 || title in openGroups || (title == teamLabel && teamLabel !in closedGroups)
+                if (!open) {
+                    Row(
+                        Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surface).clickable { openGroups = openGroups + title }
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                        Text("${list.size}  ▸", style = MaterialTheme.typography.labelLarge, color = Muted)
+                    }
+                } else {
+                    SectionCard(Sym.group, title, count = list.size) {
+                        if (!narrowed && people.size > 30) TextButton(onClick = {
+                            if (title == teamLabel) closedGroups = closedGroups + title
+                            openGroups = openGroups - title
+                        }) { Text(stringResource(R.string.fold)) }
+                        Paged(list) { p ->
+                            PersonLine(p, openBy[p.id]?.size ?: 0) { session.personDraft = PersonDraft(p, isNew = false) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     LazyColumn(
+        state = listState,
         contentPadding = PaddingValues(start = Space.screen, end = Space.screen, top = 8.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(Space.gap),
     ) {
@@ -138,6 +198,9 @@ fun PeopleList(db: MandatDb, session: Session) {
                 )
             }
         }
+        // A choice in a chart shows its people right under it, not far below
+        val filtered = pick != null || stance != null
+        if (filtered) results()
         item(key = "map") {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { session.influenceFor = 0L }, modifier = Modifier.weight(1f)) {
@@ -147,6 +210,10 @@ fun PeopleList(db: MandatDb, session: Session) {
                     Text(stringResource(R.string.dir_open, bookSize), maxLines = 1)
                 }
             }
+        }
+        val uncategorized = people.count { it.teamRole == null && it.category == null }
+        if (uncategorized > 0) item(key = "categorize") {
+            TextButton(onClick = { session.showCategorize = true }) { Text(stringResource(R.string.categorize_open_list, uncategorized)) }
         }
         if (people.any { it.teamRole != null }) item(key = "team") { TeamCard(people, delegations, session) }
         if (openD.isNotEmpty() || done30 > 0) {
@@ -241,56 +308,7 @@ fun PeopleList(db: MandatDb, session: Session) {
                 }
             }
         }
-        if (pick != null || stance != null) {
-            item(key = "filters") {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    pick?.let { k ->
-                        val slices = if (byTeam) teamSlices else categorySlices
-                        FilterBadge(slices.firstOrNull { it.key == k }?.label ?: k) { pick = null }
-                    }
-                    stance?.let { st ->
-                        val label = when (st) {
-                            "ALLY" -> R.string.strip_allies
-                            "UNDECIDED" -> R.string.strip_undecided
-                            "OPPONENT" -> R.string.strip_opponents
-                            else -> R.string.stance_neutral_many
-                        }
-                        FilterBadge(stringResource(label)) { stance = null }
-                    }
-                }
-            }
-        }
-        // Team first, then one card per kind of person, largest groups first
-        val groups = listOf(teamLabel to shown.filter { it.teamRole != null }) +
-            categorySlices.filter { it.key != "TEAM" }.map { sl -> sl.label to shown.filter { it.teamRole == null && categoryKey(it) == sl.key } }
-        // Many people: groups start folded (the team open), unless a search or filter narrows the list
-        val narrowed = query.isNotBlank() || pick != null || stance != null || letter != null
-        groups.forEach { (title, list) ->
-            if (list.isNotEmpty()) item(key = "group_$title") {
-                val open = narrowed || people.size <= 30 || title in openGroups || (title == teamLabel && teamLabel !in closedGroups)
-                if (!open) {
-                    Row(
-                        Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surface).clickable { openGroups = openGroups + title }
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                        Text("${list.size}  ▸", style = MaterialTheme.typography.labelLarge, color = Muted)
-                    }
-                } else {
-                    SectionCard(Sym.group, title, count = list.size) {
-                        if (!narrowed && people.size > 30) TextButton(onClick = {
-                            if (title == teamLabel) closedGroups = closedGroups + title
-                            openGroups = openGroups - title
-                        }) { Text(stringResource(R.string.fold)) }
-                        Paged(list) { p ->
-                            PersonLine(p, openBy[p.id]?.size ?: 0) { session.personDraft = PersonDraft(p, isNew = false) }
-                        }
-                    }
-                }
-            }
-        }
+        if (!filtered) results()
     }
 }
 
@@ -359,17 +377,7 @@ fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
             OutlinedTextField(value = draft.contact, onValueChange = { draft.contact = it },
                 label = { Text(stringResource(R.string.person_contact)) }, modifier = Modifier.fillMaxWidth())
             ReachButtons(ua.mandat.data.phonesIn(draft.contact), ua.mandat.data.emailsIn(draft.contact))
-            Picker(
-                label = stringResource(R.string.person_category),
-                current = draft.category?.let { stringResource(it.label()) } ?: stringResource(R.string.not_set),
-                options = listOf<Pair<ua.mandat.data.PersonCategory?, String>>(null to stringResource(R.string.not_set)) +
-                    ua.mandat.data.PersonCategory.entries.map { it to stringResource(it.label()) },
-                onPick = { draft.category = it },
-            )
-            if (draft.category == ua.mandat.data.PersonCategory.OTHER) {
-                OutlinedTextField(value = draft.categoryCustom, onValueChange = { draft.categoryCustom = it },
-                    label = { Text(stringResource(R.string.own_words)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            }
+            CategoryFields(db, draft)
             Picker(
                 label = stringResource(R.string.person_team),
                 current = draft.teamRole?.let { stringResource(it.label()) } ?: stringResource(R.string.not_team),

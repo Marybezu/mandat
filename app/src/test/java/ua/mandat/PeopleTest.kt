@@ -38,3 +38,14 @@ class PeopleTest {
         assertEquals(TaskStatus.OPEN, TaskStatus.of("?"))
     }
 }
+
+class SuggestCategoryTest {
+    @org.junit.Test fun rules() {
+        org.junit.Assert.assertEquals(ua.mandat.data.PersonCategory.OFFICIAL, ua.mandat.data.suggestCategory("Міністерство фінансів", "Директор департаменту"))
+        org.junit.Assert.assertEquals(ua.mandat.data.PersonCategory.NGO, ua.mandat.data.suggestCategory("ГО «Тестова»", ""))
+        org.junit.Assert.assertEquals(ua.mandat.data.PersonCategory.JOURNALIST, ua.mandat.data.suggestCategory("Телеканал «Тест»", "Ведучий"))
+        org.junit.Assert.assertEquals(ua.mandat.data.PersonCategory.EXPERT, ua.mandat.data.suggestCategory("Університет", "Доцент"))
+        org.junit.Assert.assertEquals(ua.mandat.data.PersonCategory.COLLEAGUE_MP, ua.mandat.data.suggestCategory("Фракція «Тест»", "Народний депутат"))
+        org.junit.Assert.assertEquals(null, ua.mandat.data.suggestCategory("", ""))
+    }
+}
