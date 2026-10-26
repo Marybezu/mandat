@@ -690,4 +690,8 @@
     <string name="tile_alliances">союзи</string>
     <string name="tile_attacks">атаки</string>
     <string name="tile_risky_promises">ризикові обіцянки</string>
+    <string name="matrix_open">відкриті</string>
+    <string name="matrix_done">виконані</string>
+    <string name="matrix_failed">невдалі</string>
+    <string name="matrix_dropped">зняті</string>
 </resources>

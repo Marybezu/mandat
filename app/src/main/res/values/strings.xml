@@ -688,4 +688,8 @@
     <string name="tile_alliances">alliances</string>
     <string name="tile_attacks">attacks</string>
     <string name="tile_risky_promises">risky promises</string>
+    <string name="matrix_open">open</string>
+    <string name="matrix_done">kept</string>
+    <string name="matrix_failed">failed</string>
+    <string name="matrix_dropped">dropped</string>
 </resources>

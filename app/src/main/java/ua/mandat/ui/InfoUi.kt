@@ -209,8 +209,8 @@ private fun StagePipeline(attacks: List<InfoItem>, picked: String?, onPick: (Str
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(n.toString(), style = MaterialTheme.typography.titleMedium)
-                Text(stringResource(s.label()), style = MaterialTheme.typography.labelSmall, color = Muted, maxLines = 2,
-                    textAlign = TextAlign.Center, overflow = TextOverflow.Ellipsis)
+                Text(stringResource(s.label()), style = MaterialTheme.typography.labelSmall.copy(fontSize = androidx.compose.ui.unit.TextUnit(10f, androidx.compose.ui.unit.TextUnitType.Sp)),
+                    color = Muted, maxLines = 1, softWrap = false, textAlign = TextAlign.Center, overflow = TextOverflow.Ellipsis)
             }
         }
     }

@@ -119,7 +119,11 @@ fun PromisesScreen(db: MandatDb, session: Session) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
-                actions = { TextButton(onClick = { session.promiseDraft = newPromise() }) { Text("+ " + stringResource(R.string.add_promise)) } },
+                actions = {
+                    IconButton(onClick = { session.promiseDraft = newPromise() }) {
+                        Icon(androidx.compose.material.icons.Icons.Filled.Add, contentDescription = stringResource(R.string.add_promise))
+                    }
+                },
             )
         },
     ) { padding ->
@@ -224,7 +228,7 @@ private fun PromiseMatrix(promises: List<Promise>, level: String?, status: Strin
         Row {
             Spacer(Modifier.weight(1.4f))
             STATUS_ORDER.forEach { s ->
-                Text(stringResource(s.promiseLabel()), style = MaterialTheme.typography.labelSmall, color = Muted, maxLines = 1,
+                Text(stringResource(s.matrixLabel()), style = MaterialTheme.typography.labelSmall, color = Muted, maxLines = 1,
                     overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
             }
         }
@@ -249,4 +253,12 @@ private fun PromiseMatrix(promises: List<Promise>, level: String?, status: Strin
             }
         }
     }
+}
+
+/** Short column names for the matrix, so they fit a phone screen. */
+private fun TaskStatus.matrixLabel(): Int = when (this) {
+    TaskStatus.OPEN -> R.string.matrix_open
+    TaskStatus.DONE -> R.string.matrix_done
+    TaskStatus.FAILED -> R.string.matrix_failed
+    TaskStatus.CANCELLED -> R.string.matrix_dropped
 }
