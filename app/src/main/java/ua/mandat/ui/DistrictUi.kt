@@ -141,6 +141,8 @@ fun DistrictScreen(db: MandatDb, session: Session) {
     val openPromises = all.flatMap { it.promises }.distinctBy { it.id }.count { TaskStatus.of(it.status) == TaskStatus.OPEN }
     val longAgo = all.count { it.lastVisit == null || it.lastVisit < today - 90 }
     var sharing by remember { mutableStateOf(false) }
+    // 0 all, 1 not visited for 90+ days, 2 with open promises
+    var only by remember { mutableStateOf(0) }
 
     Scaffold(
         topBar = {
@@ -163,13 +165,13 @@ fun DistrictScreen(db: MandatDb, session: Session) {
             item(key = "tiles") {
                 MCard {
                     Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
-                        StatTile(communities.size, stringResource(R.string.district_communities))
+                        StatTile(communities.size, stringResource(R.string.district_communities)) { only = 0 }
                         StatTile(all.sumOf { it.visitsYear }, stringResource(R.string.district_visits_year))
                     }
                     Spacer(Modifier.height(Space.gap))
                     Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
-                        StatTile(openPromises, stringResource(R.string.district_open_promises))
-                        StatTile(longAgo, stringResource(R.string.district_long_ago), attention = true)
+                        StatTile(openPromises, stringResource(R.string.district_open_promises)) { only = if (only == 2) 0 else 2 }
+                        StatTile(longAgo, stringResource(R.string.district_long_ago), attention = true) { only = if (only == 1) 0 else 1 }
                     }
                 }
             }
@@ -183,7 +185,13 @@ fun DistrictScreen(db: MandatDb, session: Session) {
                 SectionCard(Sym.home, stringResource(R.string.district_coverage), count = all.size) {
                     Text(stringResource(R.string.district_coverage_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
                     Spacer(Modifier.height(4.dp))
-                    Paged(all) { s -> CommunityLine(s, today) { session.communityOpen = s.c.id } }
+                    val list = when (only) {
+                        1 -> all.filter { it.lastVisit == null || it.lastVisit < today - 90 }
+                        2 -> all.filter { s -> s.promises.any { TaskStatus.of(it.status) == TaskStatus.OPEN } }
+                        else -> all
+                    }
+                    if (only != 0) Row { FilterBadge(stringResource(if (only == 1) R.string.district_long_ago else R.string.district_open_promises)) { only = 0 } }
+                    Paged(list) { s -> CommunityLine(s, today) { session.communityOpen = s.c.id } }
                 }
             }
             if (all.isNotEmpty()) item(key = "report") {

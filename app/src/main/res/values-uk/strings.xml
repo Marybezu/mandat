@@ -855,4 +855,8 @@
     <string name="lens_off">Лінза: усі ролі</string>
     <string name="look_compact">Компактний вигляд</string>
     <string name="look_compact_hint">Менше відступів: на екран вміщується більше.</string>
+    <string name="cal_density">Щільність тижня</string>
+    <string name="hours_short">г</string>
+    <string name="free_hours">вільно %1$d г</string>
+    <string name="cal_density_hint">Стовпчик — години подій. Унизу — найдовше вільне вікно між 9:00 і 19:00.</string>
 </resources>

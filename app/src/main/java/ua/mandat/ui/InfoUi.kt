@@ -95,12 +95,14 @@ fun InfoScreen(db: MandatDb, session: Session) {
     val nameOf = people.associate { it.id to it.name }
     val titleOf = titles.associate { it.id to it.title }
     var kindPick by rememberSaveable { mutableStateOf<String?>(null) }
+    var ignoredOnly by rememberSaveable { mutableStateOf(false) }
     var stagePick by rememberSaveable { mutableStateOf<String?>(null) }
 
     val open = items.filter { !it.closed }
     val attacks = open.filter { it.kind == InfoKind.ATTACK.name }
-    val shown = open.filter { (kindPick == null || it.kind == kindPick) && (stagePick == null || it.stage == stagePick) }
-    val closed = items.filter { it.closed && (kindPick == null || it.kind == kindPick) }
+    fun dec(i: InfoItem) = !ignoredOnly || i.decision == AttackDecision.IGNORE.name
+    val shown = open.filter { (kindPick == null || it.kind == kindPick) && (stagePick == null || it.stage == stagePick) && dec(it) }
+    val closed = items.filter { it.closed && (kindPick == null || it.kind == kindPick) && dec(it) }
     val ignored = items.count { it.decision == AttackDecision.IGNORE.name }
     val corrections = items.count { it.kind == InfoKind.CORRECTION.name }
 
@@ -146,8 +148,8 @@ fun InfoScreen(db: MandatDb, session: Session) {
                         selected = kindPick, onPick = { kindPick = it; stagePick = null },
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(Space.gap), modifier = Modifier.padding(top = 8.dp)) {
-                        StatTile(ignored, stringResource(R.string.info_not_fed))
-                        StatTile(corrections, stringResource(R.string.info_owned_up))
+                        StatTile(ignored, stringResource(R.string.info_not_fed)) { ignoredOnly = true; kindPick = InfoKind.ATTACK.name; stagePick = null }
+                        StatTile(corrections, stringResource(R.string.info_owned_up)) { ignoredOnly = false; kindPick = InfoKind.CORRECTION.name; stagePick = null }
                     }
                 }
             }
@@ -157,9 +159,10 @@ fun InfoScreen(db: MandatDb, session: Session) {
                     StagePipeline(attacks, stagePick) { stagePick = it; if (it != null) kindPick = InfoKind.ATTACK.name }
                 }
             }
-            if (kindPick != null || stagePick != null) item(key = "filter") {
+            if (kindPick != null || stagePick != null || ignoredOnly) item(key = "filter") {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    kindPick?.let { FilterBadge(stringResource(InfoKind.of(it).label())) { kindPick = null; stagePick = null } }
+                    kindPick?.let { FilterBadge(stringResource(InfoKind.of(it).label())) { kindPick = null; stagePick = null; ignoredOnly = false } }
+                    if (ignoredOnly) FilterBadge(stringResource(R.string.decision_ignore)) { ignoredOnly = false }
                     stagePick?.let { FilterBadge(stringResource(AttackStage.of(it).label())) { stagePick = null } }
                 }
             }

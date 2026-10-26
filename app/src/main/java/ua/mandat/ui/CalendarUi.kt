@@ -257,6 +257,10 @@ fun CalendarScreenForTest(db: MandatDb, session: Session, view0: Int) {
         }
         // What the shown period holds, by kind: the calendar's own small infographic
         val shown = events.filter { it.day >= from && it.day <= to }
+        item(key = "density") {
+            val ws = weekStart(selected)
+            WeekDensity((ws..ws + 6).map { d -> d to events.filter { it.covers(d) } }, today, selected) { selected = it }
+        }
         if (shown.isNotEmpty()) item(key = "kinds") {
             SectionCard(Sym.layers, stringResource(if (weekMode) R.string.cal_week_kinds else R.string.cal_month_kinds), count = shown.size, foldKey = "cal:kinds") {
                 Spacer(Modifier.height(4.dp))
@@ -747,5 +751,68 @@ private fun NowLine(nowMin: Int) {
         Text(stringResource(R.string.now_at, timeText(nowMin)), style = MaterialTheme.typography.labelSmall, color = ChartColors.coral)
         Spacer(Modifier.width(6.dp))
         Box(Modifier.weight(1f).height(2.dp).background(ChartColors.coral))
+    }
+}
+
+/** Busy minutes of a day from timed events (overlaps counted once) and the longest free stretch in working hours. */
+fun dayLoad(events: List<Event>, day: Long, workFrom: Int = 9 * 60, workTo: Int = 19 * 60): Pair<Int, Int> {
+    val spans = events.filter { it.startMin != null && it.day == day && (it.endDay == null || it.endDay <= it.day) }
+        .map { it.startMin!! to (it.endMin ?: (it.startMin + 60)).coerceAtLeast(it.startMin + 15) }.sortedBy { it.first }
+    var busy = 0
+    var curS = -1
+    var curE = -1
+    val merged = ArrayList<Pair<Int, Int>>()
+    for ((s, e) in spans) {
+        if (s > curE) { if (curE > curS) merged += curS to curE; curS = s; curE = e } else curE = maxOf(curE, e)
+    }
+    if (curE > curS) merged += curS to curE
+    merged.forEach { busy += it.second - it.first }
+    var free = 0
+    var t = workFrom
+    for ((s, e) in merged) {
+        if (e <= workFrom || s >= workTo) continue
+        free = maxOf(free, s.coerceIn(workFrom, workTo) - t)
+        t = maxOf(t, e.coerceAtMost(workTo))
+    }
+    free = maxOf(free, workTo - t)
+    return busy to free
+}
+
+/**
+ * How full each day of the week is: a column grows with the hours taken by events (green, amber,
+ * coral as it fills), and under it the longest free stretch between 9 and 19. Tap a day to pick it.
+ */
+@Composable
+private fun WeekDensity(days: List<Pair<Long, List<Event>>>, today: Long, selected: Long, onPick: (Long) -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    SectionCard(Sym.schedule, stringResource(R.string.cal_density), foldKey = "cal:density") {
+        Row(Modifier.fillMaxWidth().height(110.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.Bottom) {
+            days.forEach { (d, list) ->
+                val (busy, free) = dayLoad(list, d)
+                val allDay = list.any { it.startMin == null || it.lastDay > it.day }
+                val hours = busy / 60f
+                val color = when {
+                    allDay && busy == 0 -> ChartColors.purpleLight
+                    hours >= 6 -> ChartColors.coral
+                    hours >= 3 -> ChartColors.amber
+                    hours > 0 -> ChartColors.teal
+                    else -> scheme.surfaceVariant
+                }
+                Column(
+                    Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(6.dp))
+                        .background(if (d == selected) scheme.primaryContainer else Color.Transparent).clickable { onPick(d) },
+                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom,
+                ) {
+                    if (busy > 0) Text("%.0f".format(hours.coerceAtLeast(1f)) + stringResource(R.string.hours_short), style = MaterialTheme.typography.labelSmall, color = Muted)
+                    val h = if (busy == 0 && !allDay) 3.dp else (60f * (hours.coerceAtMost(10f) / 10f)).coerceAtLeast(8f).dp
+                    Box(Modifier.padding(horizontal = 3.dp).fillMaxWidth().height(h).clip(RoundedCornerShape(4.dp)).background(color))
+                    Spacer(Modifier.height(3.dp))
+                    Text(LocalDate.ofEpochDay(d).dayOfWeek.getDisplayName(TextStyle.SHORT_STANDALONE, Locale.getDefault()),
+                        style = MaterialTheme.typography.labelSmall, color = if (d == today) scheme.primary else Muted)
+                    Text(if (free >= 60) stringResource(R.string.free_hours, free / 60) else "—", style = MaterialTheme.typography.labelSmall, color = Muted)
+                }
+            }
+        }
+        Text(stringResource(R.string.cal_density_hint), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(top = 4.dp))
     }
 }

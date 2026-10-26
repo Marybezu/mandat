@@ -131,6 +131,7 @@ fun BudgetScreen(db: MandatDb, session: Session) {
     var year by rememberSaveable { mutableStateOf(false) }
     var back by rememberSaveable { mutableStateOf(0) }
     var catPick by rememberSaveable { mutableStateOf<String?>(null) }
+    var kindPick by rememberSaveable { mutableStateOf<String?>(null) }
     var awaitingOnly by rememberSaveable { mutableStateOf(false) }
     var editLimits by remember { mutableStateOf(false) }
     var editCategories by remember { mutableStateOf(false) }
@@ -143,7 +144,7 @@ fun BudgetScreen(db: MandatDb, session: Session) {
     val limits = settings.filter { it.key.startsWith(SETTING_LIMIT_PREFIX) }
         .associate { it.key.removePrefix(SETTING_LIMIT_PREFIX) to (it.value.toLongOrNull() ?: 0L) }.filterValues { it > 0 }
     val shown = (if (awaitingOnly) entries.filter { it.awaitingRefund && !it.refunded } else inSpan)
-        .filter { catPick == null || it.category == catPick }
+        .filter { (catPick == null || it.category == catPick) && (kindPick == null || it.kind == kindPick) }
     val aidInSpan = aid.filter { it.day in span }
     val title = if (year) LocalDate.ofEpochDay(span.from).year.toString()
     else LocalDate.ofEpochDay(span.from).format(DateTimeFormatter.ofPattern("LLLL yyyy")).replaceFirstChar { it.uppercase() }
@@ -185,13 +186,13 @@ fun BudgetScreen(db: MandatDb, session: Session) {
             item(key = "tiles") {
                 MCard {
                     Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
-                        MoneyTile(sum.income, stringResource(R.string.money_in), ChartColors.teal)
-                        MoneyTile(sum.expense, stringResource(R.string.money_out), ChartColors.coral)
+                        MoneyTile(sum.income, stringResource(R.string.money_in), ChartColors.teal) { kindPick = MoneyKind.INCOME.name; catPick = null; awaitingOnly = false }
+                        MoneyTile(sum.expense, stringResource(R.string.money_out), ChartColors.coral) { kindPick = MoneyKind.EXPENSE.name; catPick = null; awaitingOnly = false }
                     }
                     Spacer(Modifier.height(Space.gap))
                     Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
                         MoneyTile(sum.balance, stringResource(R.string.money_left), if (sum.balance >= 0) ChartColors.blue else ChartColors.coral)
-                        MoneyTile(sum.charity, stringResource(R.string.money_given), ChartColors.amber)
+                        MoneyTile(sum.charity, stringResource(R.string.money_given), ChartColors.amber) { kindPick = null; catPick = ExpenseCategory.CHARITY.name; awaitingOnly = false }
                     }
                     if (sum.awaiting > 0) {
                         Spacer(Modifier.height(Space.gap))
@@ -268,8 +269,9 @@ fun BudgetScreen(db: MandatDb, session: Session) {
                     }
                 }
             }
-            if (catPick != null || awaitingOnly) item(key = "filter") {
+            if (catPick != null || awaitingOnly || kindPick != null) item(key = "filter") {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    kindPick?.let { FilterBadge(stringResource(if (it == MoneyKind.INCOME.name) R.string.money_income else R.string.money_expense)) { kindPick = null } }
                     catPick?.let { FilterBadge(categoryName(it)) { catPick = null } }
                     if (awaitingOnly) FilterBadge(stringResource(R.string.money_awaiting_short)) { awaitingOnly = false }
                 }
@@ -290,8 +292,9 @@ fun BudgetScreen(db: MandatDb, session: Session) {
 }
 
 @Composable
-private fun androidx.compose.foundation.layout.RowScope.MoneyTile(minor: Long, label: String, color: Color) {
-    Column(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(horizontal = 12.dp, vertical = 10.dp)) {
+private fun androidx.compose.foundation.layout.RowScope.MoneyTile(minor: Long, label: String, color: Color, onClick: (() -> Unit)? = null) {
+    Column(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surfaceVariant)
+        .let { if (onClick != null) it.clickable(onClick = onClick) else it }.padding(horizontal = 12.dp, vertical = 10.dp)) {
         Text(hryvnias(minor), style = MaterialTheme.typography.titleMedium, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(label, style = MaterialTheme.typography.labelMedium, color = Muted)
     }

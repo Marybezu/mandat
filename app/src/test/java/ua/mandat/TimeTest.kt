@@ -46,3 +46,12 @@ class TimeTest {
         assertEquals(0, search(rows, "в").size)
     }
 }
+
+class DayLoadTest {
+    @org.junit.Test fun busyAndFree() {
+        fun e(s: Int, en: Int) = ua.mandat.data.Event(title = "т", day = 5, startMin = s, endMin = en, kind = "MEETING", createdAt = 0, updatedAt = 0)
+        val (busy, free) = ua.mandat.ui.dayLoad(listOf(e(600, 720), e(660, 780), e(900, 960)), 5)
+        org.junit.Assert.assertEquals(240, busy) // 10:00–13:00 and 15:00–16:00
+        org.junit.Assert.assertEquals(180, free) // 16:00–19:00
+    }
+}
