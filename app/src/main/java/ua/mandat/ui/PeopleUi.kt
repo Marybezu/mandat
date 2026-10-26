@@ -447,6 +447,8 @@ fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
                         db.withTransaction {
                             db.people().unlinkPerson(id)
                             db.events().unlinkPerson(id)
+                            db.info().clearPerson(id)
+                            db.info().clearAlliancePerson(id)
                             db.people().clearReportsTo(id)
                             db.delegations().clearPerson(id)
                             db.promises().clearPerson(id)

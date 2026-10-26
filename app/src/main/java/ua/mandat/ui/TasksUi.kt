@@ -206,7 +206,7 @@ fun PromiseRow(p: Promise, personName: String?, matterTitle: String?, session: S
     TaskRow(
         what = p.what,
         kind = TaskKind.PROMISE,
-        chips = listOfNotNull(if (p.isPublic) publicLabel else null, whom, matterTitle),
+        chips = listOfNotNull(if (p.level != ua.mandat.data.Publicity.PERSONAL) stringResource(p.level.label()) else null, whom, matterTitle),
         due = p.due,
         status = p.status,
         onToggleDone = {
@@ -409,12 +409,7 @@ fun PromiseDialog(db: MandatDb, session: Session, draft: PromiseDraft) {
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = !draft.isPublic, onClick = { draft.isPublic = false },
-                        label = { Text(stringResource(R.string.promise_personal)) })
-                    FilterChip(selected = draft.isPublic, onClick = { draft.isPublic = true },
-                        label = { Text(stringResource(R.string.promise_public)) })
-                }
+                PromiseDimensions(draft)
                 OutlinedTextField(
                     value = draft.source, onValueChange = { draft.source = it },
                     label = { Text(stringResource(R.string.promise_source)) },
@@ -450,6 +445,31 @@ fun PromiseDialog(db: MandatDb, session: Session, draft: PromiseDraft) {
             session.promiseDraft = null
             session.write { it.promises().delete(id) }
         }, onCancel = { confirmDelete = false })
+    }
+}
+
+/** How widely, where from and how risky: the three things that tell promises apart. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+fun PromiseDimensions(draft: PromiseDraft) {
+    Text(stringResource(R.string.publicity), style = MaterialTheme.typography.labelLarge)
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        ua.mandat.data.Publicity.entries.forEach { p ->
+            FilterChip(selected = draft.publicity == p, onClick = { draft.publicity = p }, label = { Text(stringResource(p.label())) })
+        }
+    }
+    Text(stringResource(R.string.origin), style = MaterialTheme.typography.labelLarge)
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        ua.mandat.data.PromiseOrigin.entries.forEach { o ->
+            FilterChip(selected = draft.origin == o, onClick = { draft.origin = if (draft.origin == o) null else o }, label = { Text(stringResource(o.label())) })
+        }
+    }
+    draft.origin?.let { Text(stringResource(it.hint()), style = MaterialTheme.typography.labelSmall, color = Muted) }
+    Text(stringResource(R.string.risk), style = MaterialTheme.typography.labelLarge)
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf(1, 2, 3).forEach { r ->
+            FilterChip(selected = draft.risk == r, onClick = { draft.risk = if (draft.risk == r) null else r }, label = { Text(stringResource(riskLabel(r))) })
+        }
     }
 }
 

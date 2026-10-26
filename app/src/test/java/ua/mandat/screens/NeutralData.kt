@@ -127,6 +127,8 @@ object NeutralData {
                     matterId = matters[i % matters.size], due = if (st == TaskStatus.OPEN) today + (i - 6) else null,
                     status = st.name, createdAt = ms(-i * 90L), closedAt = if (st == TaskStatus.OPEN) null else ms(-i * 30L),
                     source = "Тестове джерело", statusNote = if (st == TaskStatus.FAILED || st == TaskStatus.CANCELLED) "Тестове пояснення" else "",
+                    publicity = if (i % 3 != 0) "PUBLIC" else listOf("CIRCLE", "PERSONAL", "SELF")[i % 3],
+                    origin = ua.mandat.data.PromiseOrigin.entries[i % 4].name, risk = 1 + i % 3,
                 ),
             )
         }
@@ -179,6 +181,31 @@ object NeutralData {
             ua.mandat.data.Contact(name = name, phones = "+38000000${(1000 + i)}", organization = if (i % 3 == 0) "Організація ${i % 9}" else "",
                 label = listOf("Список 1", "Список 2", "", "Список 3")[i % 4], sortKey = ua.mandat.data.sortKeyOf(name), createdAt = ms(-10))
         })
+        // Media and information, key messages, alliances
+        ua.mandat.data.InfoKind.entries.forEachIndexed { k, kind ->
+            (1..3).forEach { i ->
+                db.info().insert(
+                    ua.mandat.data.InfoItem(
+                        kind = kind.name, title = "Тестовий запис: ${kind.name.lowercase()} $i", day = today - i * 3 - k,
+                        source = "Тестове джерело $i", personId = if (i % 2 == 0) people[6 + i] else null, matterId = matters[i + k],
+                        reach = 1 + i % 3, stage = if (kind == ua.mandat.data.InfoKind.ATTACK) ua.mandat.data.AttackStage.entries[i].name else null,
+                        decision = if (kind == ua.mandat.data.InfoKind.ATTACK && i > 1) ua.mandat.data.AttackDecision.entries[i].name else null,
+                        checks = if (i == 1) "SOURCE,FACTS" else "", closed = i == 3, createdAt = ms(-5), updatedAt = ms(-5),
+                    ),
+                )
+            }
+        }
+        (1..3).forEach { i ->
+            db.info().insertMessage(ua.mandat.data.KeyMessage(text = "Тестовий меседж $i", proof = "Тестовий факт і джерело $i", audience = "Тестова аудиторія",
+                matterId = matters[i], createdAt = ms(-3), updatedAt = ms(-3)))
+        }
+        ua.mandat.data.AllianceStatus.entries.forEachIndexed { k, st ->
+            (1..2).forEach { i ->
+                db.info().insertAlliance(ua.mandat.data.Alliance(withWhom = "Тестова група ${k * 2 + i}", about = "Тестове питання ${k * 2 + i}",
+                    personId = people[7 + i], matterId = matters[k + i], untilDay = today + 5 * i + k * 20, gives = "Тестовий внесок", gets = "Тестова підтримка",
+                    status = st.name, createdAt = ms(-40), updatedAt = ms(-4)))
+            }
+        }
         (1..12).forEach { i -> db.reviews().insert(Review(day = today - i, progress = "Тестовий запис вечора $i", createdAt = ms(-i.toLong()))) }
         (1..3).forEach { i -> db.inbox().insert(InboxItem(text = "Тестовий запис у вхідних $i", createdAt = ms(-i.toLong()))) }
     }

@@ -60,6 +60,12 @@ class Session(app: Application) : AndroidViewModel(app) {
     var deadlineDraft by mutableStateOf<DeadlineDraft?>(null)
     var eventDraft by mutableStateOf<EventDraft?>(null)
     var contactDraft by mutableStateOf<ContactDraft?>(null)
+    var infoDraft by mutableStateOf<InfoDraft?>(null)
+    var messageDraft by mutableStateOf<MessageDraft?>(null)
+    var allianceDraft by mutableStateOf<AllianceDraft?>(null)
+    /** The media and information screen, and the alliances screen. */
+    var showInfo by mutableStateOf(false)
+    var showAlliances by mutableStateOf(false)
 
     /** Today's answer to the evening question while it is being typed; null when not editing. */
     var reviewDraft by mutableStateOf<String?>(null)
@@ -97,6 +103,39 @@ class Session(app: Application) : AndroidViewModel(app) {
         val d = deadlineDraft ?: return
         deadlineDraft = null
         write { d.persist(it) }
+    }
+
+    fun saveInfoDraft() {
+        val d = infoDraft ?: return
+        infoDraft = null
+        write { d.persist(it) }
+    }
+
+    fun saveMessageDraft() {
+        val d = messageDraft ?: return
+        messageDraft = null
+        write { d.persist(it) }
+    }
+
+    fun saveAllianceDraft() {
+        val d = allianceDraft ?: return
+        allianceDraft = null
+        write { d.persist(it) }
+    }
+
+    /** Opens a media item or an alliance by id (from search). */
+    fun openInfoItem(kind: String, id: Long) {
+        val startedAt = generation
+        background.launch {
+            val found: Any? = withOpenDb { db -> if (kind == "alliance") db.info().getAlliance(id) else db.info().get(id) }
+            withContext(Dispatchers.Main) {
+                if (startedAt != generation || state !is LockState.Open) return@withContext
+                when (found) {
+                    is ua.mandat.data.InfoItem -> infoDraft = InfoDraft(found, isNew = false)
+                    is ua.mandat.data.Alliance -> allianceDraft = AllianceDraft(found, isNew = false)
+                }
+            }
+        }
     }
 
     fun saveEventDraft() {
@@ -511,6 +550,12 @@ class Session(app: Application) : AndroidViewModel(app) {
         eventDraft = null
         val openContact = contactDraft
         contactDraft = null
+        val openInfo = infoDraft
+        val openMessage = messageDraft
+        val openAlliance = allianceDraft
+        infoDraft = null
+        messageDraft = null
+        allianceDraft = null
         // A .vcf being imported is decrypted personal data: it leaves memory with the lock
         vcfImport = null
         vcfDone = null
@@ -544,6 +589,9 @@ class Session(app: Application) : AndroidViewModel(app) {
                             { openPromise?.persist(current.db) },
                             { openDeadline?.persist(current.db) },
                             { openEvent?.persist(current.db) },
+                            { openInfo?.persist(current.db) },
+                            { openMessage?.persist(current.db) },
+                            { openAlliance?.persist(current.db) },
                             { openContact?.takeIf { !it.isNew || it.touched }?.persist(current.db) },
                             { persistReview(current.db, openReview) },
                             // Last: only the days on which something is due, for reminders

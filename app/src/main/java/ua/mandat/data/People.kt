@@ -100,7 +100,34 @@ data class Promise(
     @ColumnInfo(defaultValue = "") val source: String = "",
     /** Why it was dropped or did not work out. */
     @ColumnInfo(defaultValue = "") val statusNote: String = "",
-)
+    /** How widely it was said: a key of [Publicity] (PUBLIC also keeps [isPublic] true). */
+    @ColumnInfo(defaultValue = "'PERSONAL'") val publicity: String = "PERSONAL",
+    /** Where it came from: a key of [PromiseOrigin], or null when not set. */
+    val origin: String? = null,
+    /** How risky it is to keep (or to fail): 1 low, 2 medium, 3 high; null unknown. */
+    val risk: Int? = null,
+) {
+    /** The level of publicity; the older yes/no field wins for PUBLIC, so old records stay right. */
+    val level: Publicity get() = if (isPublic) Publicity.PUBLIC else Publicity.of(publicity).let { if (it == Publicity.PUBLIC) Publicity.PERSONAL else it }
+}
+
+/** How widely a promise was made: in public, to a narrow circle, to one person, or to oneself. */
+enum class Publicity {
+    PUBLIC, CIRCLE, PERSONAL, SELF;
+
+    companion object {
+        fun of(key: String?) = entries.firstOrNull { it.name == key } ?: PERSONAL
+    }
+}
+
+/** Where a promise came from: chosen, forced by circumstances, attributed to the owner, or dug up by the media. */
+enum class PromiseOrigin {
+    CHOSEN, FORCED, ATTRIBUTED, DUG_UP;
+
+    companion object {
+        fun of(key: String?) = entries.firstOrNull { it.name == key }
+    }
+}
 
 /** Roles in the owner's team. Keys are stored, so existing ones never change meaning. */
 enum class TeamRole {

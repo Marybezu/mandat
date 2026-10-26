@@ -305,11 +305,7 @@ fun ReviewScreen(db: MandatDb, session: Session) {
                 }
             }
         }
-        item(key = "promises") {
-            OutlinedButton(onClick = { session.showPromises = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.my_promises))
-            }
-        }
+        item(key = "promises") { ReputationTiles(db, session) }
         val earlier = recent.filter { it.day != today }
         if (earlier.isNotEmpty()) {
             item(key = "earlier") {
@@ -392,6 +388,9 @@ private fun kindLabel(kind: String): Int = when (kind) {
     "deadline" -> R.string.deadline
     "event" -> R.string.event
     "contact" -> R.string.directory
+    "info" -> R.string.info_title
+    "message" -> R.string.message_box
+    "alliance" -> R.string.alliances_title
     else -> R.string.tab_review
 }
 
@@ -404,111 +403,29 @@ private fun openHit(db: MandatDb, session: Session, kind: String, id: Long) {
         "deadline" -> session.openTask(kind, id)
         "event" -> session.openEvent(id)
         "contact" -> { session.searching = false; session.showDirectory = true }
+        "info", "alliance" -> session.openInfoItem(kind, id)
+        "message" -> { session.searching = false; session.showInfo = true }
         else -> session.searching = false
     }
 }
 
-/** All promises ever made: public, personal or all; open, kept and cancelled. */
-@OptIn(ExperimentalMaterial3Api::class)
+
+/**
+ * Three doors from Review: promises (how many risky), media and information (attacks in work),
+ * alliances (active). The numbers say where to look first.
+ */
 @Composable
-fun PromisesScreen(db: MandatDb, session: Session) {
-    BackHandler { session.showPromises = false }
-    val allFlow = remember(db) { db.promises().observeAll() }
-    val peopleFlow = remember(db) { db.people().observeAll() }
-    val titlesFlow = remember(db) { db.matters().observeAllTitles() }
-    val all by allFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val people by peopleFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val titles by titlesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val nameOf = people.associate { it.id to it.name }
-    val titleOf = titles.associate { it.id to it.title }
-    // true = public only, false = personal only, null = all
-    var publicOnly by remember { mutableStateOf<Boolean?>(true) }
-    var year by remember { mutableStateOf<Int?>(null) }
-    var query by remember { mutableStateOf("") }
-
-    fun yearOf(p: ua.mandat.data.Promise) = java.time.LocalDate.ofEpochDay(Dates.dayOf(p.createdAt)).year
-    val years = all.map(::yearOf).distinct().sortedDescending()
-    val q = query.trim().lowercase()
-    var statusPick by remember { mutableStateOf<String?>(null) }
-    // Public/personal and search apply everywhere; the year and the status chosen in a chart narrow the list
-    val baseNoYear = all.filter { p ->
-        (publicOnly == null || p.isPublic == publicOnly) &&
-            (q.length < 2 || listOf(p.what, p.toWhom, p.source, p.personId?.let(nameOf::get).orEmpty())
-                .any { it.lowercase().contains(q) })
-    }
-    val base = baseNoYear.filter { year == null || yearOf(it) == year }
-    val yearsAsc = years.sorted()
-    val byStatusAll = TaskStatus.entries.associateWith { s -> base.filter { TaskStatus.of(it.status) == s } }
-    val shown = base.filter { statusPick == null || it.status == statusPick }
-    val byStatus = TaskStatus.entries.associateWith { s -> shown.filter { TaskStatus.of(it.status) == s } }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.my_promises)) },
-                navigationIcon = {
-                    IconButton(onClick = { session.showPromises = false }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                    }
-                },
-            )
-        },
-    ) { padding ->
-        LazyColumn(Modifier.padding(padding).imePadding().fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
-            item(key = "filters") {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = publicOnly == true, onClick = { publicOnly = true },
-                        label = { Text(stringResource(R.string.promises_public)) })
-                    FilterChip(selected = publicOnly == false, onClick = { publicOnly = false },
-                        label = { Text(stringResource(R.string.promises_personal)) })
-                    FilterChip(selected = publicOnly == null, onClick = { publicOnly = null },
-                        label = { Text(stringResource(R.string.matters_all_roles)) })
-                }
-            }
-            item(key = "query") {
-                OutlinedTextField(
-                    value = query, onValueChange = { query = it }, singleLine = true,
-                    label = { Text(stringResource(R.string.search)) },
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                )
-            }
-            item(key = "summary") {
-                MCard(Modifier.padding(top = 10.dp)) {
-                    DonutChart(
-                        slices = listOf(
-                            Slice(TaskStatus.DONE.name, stringResource(TaskStatus.DONE.promiseLabel()), byStatusAll.getValue(TaskStatus.DONE).size, ChartColors.blue),
-                            Slice(TaskStatus.OPEN.name, stringResource(TaskStatus.OPEN.promiseLabel()), byStatusAll.getValue(TaskStatus.OPEN).size, ChartColors.blueLight),
-                            Slice(TaskStatus.FAILED.name, stringResource(TaskStatus.FAILED.promiseLabel()), byStatusAll.getValue(TaskStatus.FAILED).size, ChartColors.salmon),
-                            Slice(TaskStatus.CANCELLED.name, stringResource(TaskStatus.CANCELLED.promiseLabel()), byStatusAll.getValue(TaskStatus.CANCELLED).size, ChartColors.grayLight),
-                        ),
-                        center = base.size.toString(), centerLabel = stringResource(R.string.promises),
-                        selected = statusPick, onPick = { statusPick = it },
-                    )
-                }
-            }
-            if (yearsAsc.size > 1) item(key = "byyear") {
-                SectionCard(Sym.calendar, stringResource(R.string.dash_years_title), Modifier.padding(top = 8.dp)) {
-                    Spacer(Modifier.height(6.dp))
-                    DayColumns(
-                        yearsAsc.map { y -> DayLoad(y.toLong(), "’" + (y % 100).toString().padStart(2, '0'), baseNoYear.count { yearOf(it) == y }, false) },
-                        selected = year?.toLong(), onPick = { year = it?.toInt() },
-                    )
-                }
-            }
-            if (shown.isEmpty()) item(key = "empty") { Text(stringResource(R.string.promises_empty), color = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(top = 12.dp)) }
-            listOf(TaskStatus.OPEN, TaskStatus.DONE, TaskStatus.FAILED, TaskStatus.CANCELLED).forEach { status ->
-                val list = byStatus.getValue(status)
-                if (list.isNotEmpty()) item(key = "g$status") {
-                    SectionCard(Sym.checkCircle, stringResource(status.promiseLabel()), Modifier.padding(top = 8.dp), count = list.size,
-                        attention = status == TaskStatus.FAILED) {
-                        Paged(list) { p ->
-                            val origin = listOf(stringResource(R.string.promised_on, Dates.format(Dates.dayOf(p.createdAt))), p.source, p.statusNote)
-                                .filter { it.isNotBlank() }.joinToString(" · ")
-                            PromiseRow(p, p.personId?.let(nameOf::get), p.matterId?.let(titleOf::get), session, extra = origin)
-                        }
-                    }
-                }
-            }
-        }
+fun ReputationTiles(db: MandatDb, session: Session) {
+    val promises by remember(db) { db.promises().observeOpen() }.collectAsStateWithLifecycle(emptyList())
+    val items by remember(db) { db.info().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val alliances by remember(db) { db.info().observeAlliances() }.collectAsStateWithLifecycle(emptyList())
+    val today = Dates.today()
+    val risky = promises.count { isRisky(it, today) }
+    val attacks = items.count { !it.closed && it.kind == ua.mandat.data.InfoKind.ATTACK.name }
+    val active = alliances.count { it.status == ua.mandat.data.AllianceStatus.ACTIVE.name }
+    Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
+        StatTile(risky, stringResource(R.string.tile_risky_promises), attention = true) { session.showPromises = true }
+        StatTile(attacks, stringResource(R.string.tile_attacks), attention = true) { session.showInfo = true }
+        StatTile(active, stringResource(R.string.tile_alliances)) { session.showAlliances = true }
     }
 }

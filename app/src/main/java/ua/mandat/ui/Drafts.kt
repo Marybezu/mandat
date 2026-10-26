@@ -118,7 +118,9 @@ class PromiseDraft(val promise: ua.mandat.data.Promise, val isNew: Boolean) {
     var what by mutableStateOf(promise.what)
     var personId by mutableStateOf(promise.personId)
     var toWhom by mutableStateOf(promise.toWhom)
-    var isPublic by mutableStateOf(promise.isPublic)
+    var publicity by mutableStateOf(promise.level)
+    var origin by mutableStateOf(ua.mandat.data.PromiseOrigin.of(promise.origin))
+    var risk by mutableStateOf(promise.risk)
     var matterId by mutableStateOf(promise.matterId)
     var due by mutableStateOf(promise.due)
     var status by mutableStateOf(ua.mandat.data.TaskStatus.of(promise.status))
@@ -133,7 +135,8 @@ class PromiseDraft(val promise: ua.mandat.data.Promise, val isNew: Boolean) {
         val now = System.currentTimeMillis()
         val closed = if (status == ua.mandat.data.TaskStatus.OPEN) null else (promise.closedAt ?: now)
         val edited = promise.copy(
-            what = text, personId = personId, toWhom = if (personId != null) "" else toWhom.trim().take(300), isPublic = isPublic,
+            what = text, personId = personId, toWhom = if (personId != null) "" else toWhom.trim().take(300),
+            isPublic = publicity == ua.mandat.data.Publicity.PUBLIC, publicity = publicity.name, origin = origin?.name, risk = risk?.coerceIn(1, 3),
             matterId = matterId, due = due, status = status.name, closedAt = closed,
             source = source.trim().take(1_000),
             statusNote = if (status == ua.mandat.data.TaskStatus.OPEN || status == ua.mandat.data.TaskStatus.DONE) "" else statusNote.trim().take(2_000),
@@ -287,3 +290,84 @@ class ContactDraft(val contact: ua.mandat.data.Contact) {
         if (isNew) db.contacts().insert(e.copy(id = 0)) else db.contacts().update(e)
     }
 }
+
+/** A media or information item being edited. */
+class InfoDraft(val item: ua.mandat.data.InfoItem, val isNew: Boolean) {
+    var kind by mutableStateOf(ua.mandat.data.InfoKind.of(item.kind))
+    var title by mutableStateOf(item.title)
+    var day by mutableStateOf(item.day)
+    var source by mutableStateOf(item.source)
+    var personId by mutableStateOf(item.personId)
+    var matterId by mutableStateOf(item.matterId)
+    var reach by mutableStateOf(item.reach)
+    var stage by mutableStateOf(ua.mandat.data.AttackStage.of(item.stage))
+    var decision by mutableStateOf(ua.mandat.data.AttackDecision.of(item.decision))
+    var notes by mutableStateOf(item.notes)
+    var result by mutableStateOf(item.result)
+    var checks by mutableStateOf(ua.mandat.data.checksOf(item.checks))
+    var closed by mutableStateOf(item.closed)
+
+    suspend fun persist(db: MandatDb) {
+        val now = System.currentTimeMillis()
+        val edited = ua.mandat.data.cleanInfo(
+            item.copy(
+                kind = kind.name, title = title, day = day, source = source, personId = personId, matterId = matterId, reach = reach,
+                stage = stage.name, decision = decision?.name, notes = notes, result = result,
+                checks = ua.mandat.data.checksText(checks), closed = closed, updatedAt = now,
+            ),
+        ) ?: return
+        if (isNew) db.info().insert(edited.copy(id = 0, createdAt = now)) else db.info().update(edited)
+    }
+}
+
+fun newInfo(kind: ua.mandat.data.InfoKind = ua.mandat.data.InfoKind.DISCUSSION, matterId: Long? = null) = InfoDraft(
+    ua.mandat.data.InfoItem(kind = kind.name, title = "", day = Dates.today(), matterId = matterId, createdAt = 0, updatedAt = 0),
+    isNew = true,
+)
+
+/** A key message being edited. */
+class MessageDraft(val message: ua.mandat.data.KeyMessage, val isNew: Boolean) {
+    var text by mutableStateOf(message.text)
+    var proof by mutableStateOf(message.proof)
+    var audience by mutableStateOf(message.audience)
+    var matterId by mutableStateOf(message.matterId)
+
+    suspend fun persist(db: MandatDb) {
+        val now = System.currentTimeMillis()
+        val edited = ua.mandat.data.cleanMessage(message.copy(text = text, proof = proof, audience = audience, matterId = matterId, updatedAt = now)) ?: return
+        if (isNew) db.info().insertMessage(edited.copy(id = 0, createdAt = now)) else db.info().updateMessage(edited)
+    }
+}
+
+fun newMessage(matterId: Long? = null) = MessageDraft(ua.mandat.data.KeyMessage(text = "", matterId = matterId, createdAt = 0, updatedAt = 0), isNew = true)
+
+/** A situational alliance being edited. */
+class AllianceDraft(val alliance: ua.mandat.data.Alliance, val isNew: Boolean) {
+    var withWhom by mutableStateOf(alliance.withWhom)
+    var personId by mutableStateOf(alliance.personId)
+    var about by mutableStateOf(alliance.about)
+    var matterId by mutableStateOf(alliance.matterId)
+    var untilDay by mutableStateOf(alliance.untilDay)
+    var gives by mutableStateOf(alliance.gives)
+    var gets by mutableStateOf(alliance.gets)
+    var status by mutableStateOf(ua.mandat.data.AllianceStatus.of(alliance.status))
+    var notes by mutableStateOf(alliance.notes)
+
+    fun valid() = withWhom.isNotBlank() && about.isNotBlank()
+
+    suspend fun persist(db: MandatDb) {
+        val now = System.currentTimeMillis()
+        val edited = ua.mandat.data.cleanAlliance(
+            alliance.copy(
+                withWhom = withWhom, personId = personId, about = about, matterId = matterId, untilDay = untilDay,
+                gives = gives, gets = gets, status = status.name, notes = notes, updatedAt = now,
+            ),
+        ) ?: return
+        if (isNew) db.info().insertAlliance(edited.copy(id = 0, createdAt = now)) else db.info().updateAlliance(edited)
+    }
+}
+
+fun newAlliance(matterId: Long? = null) = AllianceDraft(
+    ua.mandat.data.Alliance(withWhom = "", about = "", matterId = matterId, status = ua.mandat.data.AllianceStatus.ACTIVE.name, createdAt = 0, updatedAt = 0),
+    isNew = true,
+)

@@ -138,3 +138,67 @@ fun influenceLabel(level: Int?): Int = when (level) {
     3 -> R.string.influence_3
     else -> R.string.not_set
 }
+
+fun ua.mandat.data.Publicity.label(): Int = when (this) {
+    ua.mandat.data.Publicity.PUBLIC -> R.string.publicity_public
+    ua.mandat.data.Publicity.CIRCLE -> R.string.publicity_circle
+    ua.mandat.data.Publicity.PERSONAL -> R.string.publicity_personal
+    ua.mandat.data.Publicity.SELF -> R.string.publicity_self
+}
+
+fun ua.mandat.data.PromiseOrigin.label(): Int = when (this) {
+    ua.mandat.data.PromiseOrigin.CHOSEN -> R.string.origin_chosen
+    ua.mandat.data.PromiseOrigin.FORCED -> R.string.origin_forced
+    ua.mandat.data.PromiseOrigin.ATTRIBUTED -> R.string.origin_attributed
+    ua.mandat.data.PromiseOrigin.DUG_UP -> R.string.origin_dug_up
+}
+
+fun ua.mandat.data.PromiseOrigin.hint(): Int = when (this) {
+    ua.mandat.data.PromiseOrigin.CHOSEN -> R.string.origin_chosen_hint
+    ua.mandat.data.PromiseOrigin.FORCED -> R.string.origin_forced_hint
+    ua.mandat.data.PromiseOrigin.ATTRIBUTED -> R.string.origin_attributed_hint
+    ua.mandat.data.PromiseOrigin.DUG_UP -> R.string.origin_dug_up_hint
+}
+
+fun riskLabel(level: Int): Int = when (level) {
+    1 -> R.string.risk_low
+    2 -> R.string.risk_mid
+    else -> R.string.risk_high
+}
+
+fun ua.mandat.data.InfoKind.label(): Int = when (this) {
+    ua.mandat.data.InfoKind.DISCUSSION -> R.string.info_discussion
+    ua.mandat.data.InfoKind.CRITIQUE -> R.string.info_critique
+    ua.mandat.data.InfoKind.ATTACK -> R.string.info_attack
+    ua.mandat.data.InfoKind.CORRECTION -> R.string.info_correction
+}
+
+fun ua.mandat.data.AttackStage.label(): Int = when (this) {
+    ua.mandat.data.AttackStage.SPOTTED -> R.string.stage_spotted
+    ua.mandat.data.AttackStage.ASSESSED -> R.string.stage_assessed
+    ua.mandat.data.AttackStage.DECIDED -> R.string.stage_decided
+    ua.mandat.data.AttackStage.ACTED -> R.string.stage_acted
+    ua.mandat.data.AttackStage.RESULT -> R.string.stage_result
+}
+
+fun ua.mandat.data.AttackDecision.label(): Int = when (this) {
+    ua.mandat.data.AttackDecision.IGNORE -> R.string.decision_ignore
+    ua.mandat.data.AttackDecision.ANSWER -> R.string.decision_answer
+    ua.mandat.data.AttackDecision.REFUTE -> R.string.decision_refute
+    ua.mandat.data.AttackDecision.ALLIES -> R.string.decision_allies
+    ua.mandat.data.AttackDecision.LEGAL -> R.string.decision_legal
+}
+
+fun ua.mandat.data.IntegrityCheck.label(): Int = when (this) {
+    ua.mandat.data.IntegrityCheck.SOURCE -> R.string.check_source
+    ua.mandat.data.IntegrityCheck.ACTIONS -> R.string.check_actions
+    ua.mandat.data.IntegrityCheck.FACTS -> R.string.check_facts
+    ua.mandat.data.IntegrityCheck.SIGN -> R.string.check_sign
+    ua.mandat.data.IntegrityCheck.PROPORTION -> R.string.check_proportion
+}
+
+fun ua.mandat.data.AllianceStatus.label(): Int = when (this) {
+    ua.mandat.data.AllianceStatus.ACTIVE -> R.string.alliance_active
+    ua.mandat.data.AllianceStatus.ENDED -> R.string.alliance_ended
+    ua.mandat.data.AllianceStatus.BROKEN -> R.string.alliance_broken
+}

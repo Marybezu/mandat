@@ -39,6 +39,7 @@ interface InboxDao {
         InboxItem::class, Role::class, Matter::class, Setting::class,
         Person::class, MatterPerson::class, Delegation::class, Promise::class,
         Deadline::class, Review::class, Event::class, EventPerson::class, Contact::class,
+        InfoItem::class, KeyMessage::class, Alliance::class,
     ],
     version = DB_VERSION,
     exportSchema = true,
@@ -56,6 +57,7 @@ abstract class MandatDb : RoomDatabase() {
     abstract fun search(): SearchDao
     abstract fun events(): EventDao
     abstract fun contacts(): ContactDao
+    abstract fun info(): InfoDao
 
     companion object {
         const val FILE_NAME = "mandat.db"
@@ -210,7 +212,34 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
     }
 }
 
-val MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Promises 2.0: how widely, where from, how risky. Old records keep their public/personal meaning.
+        db.execSQL("ALTER TABLE `promises` ADD COLUMN `publicity` TEXT NOT NULL DEFAULT 'PERSONAL'")
+        db.execSQL("ALTER TABLE `promises` ADD COLUMN `origin` TEXT")
+        db.execSQL("ALTER TABLE `promises` ADD COLUMN `risk` INTEGER")
+        db.execSQL("UPDATE `promises` SET `publicity` = 'PUBLIC' WHERE `isPublic` = 1")
+        // Media and information, key messages, situational alliances
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `info_items` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `kind` TEXT NOT NULL, " +
+                "`title` TEXT NOT NULL, `day` INTEGER NOT NULL, `source` TEXT NOT NULL, `personId` INTEGER, `matterId` INTEGER, " +
+                "`reach` INTEGER, `stage` TEXT, `decision` TEXT, `notes` TEXT NOT NULL, `result` TEXT NOT NULL, `checks` TEXT NOT NULL, " +
+                "`closed` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_info_items_day` ON `info_items` (`day`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `key_messages` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `text` TEXT NOT NULL, " +
+                "`proof` TEXT NOT NULL, `audience` TEXT NOT NULL, `matterId` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `alliances` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `withWhom` TEXT NOT NULL, " +
+                "`personId` INTEGER, `about` TEXT NOT NULL, `matterId` INTEGER, `untilDay` INTEGER, `gives` TEXT NOT NULL, " +
+                "`gets` TEXT NOT NULL, `status` TEXT NOT NULL, `notes` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        )
+    }
+}
+
+val MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
 
 /** The current database layout version; raise it together with a new migration. */
-const val DB_VERSION = 7
+const val DB_VERSION = 8

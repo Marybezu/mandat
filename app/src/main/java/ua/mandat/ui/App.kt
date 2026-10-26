@@ -226,6 +226,9 @@ private fun Main(db: MandatDb, session: Session) {
     session.promiseDraft?.let { PromiseDialog(db, session, it) }
     session.deadlineDraft?.let { DeadlineDialog(db, session, it) }
     session.eventDraft?.let { EventDialog(db, session, it) }
+    session.infoDraft?.let { InfoDialog(db, session, it) }
+    session.messageDraft?.let { MessageDialog(db, session, it) }
+    session.allianceDraft?.let { AllianceDialog(db, session, it) }
     session.vcfDone?.let { (n, uri) -> VcfDoneDialog(session, n, uri) }
 
     session.draft?.let { draft ->
@@ -243,6 +246,14 @@ private fun Main(db: MandatDb, session: Session) {
     }
     session.influenceFor?.let {
         InfluenceMapScreen(db, session, it.takeIf { id -> id != 0L })
+        return
+    }
+    if (session.showInfo) {
+        InfoScreen(db, session)
+        return
+    }
+    if (session.showAlliances) {
+        AlliancesScreen(db, session)
         return
     }
     if (session.showDirectory) {

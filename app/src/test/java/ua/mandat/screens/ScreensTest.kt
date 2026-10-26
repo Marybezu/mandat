@@ -120,5 +120,7 @@ class ScreensTest {
     @Config(qualifiers = "+night")
     @Test fun calendarDark() = shot("14-calendar-dark") { ua.mandat.ui.CalendarScreen(db, session) }
     @Test fun directory() = shot("15-directory") { ua.mandat.ui.DirectoryScreen(db, session) }
+    @Test fun info() = shot("17-info") { ua.mandat.ui.InfoScreen(db, session) }
+    @Test fun alliances() = shot("18-alliances") { ua.mandat.ui.AlliancesScreen(db, session) }
     @Test fun next() = shot("07-smart-next") { SmartListScreen(db, session, SmartList.NEXT) }
 }

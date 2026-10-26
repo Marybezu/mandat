@@ -118,6 +118,9 @@ interface SearchDao {
             "UNION ALL SELECT 'deadline', id, title, basis, title || ' ' || basis FROM deadlines " +
             "UNION ALL SELECT 'review', id, progress, '', progress FROM reviews " +
             "UNION ALL SELECT 'event', id, title, place, title || ' ' || place || ' ' || notes || ' ' || outcome FROM events " +
+            "UNION ALL SELECT 'info', id, title, source, title || ' ' || source || ' ' || notes || ' ' || result FROM info_items " +
+            "UNION ALL SELECT 'message', id, text, audience, text || ' ' || proof || ' ' || audience FROM key_messages " +
+            "UNION ALL SELECT 'alliance', id, withWhom, about, withWhom || ' ' || about || ' ' || gives || ' ' || gets || ' ' || notes FROM alliances " +
             "UNION ALL SELECT 'contact', id, name, organization, name || ' ' || organization || ' ' || jobTitle || ' ' || phones || ' ' || emails || ' ' || label FROM contacts",
     )
     fun everything(): Flow<List<SearchRow>>
