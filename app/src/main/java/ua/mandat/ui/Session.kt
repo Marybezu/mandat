@@ -228,6 +228,8 @@ class Session(app: Application) : AndroidViewModel(app) {
     // generation (the owner already left the app) is closed straight away.
     @Volatile private var generation = 0
     private val writes = Mutex()
+    /** The result of the last automatic copy, until the next unlock records it. */
+    @Volatile private var autoResult: ua.mandat.backup.AutoBackup.Result? = null
     private var key: ByteArray? = null
 
     // Not tied to the screen's lifetime: opening and closing always run to the end
@@ -299,6 +301,18 @@ class Session(app: Application) : AndroidViewModel(app) {
                         key = passphrase
                         lastError = false
                         state = LockState.Open(db)
+                        // Record the automatic copy made when Mandat last closed
+                        val result = autoResult
+                        autoResult = null
+                        background.launch {
+                            writes.withLock {
+                                if (db.isOpen) try {
+                                    ua.mandat.backup.AutoBackup.reconcile(getApplication(), db, result)
+                                } catch (e: Throwable) {
+                                    // Checked again next time
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -356,6 +370,7 @@ class Session(app: Application) : AndroidViewModel(app) {
             val oldKey = key
             key = null
             background.launch {
+                var prepared: ua.mandat.backup.AutoBackup.Prepared? = null
                 writes.withLock {
                     if (current.db.isOpen) {
                         // Each draft on its own: one failure must not lose the others
@@ -376,16 +391,18 @@ class Session(app: Application) : AndroidViewModel(app) {
                                 // Not saved; nothing about the content is logged
                             }
                         }
-                        // Automatic backup, if turned on and more than a day has passed
-                        try {
-                            ua.mandat.backup.AutoBackup.runIfDue(getApplication(), current.db)
+                        // Automatic backup, if turned on and due: only encrypted here, written after closing
+                        prepared = try {
+                            ua.mandat.backup.AutoBackup.prepareIfDue(current.db)
                         } catch (e: Throwable) {
-                            // Recorded as failed inside; Mandat must still close
+                            null
                         }
                     }
                     current.db.close()
                     oldKey?.fill(0)
                 }
+                // The database is closed: a slow folder can only delay writing encrypted bytes
+                prepared?.let { autoResult = ua.mandat.backup.AutoBackup.writePrepared(getApplication(), it) }
             }
         }
         return wasInUse

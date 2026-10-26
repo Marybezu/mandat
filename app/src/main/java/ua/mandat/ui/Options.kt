@@ -84,10 +84,14 @@ fun Options(session: Session, onBack: () -> Unit) {
     // Automatic backups: the folder is chosen first, then the password
     var autoFolder by remember { mutableStateOf<android.net.Uri?>(null) }
     var confirmAutoOff by remember { mutableStateOf(false) }
+    var cloudFolder by remember { mutableStateOf<android.net.Uri?>(null) }
     LaunchedEffect(Unit) { backups.refreshAuto() }
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         session.pickingFile = false
-        if (uri != null && pickedAt == session.generationNow()) autoFolder = uri
+        if (uri != null && pickedAt == session.generationNow()) {
+            // A folder of another app (a cloud drive): warn before anything is written there
+            if (ua.mandat.backup.AutoBackup.maySync(uri)) cloudFolder = uri else autoFolder = uri
+        }
     }
     val openFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         session.pickingFile = false
@@ -171,10 +175,11 @@ fun Options(session: Session, onBack: () -> Unit) {
                     style = MaterialTheme.typography.labelMedium, color = Muted,
                 )
                 if (auto.lastFail != null && (auto.lastOk == null || auto.lastFail > auto.lastOk)) {
-                    Text(stringResource(R.string.auto_last_fail, fmt.format(Date(auto.lastFail))), style = MaterialTheme.typography.labelMedium,
+                    val reason = if (auto.failReason == ua.mandat.backup.AutoBackup.REASON_TOO_BIG) R.string.auto_fail_too_big else R.string.auto_last_fail
+                    Text(stringResource(reason, fmt.format(Date(auto.lastFail))), style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.error)
                 }
-                if (auto.maySync) {
+                if (auto.folder?.let { ua.mandat.backup.AutoBackup.maySync(it) } == true) {
                     Text(stringResource(R.string.auto_may_sync), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
                 }
                 TextButton(onClick = { backups.autoNow() }, enabled = !backups.busy) { Text(stringResource(R.string.auto_now)) }
@@ -234,6 +239,15 @@ fun Options(session: Session, onBack: () -> Unit) {
                 autoFolder = null
                 if (password != null) backups.enableAuto(folder, password)
             },
+        )
+    }
+
+    cloudFolder?.let { folder ->
+        AlertDialog(
+            onDismissRequest = { cloudFolder = null },
+            text = { Text(stringResource(R.string.auto_may_sync)) },
+            confirmButton = { TextButton(onClick = { cloudFolder = null; autoFolder = folder }) { Text(stringResource(R.string.auto_use_anyway)) } },
+            dismissButton = { TextButton(onClick = { cloudFolder = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 

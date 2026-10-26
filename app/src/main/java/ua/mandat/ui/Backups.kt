@@ -54,9 +54,20 @@ class Backups(private val context: Context, private val session: Session) {
         }
     }
 
-    /** Turns automatic backups on: folder chosen, password typed once. */
+    /** Turns automatic backups on: folder chosen, password typed once; the first copy is checked with it. */
     fun enableAuto(folder: Uri, password: String) = run(onCrash = { BackupNotice.AutoFailed }) {
-        val ok = session.withOpenDb { ua.mandat.backup.AutoBackup.enable(context, it, folder, password) } == true
+        val auto = ua.mandat.backup.AutoBackup
+        val prepared = session.withOpenDb {
+            auto.setUp(context, it, folder, password)
+            auto.prepareIfDue(it, force = true)
+        }
+        // Written with the database free, then checked with the password the owner typed
+        val result = prepared?.let { auto.writePrepared(context, it) }
+        val ok = result?.ok == true && result.uri != null && auto.opensWith(context, result.uri, password)
+        session.withOpenDb {
+            auto.reconcile(context, it, result?.copy(ok = ok))
+            if (!ok) auto.disable(context, it)
+        }
         refreshAuto()
         if (ok) BackupNotice.AutoOn else BackupNotice.AutoFailed
     }
@@ -69,14 +80,12 @@ class Backups(private val context: Context, private val session: Session) {
 
     /** Makes an automatic copy right now, without waiting a day. */
     fun autoNow() = run(onCrash = { BackupNotice.AutoFailed }) {
-        val ok = session.withOpenDb { ua.mandat.backup.AutoBackup.runIfDue(context, it, force = true) } == true
+        val auto = ua.mandat.backup.AutoBackup
+        val prepared = session.withOpenDb { auto.prepareIfDue(it, force = true) }
+        val result = prepared?.let { auto.writePrepared(context, it) }
+        session.withOpenDb { auto.reconcile(context, it, result) }
         refreshAuto()
-        if (ok) BackupNotice.AutoSaved else BackupNotice.AutoFailed
-    }
-
-    /** The EFF long word list (7776 words) for suggested passwords. */
-    val words: List<String> by lazy {
-        context.assets.open("eff_large_wordlist.txt").bufferedReader().readLines().filter { it.isNotBlank() }
+        if (result?.ok == true) BackupNotice.AutoSaved else BackupNotice.AutoFailed
     }
 
     /** Writes an encrypted copy of everything to [uri], then reads it back to check it. */

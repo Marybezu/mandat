@@ -116,6 +116,14 @@ class MainActivity : AppCompatActivity() {
         MandatDb.deleteFiles(this)
         // Nothing about the deleted data may stay behind, not even the days of reminders
         ua.mandat.notify.Reminders.clear(this)
+        // ...nor access to a folder chosen for automatic backups
+        contentResolver.persistedUriPermissions.forEach {
+            try {
+                contentResolver.releasePersistableUriPermission(it.uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            } catch (e: Exception) {
+                // Already gone
+            }
+        }
         session.autoPrompt = false
         refreshState()
     }

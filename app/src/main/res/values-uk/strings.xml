@@ -469,10 +469,10 @@
     <string name="influence_unknown">Вплив не вказано</string>
     <string name="influence_unknown_hint">Торкніться імені й позначте вплив, щоб людина зʼявилася на карті.</string>
     <string name="auto_title">Автоматична копія</string>
-    <string name="auto_hint">Раз на добу, коли Мандат закривається, зашифрована копія йде в папку, яку ви оберете; зберігаються останні %1$d. Пароль той самий, що й для ручної копії: запишіть його.</string>
+    <string name="auto_hint">Раз на добу, коли Мандат закривається, зашифрована копія йде в папку, яку ви оберете; зберігаються копії за останні %1$d днів. Пароль ви задаєте один раз. Запишіть його: без нього копію не відкрити.</string>
     <string name="auto_last_ok">Остання автокопія: %1$s</string>
     <string name="auto_none_yet">Автокопій ще немає</string>
-    <string name="auto_last_fail">Остання спроба не вдалася: %1$s. Перевірте, чи папка ще існує.</string>
+    <string name="auto_last_fail">Остання спроба не вдалася: %1$s. Перевірте папку й вільне місце.</string>
     <string name="auto_may_sync">Ця папка належить іншому застосунку й може синхронізуватися з хмарою. Копія зашифрована, але вона залишає телефон.</string>
     <string name="auto_now">Зробити копію зараз</string>
     <string name="auto_off">Вимкнути</string>
@@ -481,4 +481,6 @@
     <string name="notice_auto_failed">Не вдалося зробити автокопію. Перевірте папку й спробуйте ще раз.</string>
     <string name="notice_auto_off">Автоматичні копії вимкнено.</string>
     <string name="notice_auto_saved">Автокопію зроблено й перевірено.</string>
+    <string name="auto_fail_too_big">Остання спроба не вдалася: %1$s. Даних більше, ніж вміщає резервна копія.</string>
+    <string name="auto_use_anyway">Усе одно цю папку</string>
 </resources>
