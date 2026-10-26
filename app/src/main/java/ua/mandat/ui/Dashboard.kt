@@ -47,7 +47,6 @@ import ua.mandat.data.Period
 import ua.mandat.data.SETTING_CADENCE_START
 import ua.mandat.data.Setting
 import ua.mandat.data.Span
-import ua.mandat.data.Tally
 import ua.mandat.data.earliestDay
 import ua.mandat.data.overview
 import ua.mandat.data.spanOf
@@ -365,8 +364,8 @@ private fun YearsBlock(o: Overview, openYear: (Int) -> Unit) = Block(Sym.calenda
                     Box(Modifier.weight(1f)) {
                         if (y.promised > 0) {
                             Row(Modifier.fillMaxWidth(y.promised.toFloat() / max).height(8.dp).clip(RoundedCornerShape(4.dp))) {
-                                if (y.kept > 0) Box(Modifier.weight(y.kept.toFloat()).height(8.dp).background(MaterialTheme.colorScheme.primary))
-                                if (y.promised > y.kept) Box(Modifier.weight((y.promised - y.kept).toFloat()).height(8.dp).background(MaterialTheme.colorScheme.primaryContainer))
+                                if (y.kept > 0) Box(Modifier.weight(y.kept.toFloat()).height(8.dp).background(ChartColors.blue))
+                                if (y.promised > y.kept) Box(Modifier.weight((y.promised - y.kept).toFloat()).height(8.dp).background(ChartColors.blueLight))
                             }
                         }
                     }
@@ -386,33 +385,7 @@ private fun YearsBlock(o: Overview, openYear: (Int) -> Unit) = Block(Sym.calenda
 fun Bar(fraction: Float, modifier: Modifier = Modifier) {
     Box(modifier.height(8.dp).clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
         val f = fraction.coerceIn(0f, 1f)
-        if (f > 0f) Box(Modifier.fillMaxWidth(f).height(8.dp).clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.primary))
+        if (f > 0f) Box(Modifier.fillMaxWidth(f).height(8.dp).clip(RoundedCornerShape(4.dp)).background(ChartColors.blue))
     }
 }
 
-@Composable
-private fun tallyColors(): List<Color> = listOf(
-    MaterialTheme.colorScheme.primary,
-    MaterialTheme.colorScheme.primaryContainer,
-    MaterialTheme.colorScheme.error.copy(alpha = 0.55f),
-    MaterialTheme.colorScheme.outline,
-)
-
-@Composable
-fun TallyBar(t: Tally) {
-    if (t.total == 0) return
-    val colors = tallyColors()
-    Row(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp))) {
-        listOf(t.kept, t.open, t.failed, t.dropped).forEachIndexed { i, n ->
-            if (n > 0) Box(Modifier.weight(n.toFloat()).height(10.dp).background(colors[i]))
-        }
-    }
-}
-
-@Composable
-fun TallyLegend(t: Tally) {
-    Text(
-        stringResource(R.string.dash_tally, t.kept, t.open, t.failed, t.dropped),
-        style = MaterialTheme.typography.labelMedium, color = Muted,
-    )
-}

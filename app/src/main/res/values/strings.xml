@@ -311,7 +311,6 @@
     <string name="dash_idle">No step in this period: %1$s</string>
     <string name="dash_deadlines_title">Deadlines and delegations</string>
     <string name="dash_promises_title">Promises</string>
-    <string name="dash_tally">kept %1$d · in progress %2$d · did not work out %3$d · dropped %4$d</string>
     <string name="dash_years_title">By year</string>
     <string name="dash_year_line">matters %1$d · promises %2$d, kept %3$d · deadlines met %4$d</string>
     <string name="promise_made_on">When it was promised</string>

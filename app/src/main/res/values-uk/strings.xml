@@ -313,7 +313,6 @@
     <string name="dash_idle">За цей період без жодного кроку: %1$s</string>
     <string name="dash_deadlines_title">Строки й доручення</string>
     <string name="dash_promises_title">Обіцянки</string>
-    <string name="dash_tally">дотримано %1$d · у процесі %2$d · не вдалося %3$d · знято %4$d</string>
     <string name="dash_years_title">По роках</string>
     <string name="dash_year_line">справ %1$d · обіцянок %2$d, дотримано %3$d · строків виконано %4$d</string>
     <string name="promise_made_on">Коли пообіцяно</string>
