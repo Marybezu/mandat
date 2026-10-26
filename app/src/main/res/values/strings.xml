@@ -854,7 +854,7 @@
     <string name="look_compact">Compact view</string>
     <string name="look_compact_hint">Less space around cards: more fits on the screen.</string>
     <string name="cal_density">How full the week is</string>
-    <string name="hours_short">h</string>
-    <string name="free_hours">free %1$dh</string>
+    <string name="hours_short">%1$dh</string>
+    <string name="free_hours">%1$dh</string>
     <string name="cal_density_hint">Column: hours taken by events. Below: the longest free stretch between 9:00 and 19:00.</string>
 </resources>

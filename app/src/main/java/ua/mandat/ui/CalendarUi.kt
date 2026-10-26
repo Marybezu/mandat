@@ -803,7 +803,7 @@ private fun WeekDensity(days: List<Pair<Long, List<Event>>>, today: Long, select
                         .background(if (d == selected) scheme.primaryContainer else Color.Transparent).clickable { onPick(d) },
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom,
                 ) {
-                    if (busy > 0) Text("%.0f".format(hours.coerceAtLeast(1f)) + stringResource(R.string.hours_short), style = MaterialTheme.typography.labelSmall, color = Muted)
+                    if (busy > 0) Text(stringResource(R.string.hours_short, Math.round(hours.coerceAtLeast(1f))), style = MaterialTheme.typography.labelSmall, color = Muted)
                     val h = if (busy == 0 && !allDay) 3.dp else (60f * (hours.coerceAtMost(10f) / 10f)).coerceAtLeast(8f).dp
                     Box(Modifier.padding(horizontal = 3.dp).fillMaxWidth().height(h).clip(RoundedCornerShape(4.dp)).background(color))
                     Spacer(Modifier.height(3.dp))
