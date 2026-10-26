@@ -458,3 +458,17 @@ fun ua.mandat.data.Attention.color(): Color = when (this) {
     ua.mandat.data.Attention.BACKGROUND -> ChartColors.sky
     ua.mandat.data.Attention.SLEEPING -> ChartColors.grayLight
 }
+
+/** A number with a short label that opens the list behind it. Every count on a screen leads somewhere. */
+@Composable
+fun StatLink(value: Int, label: String, onClick: () -> Unit) {
+    Row(
+        Modifier.clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(groupDigits(value), style = MaterialTheme.typography.titleSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+        Spacer(Modifier.width(6.dp))
+        Text("$label →", style = MaterialTheme.typography.labelMedium, color = Muted)
+    }
+}

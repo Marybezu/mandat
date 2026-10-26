@@ -1,9 +1,12 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package ua.mandat.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -128,13 +131,14 @@ fun Dashboard(db: MandatDb, session: Session) {
         } else {
             val blocks = buildList<@Composable () -> Unit> {
                 if (long) {
-                    if (o.years.any { it.started + it.promised + it.deadlinesDone > 0 }) add { YearsBlock(o) }
+                    if (o.years.any { it.started + it.promised + it.deadlinesDone > 0 }) add { YearsBlock(o) { y -> session.periodView = PeriodKind.YEAR to yearSpan(y) } }
                 } else if (o.moved + o.evenings > 0) {
                     add { MovedBlock(o, data?.prev, data?.weekly.orEmpty()) { kind -> session.periodView = kind to span } }
                 }
                 if (o.roles.any { it.moved > 0 }) add { RolesBlock(o, roles.associate { it.id to it.name }, hintIdle = !long, session) }
-                if (o.deadlinesDue + o.delegationsGiven + o.delegationsDone > 0) add { DeadlinesBlock(o) }
-                if (o.publicAll.total + o.personalPromises.total + o.keptInSpan > 0) add { PromisesBlock(o) }
+                val open: (PeriodKind) -> Unit = { kind -> session.periodView = kind to span }
+                if (o.deadlinesDue + o.delegationsGiven + o.delegationsDone > 0) add { DeadlinesBlock(o, open) }
+                if (o.publicAll.total + o.personalPromises.total + o.keptInSpan > 0) add { PromisesBlock(o, open) { session.showPromises = true } }
             }
             BoxWithConstraints {
                 if (maxWidth >= 600.dp) {
@@ -162,6 +166,9 @@ fun Dashboard(db: MandatDb, session: Session) {
         })
     }
 }
+
+/** A whole calendar year as a span of days. */
+fun yearSpan(year: Int) = Span(java.time.LocalDate.of(year, 1, 1).toEpochDay(), java.time.LocalDate.of(year, 12, 31).toEpochDay())
 
 private fun Period.label() = when (this) {
     Period.WEEK -> R.string.dash_week
@@ -303,45 +310,55 @@ private fun RolesBlock(o: Overview, names: Map<Long, String>, hintIdle: Boolean,
     }
 
 @Composable
-private fun DeadlinesBlock(o: Overview) = Block(Sym.schedule, stringResource(R.string.dash_deadlines_title)) {
+private fun DeadlinesBlock(o: Overview, open: (PeriodKind) -> Unit) = Block(Sym.schedule, stringResource(R.string.dash_deadlines_title)) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (o.deadlinesDue > 0) {
-            Text(stringResource(R.string.dash_on_time, o.deadlinesOnTime, o.deadlinesDue), style = MaterialTheme.typography.bodyMedium)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                StatLink(o.deadlinesDue, stringResource(R.string.stat_deadlines_due)) { open(PeriodKind.DEADLINES_DUE) }
+                StatLink(o.deadlinesOnTime, stringResource(R.string.stat_on_time)) { open(PeriodKind.ON_TIME) }
+            }
             Bar(o.deadlinesOnTime.toFloat() / o.deadlinesDue, Modifier.fillMaxWidth())
         }
         if (o.delegationsGiven + o.delegationsDone > 0) {
-            Text(stringResource(R.string.dash_delegations, o.delegationsGiven, o.delegationsDone),
-                style = MaterialTheme.typography.bodyMedium)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                StatLink(o.delegationsGiven, stringResource(R.string.stat_deleg_given)) { open(PeriodKind.DELEG_GIVEN) }
+                StatLink(o.delegationsDone, stringResource(R.string.stat_deleg_done)) { open(PeriodKind.DELEG_DONE) }
+            }
         }
     }
 }
 
 @Composable
-private fun PromisesBlock(o: Overview) = Block(Sym.checkCircle, stringResource(R.string.dash_promises_title)) {
+private fun PromisesBlock(o: Overview, open: (PeriodKind) -> Unit, openAll: () -> Unit) = Block(Sym.checkCircle, stringResource(R.string.dash_promises_title)) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         val made = o.publicPromises.total + o.personalPromises.total
-        Text(stringResource(R.string.dash_promises_period, made, o.keptInSpan), style = MaterialTheme.typography.bodyMedium)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            StatLink(made, stringResource(R.string.stat_prom_made)) { open(PeriodKind.PROM_MADE) }
+            StatLink(o.keptInSpan, stringResource(R.string.stat_prom_kept)) { open(PeriodKind.PROM_KEPT) }
+        }
         if (o.publicAll.total > 0) {
-            Text(stringResource(R.string.dash_public_all), style = MaterialTheme.typography.labelMedium, color = Muted,
-                modifier = Modifier.padding(top = 4.dp))
-            StackBar(
-                listOf(
-                    Slice("k", stringResource(R.string.tally_kept), o.publicAll.kept, ChartColors.blue),
-                    Slice("o", stringResource(R.string.tally_open), o.publicAll.open, ChartColors.blueLight),
-                    Slice("f", stringResource(R.string.tally_failed), o.publicAll.failed, ChartColors.salmon),
-                    Slice("d", stringResource(R.string.tally_dropped), o.publicAll.dropped, ChartColors.grayLight),
-                ),
-            )
+            Column(Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = openAll)) {
+                Text(stringResource(R.string.dash_public_all) + " →", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp))
+                StackBar(
+                    listOf(
+                        Slice("k", stringResource(R.string.tally_kept), o.publicAll.kept, ChartColors.blue),
+                        Slice("o", stringResource(R.string.tally_open), o.publicAll.open, ChartColors.blueLight),
+                        Slice("f", stringResource(R.string.tally_failed), o.publicAll.failed, ChartColors.salmon),
+                        Slice("d", stringResource(R.string.tally_dropped), o.publicAll.dropped, ChartColors.grayLight),
+                    ),
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun YearsBlock(o: Overview) = Block(Sym.calendar, stringResource(R.string.dash_years_title)) {
+private fun YearsBlock(o: Overview, openYear: (Int) -> Unit) = Block(Sym.calendar, stringResource(R.string.dash_years_title)) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         val max = o.years.maxOf { it.promised }.coerceAtLeast(1)
         o.years.sortedByDescending { it.year }.forEach { y ->
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.clip(RoundedCornerShape(8.dp)).clickable { openYear(y.year) }.padding(vertical = 2.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(y.year.toString(), style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(52.dp))
                     // Promises made that year, the kept part darker
@@ -355,7 +372,7 @@ private fun YearsBlock(o: Overview) = Block(Sym.calendar, stringResource(R.strin
                     }
                 }
                 Text(
-                    stringResource(R.string.dash_year_line, y.started, y.promised, y.kept, y.deadlinesDone),
+                    stringResource(R.string.dash_year_line, y.started, y.promised, y.kept, y.deadlinesDone) + " →",
                     style = MaterialTheme.typography.labelMedium, color = Muted,
                     modifier = Modifier.padding(start = 52.dp),
                 )

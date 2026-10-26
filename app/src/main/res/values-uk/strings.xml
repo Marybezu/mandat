@@ -312,8 +312,6 @@
     <string name="dash_no_role">Без ролі</string>
     <string name="dash_idle">За цей період без жодного кроку: %1$s</string>
     <string name="dash_deadlines_title">Строки й доручення</string>
-    <string name="dash_on_time">Строків виконано вчасно: %1$d з %2$d</string>
-    <string name="dash_delegations">Доручень дано: %1$d · виконано: %2$d</string>
     <string name="dash_promises_title">Обіцянки</string>
     <string name="dash_tally">дотримано %1$d · у процесі %2$d · не вдалося %3$d · знято %4$d</string>
     <string name="dash_years_title">По роках</string>
@@ -355,7 +353,6 @@
     <string name="ahead_title">Що попереду</string>
     <string name="on_time_month_title">Строки цього місяця, виконані вчасно</string>
     <string name="not_on_time">не вчасно: %1$d</string>
-    <string name="dash_promises_period">За цей період: дано %1$d · дотримано %2$d</string>
     <string name="dash_public_all">Усі публічні обіцянки</string>
     <string name="tally_kept">дотримано</string>
     <string name="tally_open">у процесі</string>
@@ -859,4 +856,12 @@
     <string name="hours_short">%1$d год</string>
     <string name="free_hours">%1$d год</string>
     <string name="cal_density_hint">Стовпчик — години подій. Під днем — найдовше вільне вікно між 9:00 і 19:00.</string>
+    <string name="stat_deadlines_due">строків настало</string>
+    <string name="stat_on_time">виконано вчасно</string>
+    <string name="stat_deadlines_done">строків виконано</string>
+    <string name="stat_deleg_given">доручень дано</string>
+    <string name="stat_deleg_done">доручень виконано</string>
+    <string name="stat_prom_made">обіцянок дано</string>
+    <string name="stat_prom_kept">дотримано</string>
+    <string name="period_year">Рік</string>
 </resources>

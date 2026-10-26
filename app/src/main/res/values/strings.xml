@@ -310,8 +310,6 @@
     <string name="dash_no_role">No role</string>
     <string name="dash_idle">No step in this period: %1$s</string>
     <string name="dash_deadlines_title">Deadlines and delegations</string>
-    <string name="dash_on_time">Deadlines met on time: %1$d of %2$d</string>
-    <string name="dash_delegations">Delegations given: %1$d · done: %2$d</string>
     <string name="dash_promises_title">Promises</string>
     <string name="dash_tally">kept %1$d · in progress %2$d · did not work out %3$d · dropped %4$d</string>
     <string name="dash_years_title">By year</string>
@@ -353,7 +351,6 @@
     <string name="ahead_title">What is ahead</string>
     <string name="on_time_month_title">Deadlines this month met on time</string>
     <string name="not_on_time">not on time: %1$d</string>
-    <string name="dash_promises_period">In this period: made %1$d · kept %2$d</string>
     <string name="dash_public_all">All public promises</string>
     <string name="tally_kept">kept</string>
     <string name="tally_open">in progress</string>
@@ -857,4 +854,12 @@
     <string name="hours_short">%1$dh</string>
     <string name="free_hours">%1$dh</string>
     <string name="cal_density_hint">Column: hours taken by events. Below: the longest free stretch between 9:00 and 19:00.</string>
+    <string name="stat_deadlines_due">deadlines due</string>
+    <string name="stat_on_time">met on time</string>
+    <string name="stat_deadlines_done">deadlines met</string>
+    <string name="stat_deleg_given">delegations given</string>
+    <string name="stat_deleg_done">delegations done</string>
+    <string name="stat_prom_made">promises made</string>
+    <string name="stat_prom_kept">kept</string>
+    <string name="period_year">Year</string>
 </resources>

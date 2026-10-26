@@ -116,6 +116,9 @@ class ScreensTest {
         val t = ua.mandat.ui.Dates.today()
         ua.mandat.ui.PeriodScreen(db, session, ua.mandat.ui.PeriodKind.MOVED, ua.mandat.data.Span(t - 30, t))
     }
+    @Test fun periodYear() = shot("13-period-year") {
+        ua.mandat.ui.PeriodScreen(db, session, ua.mandat.ui.PeriodKind.YEAR, ua.mandat.ui.yearSpan(java.time.LocalDate.now().year))
+    }
     @Test fun calendar() = shot("14-calendar") { ua.mandat.ui.CalendarScreen(db, session) }
     @Config(qualifiers = "+night")
     @Test fun calendarDark() = shot("14-calendar-dark") { ua.mandat.ui.CalendarScreen(db, session) }
