@@ -78,19 +78,63 @@ fun DonutChart(
     val total = parts.sumOf { it.value }.coerceAtLeast(1)
     val track = MaterialTheme.colorScheme.surfaceVariant
     val description = parts.joinToString(", ") { "${it.label} ${it.value}" }
-    // With many parts the legend is tall: the ring goes on top and the legend below in two columns
-    val stacked = parts.size > 5
-    val ringSize = if (stacked) 150.dp else size
-    androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth()) {
-    if (stacked) Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Ring(parts, total, track, description, center, centerLabel, selected, onPick, ringSize)
-        Spacer(Modifier.height(10.dp))
-        LegendGrid(parts, selected, onPick)
-    } else Row(verticalAlignment = Alignment.CenterVertically) {
-        Ring(parts, total, track, description, center, centerLabel, selected, onPick, ringSize)
+    // Lengths are compared more accurately than angles: with many parts, ranked bars instead of a ring
+    if (parts.size > 5) {
+        RankedBars(parts, center, centerLabel, selected, onPick)
+        return
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Ring(parts, total, track, description, center, centerLabel, selected, onPick, size)
         Spacer(Modifier.width(14.dp))
         Legend(parts, selected, onPick, Modifier.weight(1f))
     }
+}
+
+/**
+ * Parts as bars, largest first: the top five, then "N others" that unfolds. A bar can be
+ * tapped to pick it, like a part of a ring.
+ */
+@Composable
+fun RankedBars(parts: List<Slice>, center: String, centerLabel: String, selected: String?, onPick: (String?) -> Unit) {
+    var open by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    val sorted = parts.sortedByDescending { it.value }
+    val max = sorted.firstOrNull()?.value?.coerceAtLeast(1) ?: 1
+    val top = if (open) sorted else sorted.take(5)
+    val rest = sorted.drop(5)
+    Column(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(bottom = 6.dp)) {
+            Text(center, style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.width(6.dp))
+            Text(centerLabel, style = MaterialTheme.typography.labelMedium, color = Muted, modifier = Modifier.padding(bottom = 3.dp))
+        }
+        top.forEach { p -> BarRow(p.label, p.value, p.value.toFloat() / max, p.color, selected == p.key, selected != null && selected != p.key) {
+            onPick(if (selected == p.key) null else p.key)
+        } }
+        if (rest.isNotEmpty()) {
+            val restSum = rest.sumOf { it.value }
+            if (!open) BarRow(androidx.compose.ui.res.stringResource(ua.mandat.R.string.others_n, rest.size), restSum,
+                (restSum.toFloat() / max).coerceAtMost(1f), ChartColors.grayLight, false, selected != null) { open = true }
+            else androidx.compose.material3.TextButton(onClick = { open = false }) {
+                Text(androidx.compose.ui.res.stringResource(ua.mandat.R.string.show_less))
+            }
+        }
+    }
+}
+
+@Composable
+private fun BarRow(label: String, value: Int, fraction: Float, color: Color, isSel: Boolean, dim: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp))
+            .background(if (isSel) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+            .clickable(onClick = onClick).padding(horizontal = 4.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(130.dp))
+        Box(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(5.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
+            Box(Modifier.fillMaxWidth(fraction.coerceIn(0.02f, 1f)).height(10.dp).clip(RoundedCornerShape(5.dp))
+                .background(if (dim) color.copy(alpha = 0.3f) else color))
+        }
+        Text(value.toString(), style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(36.dp).padding(start = 8.dp))
     }
 }
 
@@ -146,19 +190,6 @@ private fun Ring(
                 Text(centerLabel, style = MaterialTheme.typography.labelSmall, color = Muted)
             }
         }
-}
-
-/** The legend in two columns, for charts with many parts. */
-@Composable
-fun LegendGrid(parts: List<Slice>, selected: String?, onPick: (String?) -> Unit) {
-    Column(Modifier.fillMaxWidth()) {
-        parts.chunked(2).forEach { pair ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                pair.forEach { p -> Legend(listOf(p), selected, onPick, Modifier.weight(1f)) }
-                if (pair.size == 1) Spacer(Modifier.weight(1f))
-            }
-        }
-    }
 }
 
 /** The names and numbers of a chart's parts; each line can be tapped to pick that part. */
@@ -377,6 +408,24 @@ fun ByMatterRow(title: String, slices: List<Slice>, onClick: () -> Unit) {
             MiniBar(slices, Modifier.weight(1f))
             Spacer(Modifier.width(8.dp))
             Text(slices.filter { it.value > 0 }.joinToString(" · ") { it.value.toString() }, style = MaterialTheme.typography.labelSmall, color = Muted)
+        }
+    }
+}
+
+/**
+ * Rows in portions: the first [page], then "N more". Long lists stay quick to draw and easy
+ * to take in; nothing is hidden, only shown step by step.
+ */
+@Composable
+fun <T> Paged(items: List<T>, page: Int = 20, row: @Composable (T) -> Unit) {
+    var shown by androidx.compose.runtime.saveable.rememberSaveable(items.size) { androidx.compose.runtime.mutableStateOf(page) }
+    items.take(shown).forEachIndexed { i, x ->
+        if (i > 0) RowDivider()
+        row(x)
+    }
+    if (items.size > shown) {
+        androidx.compose.material3.TextButton(onClick = { shown += page }) {
+            Text(androidx.compose.ui.res.stringResource(ua.mandat.R.string.show_more, minOf(page, items.size - shown)))
         }
     }
 }

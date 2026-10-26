@@ -74,15 +74,22 @@ private fun TaskKind.icon(): androidx.compose.ui.graphics.vector.ImageVector = w
 
 /** A small label inside a row: a person, a matter, a date. */
 @Composable
-fun MiniChip(text: String, bg: androidx.compose.ui.graphics.Color? = null, fg: androidx.compose.ui.graphics.Color? = null) {
+fun MiniChip(
+    text: String,
+    bg: androidx.compose.ui.graphics.Color? = null,
+    fg: androidx.compose.ui.graphics.Color? = null,
+    onClick: (() -> Unit)? = null,
+) {
     Text(
-        text,
+        // A label that leads somewhere (a person, a matter) says so with an arrow
+        if (onClick != null) "$text →" else text,
         style = MaterialTheme.typography.labelSmall,
-        color = fg ?: MaterialTheme.colorScheme.onSurfaceVariant,
+        color = fg ?: if (onClick != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
             .background(bg ?: MaterialTheme.colorScheme.surface)
+            .let { if (onClick != null) it.clickable(onClick = onClick) else it }
             .padding(horizontal = 7.dp, vertical = 2.dp),
     )
 }
@@ -115,6 +122,7 @@ fun TaskRow(
     onToggleDone: () -> Unit,
     onOpen: () -> Unit,
     extra: String? = null,
+    links: Map<String, () -> Unit> = emptyMap(),
 ) {
     val done = TaskStatus.of(status) != TaskStatus.OPEN
     val (bg, fg) = kind.badge()
@@ -148,7 +156,7 @@ fun TaskRow(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     if (due != null) DueChip(due, !done)
-                    labels.forEach { MiniChip(it) }
+                    labels.forEach { MiniChip(it, onClick = links[it]) }
                 }
             }
             if (!extra.isNullOrBlank()) {
@@ -184,6 +192,10 @@ fun DelegationRow(d: Delegation, personName: String?, matterTitle: String?, sess
             }
         },
         onOpen = { session.delegationDraft = DelegationDraft(d, isNew = false) },
+        links = buildMap {
+            if (personName != null && d.personId != null) put(personName) { session.openPerson(d.personId) }
+            if (matterTitle != null && d.matterId != null) put(matterTitle) { session.openMatter(d.matterId) }
+        },
     )
 }
 
@@ -208,6 +220,10 @@ fun PromiseRow(p: Promise, personName: String?, matterTitle: String?, session: S
         },
         onOpen = { session.promiseDraft = PromiseDraft(p, isNew = false) },
         extra = extra,
+        links = buildMap {
+            if (personName != null && p.personId != null) put(personName) { session.openPerson(p.personId) }
+            if (matterTitle != null && p.matterId != null) put(matterTitle) { session.openMatter(p.matterId) }
+        },
     )
 }
 

@@ -488,4 +488,9 @@
     <string name="show_by_matter">За справами</string>
     <string name="hide_by_matter">Сховати справи</string>
     <string name="by_matter_map_hint">Торкніться справи, щоб відкрити її карту впливу.</string>
+    <string name="others_n">Інші: %1$d</string>
+    <string name="fold">Згорнути групу</string>
+    <string name="dash_trend">Справи в русі за 12 тижнів</string>
+    <string name="days_in_work">днів у роботі: %1$d</string>
+    <string name="next_deadline_chip">найближчий строк %1$s</string>
 </resources>

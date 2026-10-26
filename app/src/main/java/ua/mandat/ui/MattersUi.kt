@@ -78,7 +78,7 @@ data class EditRequest(val matter: Matter, val isNew: Boolean, val fromInboxId: 
  * both tappable to filter, then the matters grouped by attention.
  */
 @Composable
-fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {}) {
+fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {}, session: Session? = null) {
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val active by remember(db) { db.matters().observeActive() }.collectAsStateWithLifecycle(emptyList())
     val closed by remember(db) { db.matters().observeClosed() }.collectAsStateWithLifecycle(emptyList())
@@ -91,6 +91,11 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {
     var level by rememberSaveable { mutableStateOf<String?>(null) }
     var showClosed by rememberSaveable { mutableStateOf(false) }
     val today = Dates.today()
+    // Opened from another screen with a filter (for example a role from the dashboard)
+    androidx.compose.runtime.LaunchedEffect(session?.mattersRequest) {
+        session?.mattersRequest?.let { (m, key) -> mode = m; pick = key; level = null }
+        session?.mattersRequest = null
+    }
 
     val roleNames = roles.associate { it.id to it.name }
     val noRole = stringResource(R.string.dash_no_role)
@@ -197,7 +202,7 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {
                 SectionCard(lv.icon(), stringResource(lv.label()), count = group.size, attention = lv == Attention.FOCUS && group.size > FOCUS_LIMIT) {
                     Text(stringResource(lv.hint()), style = MaterialTheme.typography.labelMedium, color = Muted,
                         modifier = Modifier.padding(bottom = 6.dp))
-                    group.forEachIndexed { i, m -> if (i > 0) RowDivider(); MatterLine(m, roleNames[m.roleId]) { onOpen(m) } }
+                    Paged(group) { m -> MatterLine(m, roleNames[m.roleId]) { onOpen(m) } }
                 }
             }
         }
@@ -210,7 +215,7 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {
             }
             if (showClosed) item(key = "closed_list") {
                 SectionCard(Sym.checkCircle, stringResource(R.string.matters_closed), count = closedVisible.size) {
-                    closedVisible.forEachIndexed { i, m -> if (i > 0) RowDivider(); MatterLine(m, roleNames[m.roleId]) { onOpen(m) } }
+                    Paged(closedVisible) { m -> MatterLine(m, roleNames[m.roleId]) { onOpen(m) } }
                 }
             }
         }
@@ -322,7 +327,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (!request.isNew) MatterStrip(db, request.matter)
+            if (!request.isNew) MatterStrip(db, request.matter, session)
             OutlinedTextField(
                 value = draft.title, onValueChange = { draft.title = it },
                 label = { Text(stringResource(R.string.matter_title)) },
@@ -545,25 +550,55 @@ private fun MatterLinks(db: MandatDb, session: Session, matterId: Long) {
     }
 }
 
-/** Facts about one matter: how long in work, the nearest deadline, who stands where. */
+/**
+ * The top of a matter, as a small dashboard: how long in work, the nearest deadline, where
+ * people stand, how its delegations go, and its topics (each topic opens everything about it).
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun MatterStrip(db: MandatDb, matter: Matter) {
+private fun MatterStrip(db: MandatDb, matter: Matter, session: Session) {
     val linked by remember(db, matter.id) { db.people().observeForMatter(matter.id) }.collectAsStateWithLifecycle(emptyList())
     val deadlines by remember(db, matter.id) { db.deadlines().observeForMatter(matter.id) }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db, matter.id) { db.delegations().observeForMatter(matter.id) }.collectAsStateWithLifecycle(emptyList())
+    val topics = rememberTopics(db)
     val today = Dates.today()
-    val items = buildList {
-        if (MatterStatus.of(matter.status) == MatterStatus.ACTIVE) {
-            add(StripItem((today - Dates.dayOf(matter.createdAt)).coerceAtLeast(0).toString(), stringResource(R.string.strip_days_in_work)))
+    val open = ua.mandat.data.TaskStatus.OPEN
+    val text = "${matter.title} ${matter.goal} ${matter.nextStep} ${matter.description}"
+    val mine = topics.filter { ua.mandat.data.matches(text, it) }
+    MCard {
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (MatterStatus.of(matter.status) == MatterStatus.ACTIVE) {
+                MiniChip(stringResource(R.string.days_in_work, (today - Dates.dayOf(matter.createdAt)).coerceAtLeast(0).toInt()))
+            }
+            deadlines.filter { ua.mandat.data.TaskStatus.of(it.status) == open }.minByOrNull { it.day }?.let { d ->
+                MiniChip(stringResource(R.string.next_deadline_chip, Dates.short(d.day)),
+                    if (d.day < today) MaterialTheme.colorScheme.errorContainer else null,
+                    if (d.day < today) MaterialTheme.colorScheme.onErrorContainer else null)
+            }
+            mine.forEach { t -> MiniChip("#" + t.name, onClick = { session.saveDraft(); session.showTopics = true; session.topicOpen = t.name }) }
         }
-        deadlines.filter { ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.OPEN }.minByOrNull { it.day }?.let { d ->
-            add(StripItem(Dates.format(d.day), stringResource(R.string.strip_next_deadline), attention = d.day < today))
+        val withStance = linked.filter { it.stance != null }
+        if (withStance.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            Text(stringResource(R.string.stances_title), style = MaterialTheme.typography.labelMedium, color = Muted)
+            Spacer(Modifier.height(4.dp))
+            StackBar(listOf(
+                Slice("a", stringResource(R.string.strip_allies), withStance.count { it.stance == "ALLY" }, ChartColors.teal),
+                Slice("u", stringResource(R.string.strip_undecided), withStance.count { it.stance == "UNDECIDED" }, ChartColors.amberLight),
+                Slice("o", stringResource(R.string.strip_opponents), withStance.count { it.stance == "OPPONENT" }, ChartColors.salmon),
+                Slice("n", stringResource(R.string.stance_neutral_many), withStance.count { it.stance == "NEUTRAL" }, ChartColors.grayLight),
+            ))
         }
-        val stances = linked.mapNotNull { ua.mandat.data.Stance.of(it.stance) }.groupingBy { it }.eachCount()
-        listOf(
-            ua.mandat.data.Stance.ALLY to R.string.strip_allies,
-            ua.mandat.data.Stance.UNDECIDED to R.string.strip_undecided,
-            ua.mandat.data.Stance.OPPONENT to R.string.strip_opponents,
-        ).forEach { (st, label) -> stances[st]?.let { n -> add(StripItem(n.toString(), stringResource(label))) } }
+        val openD = delegations.filter { ua.mandat.data.TaskStatus.of(it.status) == open }
+        if (openD.isNotEmpty()) {
+            val late = openD.count { ua.mandat.data.isOverdue(it.due, it.status, today) }
+            Spacer(Modifier.height(10.dp))
+            Text(stringResource(R.string.delegations), style = MaterialTheme.typography.labelMedium, color = Muted)
+            Spacer(Modifier.height(4.dp))
+            StackBar(listOf(
+                Slice("t", stringResource(R.string.on_time), openD.size - late, ChartColors.blue),
+                Slice("l", stringResource(R.string.stat_overdue), late, MaterialTheme.colorScheme.error),
+            ))
+        }
     }
-    SummaryStrip("matter", items)
 }

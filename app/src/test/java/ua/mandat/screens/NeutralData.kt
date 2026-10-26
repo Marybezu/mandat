@@ -89,6 +89,14 @@ object NeutralData {
                 ),
             )
         }
+        // Many more people, to see folded groups and the alphabet index
+        (1..60).forEach { i ->
+            db.people().insert(
+                Person(name = "${listOf("Особа", "Учасник", "Мешканка", "Експерт")[i % 4]} $i", organization = "Громада ${i % 7}", jobTitle = "",
+                    contact = "", notes = "", teamRole = null, createdAt = ms(-50), updatedAt = ms(-50),
+                    category = PersonCategory.entries[i % PersonCategory.entries.size].name, influence = 1 + i % 3),
+            )
+        }
         val stances = listOf("ALLY", "UNDECIDED", "OPPONENT", "NEUTRAL", null)
         matters.take(8).forEachIndexed { i, m ->
             people.drop(5).take(4).forEachIndexed { j, p ->

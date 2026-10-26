@@ -180,12 +180,12 @@ fun OneOnOneScreen(db: MandatDb, session: Session, personId: Long) {
             val checkIns = open.filter { it.checkIn != null && it.checkIn <= today + 7 }
             if (checkIns.isNotEmpty()) item(key = "check") {
                 SectionCard(Sym.schedule, stringResource(R.string.agenda_check_ins), count = checkIns.size) {
-                    checkIns.sortedBy { it.checkIn }.forEachIndexed { i, d -> if (i > 0) RowDivider(); DelegationRow(d, null, d.matterId?.let(titleOf::get), session) }
+                    Paged(checkIns.sortedBy { it.checkIn }) { d -> DelegationRow(d, null, d.matterId?.let(titleOf::get), session) }
                 }
             }
             if (open.isNotEmpty()) item(key = "open") {
                 SectionCard(Sym.checkCircle, stringResource(R.string.agenda_open), count = open.size) {
-                    open.forEachIndexed { i, d -> if (i > 0) RowDivider(); DelegationRow(d, null, d.matterId?.let(titleOf::get), session) }
+                    Paged(open) { d -> DelegationRow(d, null, d.matterId?.let(titleOf::get), session) }
                 }
             }
             if (done.isNotEmpty()) item(key = "done") {
@@ -199,13 +199,13 @@ fun OneOnOneScreen(db: MandatDb, session: Session, personId: Long) {
             }
             if (matters.isNotEmpty()) item(key = "matters") {
                 SectionCard(Sym.folder, stringResource(R.string.agenda_matters), count = matters.size) {
-                    matters.forEachIndexed { i, m -> if (i > 0) RowDivider(); TextTile(m.title) }
+                    Paged(matters) { m -> TextTile(m.title) }
                 }
             }
             val openP = promises.filter { TaskStatus.of(it.status) == TaskStatus.OPEN }
             if (openP.isNotEmpty()) item(key = "promises") {
                 SectionCard(Sym.checkCircle, stringResource(R.string.agenda_promises), count = openP.size) {
-                    openP.forEachIndexed { i, x -> if (i > 0) RowDivider(); PromiseRow(x, null, x.matterId?.let(titleOf::get), session) }
+                    Paged(openP) { x -> PromiseRow(x, null, x.matterId?.let(titleOf::get), session) }
                 }
             }
         }

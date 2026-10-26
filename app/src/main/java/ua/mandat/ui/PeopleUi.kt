@@ -2,6 +2,7 @@ package ua.mandat.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.material3.FilterChip
@@ -70,6 +71,9 @@ fun PeopleList(db: MandatDb, session: Session) {
     var pick by rememberSaveable { mutableStateOf<String?>(null) }
     var stance by rememberSaveable { mutableStateOf<String?>(null) }
     var delegByMatter by rememberSaveable { mutableStateOf(false) }
+    var openGroups by remember { mutableStateOf(setOf<String>()) }
+    var closedGroups by remember { mutableStateOf(setOf<String>()) }
+    var letter by rememberSaveable { mutableStateOf<String?>(null) }
     var stanceByMatter by rememberSaveable { mutableStateOf(false) }
     var allDeleg by rememberSaveable { mutableStateOf(false) }
     var allStance by rememberSaveable { mutableStateOf(false) }
@@ -101,7 +105,8 @@ fun PeopleList(db: MandatDb, session: Session) {
     val shown = people.filter { p ->
         (query.isBlank() || listOf(p.name, p.organization, p.jobTitle).any { f -> f.contains(query.trim(), ignoreCase = true) }) &&
             (pick == null || (if (byTeam) p.teamRole == pick else categoryKey(p) == pick)) &&
-            (stance == null || stanceOf[p.id]?.contains(stance) == true)
+            (stance == null || stanceOf[p.id]?.contains(stance) == true) &&
+            (letter == null || p.name.trim().uppercase().startsWith(letter!!))
     }
     val openBy = delegations.filter { ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.OPEN }.groupBy { it.personId }
 
@@ -218,6 +223,15 @@ fun PeopleList(db: MandatDb, session: Session) {
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+        // An alphabet index when there are many people
+        if (people.size > 50) item(key = "abc") {
+            val letters = people.mapNotNull { it.name.trim().firstOrNull()?.uppercaseChar()?.toString() }.distinct().sorted()
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                letters.forEach { l ->
+                    FilterChip(selected = letter == l, onClick = { letter = if (letter == l) null else l }, label = { Text(l) })
+                }
+            }
+        }
         if (pick != null || stance != null) {
             item(key = "filters") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -240,12 +254,30 @@ fun PeopleList(db: MandatDb, session: Session) {
         // Team first, then one card per kind of person, largest groups first
         val groups = listOf(teamLabel to shown.filter { it.teamRole != null }) +
             categorySlices.filter { it.key != "TEAM" }.map { sl -> sl.label to shown.filter { it.teamRole == null && categoryKey(it) == sl.key } }
+        // Many people: groups start folded (the team open), unless a search or filter narrows the list
+        val narrowed = query.isNotBlank() || pick != null || stance != null || letter != null
         groups.forEach { (title, list) ->
             if (list.isNotEmpty()) item(key = "group_$title") {
-                SectionCard(Sym.group, title, count = list.size) {
-                    list.forEachIndexed { i, p ->
-                        if (i > 0) RowDivider()
-                        PersonLine(p, openBy[p.id]?.size ?: 0) { session.personDraft = PersonDraft(p, isNew = false) }
+                val open = narrowed || people.size <= 30 || title in openGroups || (title == teamLabel && teamLabel !in closedGroups)
+                if (!open) {
+                    Row(
+                        Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surface).clickable { openGroups = openGroups + title }
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                        Text("${list.size}  ▸", style = MaterialTheme.typography.labelLarge, color = Muted)
+                    }
+                } else {
+                    SectionCard(Sym.group, title, count = list.size) {
+                        if (!narrowed && people.size > 30) TextButton(onClick = {
+                            if (title == teamLabel) closedGroups = closedGroups + title
+                            openGroups = openGroups - title
+                        }) { Text(stringResource(R.string.fold)) }
+                        Paged(list) { p ->
+                            PersonLine(p, openBy[p.id]?.size ?: 0) { session.personDraft = PersonDraft(p, isNew = false) }
+                        }
                     }
                 }
             }

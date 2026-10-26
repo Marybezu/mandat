@@ -202,6 +202,11 @@ private enum class Tab(val title: Int, val icon: Int, val central: Boolean = fal
 private fun Main(db: MandatDb, session: Session) {
     var tab by rememberSaveable { mutableStateOf(Tab.Today) }
     var options by rememberSaveable { mutableStateOf(false) }
+    // Links from one screen to another (for example a role on the dashboard opens its matters)
+    androidx.compose.runtime.LaunchedEffect(session.tabRequest) {
+        session.tabRequest?.let { name -> Tab.entries.firstOrNull { it.name == name }?.let { tab = it } }
+        session.tabRequest = null
+    }
 
     val rolesAskedFlow = remember(db) { db.settings().observe(SETTING_ROLES_ASKED).map { it != null } }
     val rolesAsked by rolesAskedFlow.collectAsStateWithLifecycle(initialValue = null)
@@ -332,7 +337,7 @@ private fun Main(db: MandatDb, session: Session) {
                         )
                     },
                 )
-                Tab.Matters -> MattersList(db, onOpen = { session.draft = MatterDraft(EditRequest(it, isNew = false)) }, onTopics = { session.showTopics = true })
+                Tab.Matters -> MattersList(db, onOpen = { session.draft = MatterDraft(EditRequest(it, isNew = false)) }, onTopics = { session.showTopics = true }, session = session)
                 Tab.People -> PeopleList(db, session)
                 Tab.Time -> TimeScreen(db, session)
                 Tab.Review -> ReviewScreen(db, session)

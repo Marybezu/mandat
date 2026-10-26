@@ -166,7 +166,7 @@ fun SmartListScreen(db: MandatDb, session: Session, list: SmartList) {
             groups.forEachIndexed { i, (title, rows) ->
                 item(key = "g$i") {
                     SectionCard(Sym.folder, title, count = rows.size) {
-                        rows.forEachIndexed { j, row -> if (j > 0) RowDivider(); row() }
+                        Paged(rows) { row -> row() }
                     }
                 }
             }

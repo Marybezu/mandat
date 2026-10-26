@@ -79,6 +79,7 @@ fun DeadlineRow(d: Deadline, matterTitle: String?, session: Session) {
             }
         },
         onOpen = { session.deadlineDraft = DeadlineDraft(d, isNew = false) },
+        links = buildMap { if (matterTitle != null && d.matterId != null) put(matterTitle) { session.openMatter(d.matterId) } },
     )
 }
 
@@ -253,7 +254,7 @@ fun TimeScreen(db: MandatDb, session: Session) {
             if (list.isNotEmpty()) item(key = "g$title") {
                 val overdue = title == R.string.overdue_title
                 SectionCard(if (overdue) Sym.warning else Sym.schedule, stringResource(title), count = list.size, attention = overdue) {
-                    list.forEachIndexed { i, e -> if (i > 0) RowDivider(); e.content() }
+                    Paged(list) { e -> e.content() }
                 }
             }
         }
@@ -496,8 +497,7 @@ fun PromisesScreen(db: MandatDb, session: Session) {
                 if (list.isNotEmpty()) item(key = "g$status") {
                     SectionCard(Sym.checkCircle, stringResource(status.promiseLabel()), Modifier.padding(top = 8.dp), count = list.size,
                         attention = status == TaskStatus.FAILED) {
-                        list.forEachIndexed { i, p ->
-                            if (i > 0) RowDivider()
+                        Paged(list) { p ->
                             val origin = listOf(stringResource(R.string.promised_on, Dates.format(Dates.dayOf(p.createdAt))), p.source, p.statusNote)
                                 .filter { it.isNotBlank() }.joinToString(" · ")
                             PromiseRow(p, p.personId?.let(nameOf::get), p.matterId?.let(titleOf::get), session, extra = origin)

@@ -71,6 +71,9 @@ class Session(app: Application) : AndroidViewModel(app) {
     var smartList by mutableStateOf<SmartList?>(null)
     /** The topics screen, and the topic open in it. */
     var showTopics by mutableStateOf(false)
+    /** A request from elsewhere (for example the dashboard) to show a tab, and a filter for Matters. */
+    var tabRequest by mutableStateOf<String?>(null)
+    var mattersRequest by mutableStateOf<Pair<Int, String>?>(null)
     /** A delegation just done by someone: offer to thank them. */
     var thankFor by mutableStateOf<ua.mandat.data.Delegation?>(null)
     /** The influence map: null closed, 0 for everyone, otherwise for one matter. */
@@ -127,6 +130,8 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     /** Opens a matter by id in the editor (read under the write lock, shown on the main thread). */
     fun openMatter(id: Long) {
+        // Following a link from another editor: what was typed there is saved first
+        saveOpenEditors()
         val startedAt = generation
         background.launch {
             val m = withOpenDb { db -> db.matters().get(id) }
@@ -160,8 +165,15 @@ class Session(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Saves an open matter or person editor before another one opens (like leaving the app does). */
+    private fun saveOpenEditors() {
+        if (draft != null) saveDraft()
+        if (personDraft != null) savePersonDraft()
+    }
+
     /** Opens a person by id in the editor. */
     fun openPerson(id: Long) {
+        saveOpenEditors()
         val startedAt = generation
         background.launch {
             val p = withOpenDb { db -> db.people().get(id) }

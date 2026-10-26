@@ -1,6 +1,7 @@
 package ua.mandat.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -75,9 +76,18 @@ fun Dashboard(db: MandatDb, session: Session) {
     }
     val span = spanOf(period, today, back, cadenceStart, earliest)
     val long = period == Period.CADENCE || period == Period.ALL
-    val o = remember(span, today, roles, matters, promises, delegations, deadlines, reviews) {
-        overview(span, today, long, roles, matters, promises, delegations, deadlines, reviews)
+    // Counted away from the screen thread, so thousands of records never slow the screen down
+    val data by androidx.compose.runtime.produceState<DashData?>(null, span, today, roles, matters, promises, delegations, deadlines, reviews) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            val prevSpan = if (long) null else spanOf(period, today, back + 1, cadenceStart, earliest)
+            DashData(
+                overview(span, today, long, roles, matters, promises, delegations, deadlines, reviews),
+                prevSpan?.let { overview(it, today, false, roles, matters, promises, delegations, deadlines, reviews) },
+                ua.mandat.data.weeklyMoved(matters, today),
+            )
+        }
     }
+    val o = data?.o ?: return
 
     Column(verticalArrangement = Arrangement.spacedBy(Space.gap)) {
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
@@ -120,9 +130,9 @@ fun Dashboard(db: MandatDb, session: Session) {
                 if (long) {
                     if (o.years.any { it.started + it.promised + it.deadlinesDone > 0 }) add { YearsBlock(o) }
                 } else if (o.moved + o.evenings > 0) {
-                    add { MovedBlock(o) }
+                    add { MovedBlock(o, data?.prev, data?.weekly.orEmpty()) }
                 }
-                if (o.roles.any { it.moved > 0 }) add { RolesBlock(o, roles.associate { it.id to it.name }, hintIdle = !long) }
+                if (o.roles.any { it.moved > 0 }) add { RolesBlock(o, roles.associate { it.id to it.name }, hintIdle = !long, session) }
                 if (o.deadlinesDue + o.delegationsGiven + o.delegationsDone > 0) add { DeadlinesBlock(o) }
                 if (o.publicAll.total + o.personalPromises.total + o.keptInSpan > 0) add { PromisesBlock(o) }
             }
@@ -187,29 +197,79 @@ private fun Block(icon: androidx.compose.ui.graphics.vector.ImageVector, title: 
         content()
     }
 
+/** Everything the dashboard shows, counted in the background. */
+private class DashData(val o: Overview, val prev: Overview?, val weekly: List<Int>)
+
 @Composable
-private fun MovedBlock(o: Overview) = Block(Sym.checkCircle, stringResource(R.string.dash_moved_title)) {
+private fun MovedBlock(o: Overview, prev: Overview?, weekly: List<Int>) = Block(Sym.checkCircle, stringResource(R.string.dash_moved_title)) {
     Column(verticalArrangement = Arrangement.spacedBy(Space.gap)) {
         Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
-            StatTile(o.moved, stringResource(R.string.dash_moved))
-            StatTile(o.started, stringResource(R.string.dash_started))
+            DeltaTile(o.moved, prev?.moved, stringResource(R.string.dash_moved))
+            DeltaTile(o.started, prev?.started, stringResource(R.string.dash_started))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
-            StatTile(o.finished, stringResource(R.string.dash_finished))
-            StatTile(o.evenings, stringResource(R.string.dash_evenings))
+            DeltaTile(o.finished, prev?.finished, stringResource(R.string.dash_finished))
+            DeltaTile(o.evenings, prev?.evenings, stringResource(R.string.dash_evenings))
+        }
+        if (weekly.any { it > 0 }) {
+            Text(stringResource(R.string.dash_trend), style = MaterialTheme.typography.labelSmall, color = Muted)
+            Sparkline(weekly, Modifier.fillMaxWidth().height(36.dp))
         }
     }
 }
 
+/** A number with the change since the previous period (↑ or ↓), in calm colours. */
 @Composable
-private fun RolesBlock(o: Overview, names: Map<Long, String>, hintIdle: Boolean) =
+private fun androidx.compose.foundation.layout.RowScope.DeltaTile(value: Int, prev: Int?, label: String) {
+    Column(
+        Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(value.toString(), style = MaterialTheme.typography.titleLarge)
+            if (prev != null && prev != value) {
+                val up = value > prev
+                Spacer(Modifier.width(6.dp))
+                Text((if (up) "↑" else "↓") + kotlin.math.abs(value - prev), style = MaterialTheme.typography.labelMedium,
+                    color = if (up) ChartColors.teal else Muted, modifier = Modifier.padding(bottom = 3.dp))
+            }
+        }
+        Text(label, style = MaterialTheme.typography.labelMedium, color = Muted)
+    }
+}
+
+/** A small line of weekly values, oldest on the left; the last point is marked. */
+@Composable
+fun Sparkline(values: List<Int>, modifier: Modifier = Modifier) {
+    val color = MaterialTheme.colorScheme.primary
+    androidx.compose.foundation.Canvas(modifier) {
+        if (values.size < 2) return@Canvas
+        val max = values.max().coerceAtLeast(1).toFloat()
+        val stepX = size.width / (values.size - 1)
+        fun y(v: Int) = size.height - 4.dp.toPx() - (size.height - 8.dp.toPx()) * v / max
+        val path = androidx.compose.ui.graphics.Path()
+        values.forEachIndexed { i, v -> if (i == 0) path.moveTo(0f, y(v)) else path.lineTo(i * stepX, y(v)) }
+        drawPath(path, color, style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()))
+        drawCircle(color, 3.dp.toPx(), androidx.compose.ui.geometry.Offset((values.size - 1) * stepX, y(values.last())))
+    }
+}
+
+@Composable
+private fun RolesBlock(o: Overview, names: Map<Long, String>, hintIdle: Boolean, session: Session) =
     Block(Sym.badge, stringResource(R.string.dash_roles_title)) {
         val max = o.roles.maxOf { it.moved }.coerceAtLeast(1)
         val noRole = stringResource(R.string.dash_no_role)
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             o.roles.sortedByDescending { it.moved }.forEach { r ->
                 val name = r.roleId?.let(names::get) ?: noRole
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // Tap a role: its matters, filtered, in Matters
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable {
+                        session.mattersRequest = 1 to (r.roleId?.toString() ?: "none")
+                        session.tabRequest = "Matters"
+                    }.padding(vertical = 2.dp),
+                ) {
                     Text(name, style = MaterialTheme.typography.labelMedium, maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.width(140.dp))
                     Bar(r.moved.toFloat() / max, Modifier.weight(1f))

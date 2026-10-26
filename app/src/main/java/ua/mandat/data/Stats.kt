@@ -176,3 +176,13 @@ fun mattersStrip(active: List<Matter>, today: Long, zone: ZoneId = ZoneId.system
 fun isStale(m: Matter, today: Long, zone: ZoneId = ZoneId.systemDefault()): Boolean =
     MatterStatus.of(m.status) == MatterStatus.ACTIVE && Attention.of(m.attention) != Attention.SLEEPING &&
         today - Instant.ofEpochMilli(m.updatedAt).atZone(zone).toLocalDate().toEpochDay() >= STALE_DAYS
+
+/** How many matters moved in each of the last [weeks] weeks (seven-day steps back from today), oldest first. */
+fun weeklyMoved(matters: List<Matter>, today: Long, weeks: Int = 12, zone: ZoneId = ZoneId.systemDefault()): List<Int> {
+    fun day(ms: Long) = Instant.ofEpochMilli(ms).atZone(zone).toLocalDate().toEpochDay()
+    val days = matters.map { day(it.updatedAt) to day(it.createdAt) }
+    return (weeks - 1 downTo 0).map { w ->
+        val span = Span(today - 6 - 7L * w, today - 7L * w)
+        days.count { (u, c) -> u in span || c in span }
+    }
+}

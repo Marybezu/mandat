@@ -262,34 +262,34 @@ private fun TopicDetail(db: MandatDb, session: Session, name: String) {
             fun show(k: String) = pick == null || pick == k
             if (show("m") && m.isNotEmpty()) item(key = "m") {
                 SectionCard(Sym.folder, stringResource(R.string.topic_matters), count = m.size) {
-                    m.forEachIndexed { i, x -> if (i > 0) RowDivider(); MatterLine(x, roleNames[x.roleId]) { session.draft = MatterDraft(EditRequest(x, isNew = false)) } }
+                    Paged(m) { x -> MatterLine(x, roleNames[x.roleId]) { session.draft = MatterDraft(EditRequest(x, isNew = false)) } }
                 }
             }
             val openD = d.filter { TaskStatus.of(it.status) == TaskStatus.OPEN }
             if (show("d") && openD.isNotEmpty()) item(key = "d") {
                 SectionCard(Sym.group, stringResource(R.string.delegations), count = openD.size) {
-                    openD.forEachIndexed { i, x -> if (i > 0) RowDivider(); DelegationRow(x, x.personId?.let(nameOf::get), x.matterId?.let(titleOf::get), session) }
+                    Paged(openD) { x -> DelegationRow(x, x.personId?.let(nameOf::get), x.matterId?.let(titleOf::get), session) }
                 }
             }
             if (show("p") && p.isNotEmpty()) item(key = "p") {
                 SectionCard(Sym.checkCircle, stringResource(R.string.promises), count = p.size) {
-                    p.forEachIndexed { i, x -> if (i > 0) RowDivider(); PromiseRow(x, x.personId?.let(nameOf::get), x.matterId?.let(titleOf::get), session) }
+                    Paged(p) { x -> PromiseRow(x, x.personId?.let(nameOf::get), x.matterId?.let(titleOf::get), session) }
                 }
             }
             val openDl = dl.filter { TaskStatus.of(it.status) == TaskStatus.OPEN }
             if (show("t") && openDl.isNotEmpty()) item(key = "t") {
                 SectionCard(Sym.schedule, stringResource(R.string.deadlines), count = openDl.size) {
-                    openDl.forEachIndexed { i, x -> if (i > 0) RowDivider(); DeadlineRow(x, x.matterId?.let(titleOf::get), session) }
+                    Paged(openDl) { x -> DeadlineRow(x, x.matterId?.let(titleOf::get), session) }
                 }
             }
             if (show("i") && ib.isNotEmpty()) item(key = "i") {
                 SectionCard(Sym.inbox, stringResource(R.string.inbox), count = ib.size) {
-                    ib.forEachIndexed { i, x -> if (i > 0) RowDivider(); TextTile(x.text) }
+                    Paged(ib) { x -> TextTile(x.text) }
                 }
             }
             if (show("r") && rv.isNotEmpty()) item(key = "r") {
                 SectionCard(Sym.bedtime, stringResource(R.string.topic_evenings), count = rv.size) {
-                    rv.sortedByDescending { it.day }.forEachIndexed { i, x -> if (i > 0) RowDivider(); TextTile(x.progress, Dates.format(x.day)) }
+                    Paged(rv.sortedByDescending { it.day }) { x -> TextTile(x.progress, Dates.format(x.day)) }
                 }
             }
         }
