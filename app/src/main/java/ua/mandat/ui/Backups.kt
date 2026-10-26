@@ -88,6 +88,11 @@ class Backups(private val context: Context, private val session: Session) {
         if (result?.ok == true) BackupNotice.AutoSaved else BackupNotice.AutoFailed
     }
 
+    /** The EFF long word list (7776 words) for suggested passwords. */
+    val words: List<String> by lazy {
+        context.assets.open("eff_large_wordlist.txt").bufferedReader().readLines().filter { it.isNotBlank() }
+    }
+
     /** Writes an encrypted copy of everything to [uri], then reads it back to check it. */
     fun save(uri: Uri, password: String) {
         // Delete the file after a failure only if we already started writing into it:
