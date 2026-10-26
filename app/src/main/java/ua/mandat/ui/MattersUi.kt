@@ -580,7 +580,7 @@ private fun MatterStrip(db: MandatDb, matter: Matter, session: Session) {
         val withStance = linked.filter { it.stance != null }
         if (withStance.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
-            Text(stringResource(R.string.stances_title), style = MaterialTheme.typography.labelMedium, color = Muted)
+            Text(stringResource(R.string.stances_people), style = MaterialTheme.typography.labelMedium, color = Muted)
             Spacer(Modifier.height(4.dp))
             StackBar(listOf(
                 Slice("a", stringResource(R.string.strip_allies), withStance.count { it.stance == "ALLY" }, ChartColors.teal),

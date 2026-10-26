@@ -491,4 +491,5 @@
     <string name="dash_trend">Matters in motion, last 12 weeks</string>
     <string name="days_in_work">%1$d days in work</string>
     <string name="next_deadline_chip">next deadline %1$s</string>
+    <string name="stances_people">Where people stand</string>
 </resources>

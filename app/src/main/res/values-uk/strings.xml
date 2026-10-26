@@ -493,4 +493,5 @@
     <string name="dash_trend">Справи в русі за 12 тижнів</string>
     <string name="days_in_work">днів у роботі: %1$d</string>
     <string name="next_deadline_chip">найближчий строк %1$s</string>
+    <string name="stances_people">Позиції людей</string>
 </resources>
