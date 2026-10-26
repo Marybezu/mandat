@@ -265,8 +265,15 @@ class Session(app: Application) : AndroidViewModel(app) {
         val checked = withTimeoutOrNull(AUTO_WAIT_MS) {
             background.async { auto.check(app, info, result) }.await()
         } ?: return null
-        // The file could not be read just now: leave it pending, never delete a copy for that
-        if (checked.unknown) return null
+        // The file could not be read just now: leave it pending (never delete a copy for that),
+        // but after a day say so, so that automatic backups never stop silently
+        if (checked.unknown) {
+            if (System.currentTimeMillis() - info.createdAt > AUTO_STUCK_MS) {
+                writes.withLock { if (db.isOpen) try { auto.record(db, info, null, auto.REASON_STUCK) } catch (e: Exception) { null } }
+                return false
+            }
+            return null
+        }
         val toDelete = writes.withLock {
             if (db.isOpen) try { auto.record(db, info, checked.accepted) } catch (e: Exception) { null } else null
         } ?: return null
