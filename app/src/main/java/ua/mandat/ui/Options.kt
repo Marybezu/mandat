@@ -131,6 +131,10 @@ fun Options(session: Session, onBack: () -> Unit) {
             }
 
             Spacer(Modifier.height(8.dp))
+            Section(stringResource(R.string.reminders_title))
+            RemindersSection(session)
+
+            Spacer(Modifier.height(8.dp))
             Section(stringResource(R.string.security_title))
             Text(stringResource(R.string.security_text), style = MaterialTheme.typography.bodyLarge)
 
@@ -323,4 +327,61 @@ private fun PasswordDialog(title: String, onDone: (String?) -> Unit) {
         },
         dismissButton = { TextButton(onClick = { onDone(null) }) { Text(stringResource(R.string.cancel)) } },
     )
+}
+
+/** Reminders: off by default; the notification permission is asked only when switched on. */
+@Composable
+private fun RemindersSection(session: Session) {
+    val context = LocalContext.current
+    var on by remember { mutableStateOf(ua.mandat.notify.Reminders.isOn(context)) }
+    var hour by remember { mutableStateOf(ua.mandat.notify.Reminders.hour(context)) }
+    var denied by remember { mutableStateOf(false) }
+
+    fun enable() {
+        ua.mandat.notify.Reminders.setOn(context, true)
+        on = true
+        session.refreshReminders()
+    }
+
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        session.pickingFile = false
+        if (granted) enable() else denied = true
+    }
+
+    Text(stringResource(R.string.reminders_text), style = MaterialTheme.typography.bodyLarge)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(R.string.reminders_switch), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        androidx.compose.material3.Switch(checked = on, onCheckedChange = { want ->
+            denied = false
+            if (!want) {
+                ua.mandat.notify.Reminders.setOn(context, false)
+                on = false
+            } else if (android.os.Build.VERSION.SDK_INT >= 33 &&
+                androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) !=
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                // The system dialog briefly covers Mandat; do not lock for that
+                session.pickingFile = true
+                try {
+                    ask.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                } catch (e: Exception) {
+                    session.pickingFile = false
+                }
+            } else {
+                enable()
+            }
+        })
+    }
+    if (denied) Text(stringResource(R.string.reminders_denied), color = MaterialTheme.colorScheme.error)
+    if (on) {
+        Picker(
+            label = stringResource(R.string.reminders_hour),
+            current = "%02d:00".format(hour),
+            options = (6..22).map { it to "%02d:00".format(it) },
+            onPick = {
+                hour = it
+                ua.mandat.notify.Reminders.setHour(context, it)
+            },
+        )
+    }
 }

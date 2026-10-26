@@ -109,13 +109,11 @@ private fun PersonCard(p: Person, openCount: Int, overdueCount: Int, onOpen: () 
             val role = TeamRole.of(p.teamRole)?.let { stringResource(it.label()) }
             val meta = listOfNotNull(role, p.jobTitle.ifBlank { null }, p.organization.ifBlank { null }).joinToString(" · ")
             if (meta.isNotEmpty()) Text(meta, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
+            // Only how much is open, in a calm colour: the list is a directory, not a scoreboard.
+            // What is overdue is shown inside the person's page and on Today, item by item.
             if (openCount > 0) {
-                val parts = listOfNotNull(
-                    stringResource(R.string.open_count, openCount),
-                    if (overdueCount > 0) stringResource(R.string.overdue_count, overdueCount) else null,
-                )
-                Text(parts.joinToString(" · "), style = MaterialTheme.typography.labelMedium,
-                    color = if (overdueCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary)
+                Text(stringResource(R.string.open_count, openCount), style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.secondary)
             }
         }
     }

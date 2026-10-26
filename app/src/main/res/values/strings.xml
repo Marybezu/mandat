@@ -222,4 +222,34 @@
     <string name="open_count">open: %1$d</string>
     <string name="overdue_count">overdue: %1$d</string>
     <string name="save_matter_first">Save the matter first to add people, delegations and promises.</string>
+
+    <string name="deadlines">Deadlines</string>
+    <string name="deadline">Deadline</string>
+    <string name="add_deadline">Add a deadline</string>
+    <string name="deadline_hard">Hard deadline</string>
+    <string name="deadline_soft">Soft deadline</string>
+    <string name="deadline_basis">Basis</string>
+    <string name="deadline_basis_hint">The article of law, court decision or document that sets this date. Required for a hard deadline.</string>
+    <string name="remind_before">Remind</string>
+    <string name="remind_same_day">On the day</string>
+    <string name="remind_days_before">%1$d days before and on the day</string>
+    <string name="time_today">Today</string>
+    <string name="time_week">Next 7 days</string>
+    <string name="time_later">Later</string>
+    <string name="time_empty">Nothing with a date yet. Tap + to add a deadline; delegations and promises with a date appear here too.</string>
+    <string name="evening_title">What moved forward today?</string>
+    <string name="evening_hint">A minute in the evening: what progressed, and what to get out of your head.</string>
+    <string name="evening_progress">Moved forward</string>
+    <string name="evening_unload">To get out of my head</string>
+    <string name="evening_to_inbox">Put into Inbox</string>
+    <string name="evening_earlier">Earlier days</string>
+    <string name="search_hint">Type at least two letters to search matters, people, notes and deadlines.</string>
+    <string name="search_nothing">Nothing found.</string>
+    <string name="reminders_title">Reminders</string>
+    <string name="reminders_text">Once a day, at the hour you choose, on days when something is due. The reminder has no details at all: Mandat only remembers on which days something is due, never what.</string>
+    <string name="reminders_switch">Remind me</string>
+    <string name="reminders_hour">At</string>
+    <string name="reminders_denied">Notifications are not allowed for Mandat. You can allow them in the phone settings.</string>
+    <string name="reminders_channel">Reminders</string>
+    <string name="reminder_text">Something is due today. Open Mandat to see.</string>
 </resources>

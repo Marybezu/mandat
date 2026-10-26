@@ -38,6 +38,7 @@ interface InboxDao {
     entities = [
         InboxItem::class, Role::class, Matter::class, Setting::class,
         Person::class, MatterPerson::class, Delegation::class, Promise::class,
+        Deadline::class, Review::class,
     ],
     version = DB_VERSION,
     exportSchema = true,
@@ -50,6 +51,9 @@ abstract class MandatDb : RoomDatabase() {
     abstract fun people(): PersonDao
     abstract fun delegations(): DelegationDao
     abstract fun promises(): PromiseDao
+    abstract fun deadlines(): DeadlineDao
+    abstract fun reviews(): ReviewDao
+    abstract fun search(): SearchDao
 
     companion object {
         const val FILE_NAME = "mandat.db"
@@ -134,7 +138,22 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
-val MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `deadlines` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`title` TEXT NOT NULL, `day` INTEGER NOT NULL, `kind` TEXT NOT NULL, `basis` TEXT NOT NULL, " +
+                "`matterId` INTEGER, `remindBefore` INTEGER NOT NULL, `status` TEXT NOT NULL, " +
+                "`createdAt` INTEGER NOT NULL, `closedAt` INTEGER)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `reviews` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`day` INTEGER NOT NULL, `progress` TEXT NOT NULL, `createdAt` INTEGER NOT NULL)",
+        )
+    }
+}
+
+val MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
 
 /** The current database layout version; raise it together with a new migration. */
-const val DB_VERSION = 3
+const val DB_VERSION = 4

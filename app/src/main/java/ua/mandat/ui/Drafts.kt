@@ -139,3 +139,49 @@ fun newPerson() = PersonDraft(
     ),
     isNew = true,
 )
+
+/** A deadline being edited in its dialog. */
+class DeadlineDraft(val deadline: ua.mandat.data.Deadline, val isNew: Boolean) {
+    var title by mutableStateOf(deadline.title)
+    var day by mutableStateOf(deadline.day)
+    var kind by mutableStateOf(ua.mandat.data.DeadlineKind.of(deadline.kind))
+    var basis by mutableStateOf(deadline.basis)
+    var matterId by mutableStateOf(deadline.matterId)
+    var remindBefore by mutableStateOf(deadline.remindBefore)
+    var status by mutableStateOf(ua.mandat.data.TaskStatus.of(deadline.status))
+
+    fun valid() = title.isNotBlank() && (kind == ua.mandat.data.DeadlineKind.SOFT || basis.isNotBlank())
+
+    suspend fun persist(db: MandatDb) {
+        val now = System.currentTimeMillis()
+        val closed = if (status == ua.mandat.data.TaskStatus.OPEN) null else (deadline.closedAt ?: now)
+        val edited = ua.mandat.data.cleanDeadline(
+            deadline.copy(
+                title = title, day = day, kind = kind.name, basis = basis, matterId = matterId,
+                remindBefore = remindBefore, status = status.name, closedAt = closed,
+            ),
+        ) ?: return
+        if (isNew) db.deadlines().insert(edited.copy(id = 0, createdAt = now)) else db.deadlines().update(edited)
+    }
+}
+
+fun newDeadline(matterId: Long? = null) = DeadlineDraft(
+    ua.mandat.data.Deadline(
+        title = "", day = Dates.today(), kind = ua.mandat.data.DeadlineKind.SOFT.name, basis = "",
+        matterId = matterId, remindBefore = 1, status = ua.mandat.data.TaskStatus.OPEN.name,
+        createdAt = 0, closedAt = null,
+    ),
+    isNew = true,
+)
+
+/** Saves today's answer to the evening question (one entry per day). */
+suspend fun persistReview(db: MandatDb, text: String?) {
+    val clean = text?.trim()?.take(ua.mandat.data.MAX_NOTE_LENGTH)?.ifEmpty { null } ?: return
+    val today = Dates.today()
+    val existing = db.reviews().forDay(today)
+    if (existing == null) {
+        db.reviews().insert(ua.mandat.data.Review(day = today, progress = clean, createdAt = System.currentTimeMillis()))
+    } else {
+        db.reviews().update(existing.copy(progress = clean))
+    }
+}

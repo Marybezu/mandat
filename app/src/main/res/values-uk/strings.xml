@@ -224,4 +224,34 @@
     <string name="open_count">відкрито: %1$d</string>
     <string name="overdue_count">прострочено: %1$d</string>
     <string name="save_matter_first">Збережіть справу, щоб додавати людей, доручення й обіцянки.</string>
+
+    <string name="deadlines">Строки</string>
+    <string name="deadline">Строк</string>
+    <string name="add_deadline">Додати строк</string>
+    <string name="deadline_hard">Жорсткий строк</string>
+    <string name="deadline_soft">М\'який строк</string>
+    <string name="deadline_basis">Підстава</string>
+    <string name="deadline_basis_hint">Стаття закону, рішення суду чи документ, що встановлює цю дату. Для жорсткого строку обов\'язково.</string>
+    <string name="remind_before">Нагадати</string>
+    <string name="remind_same_day">У сам день</string>
+    <string name="remind_days_before">За %1$d дн. і в сам день</string>
+    <string name="time_today">Сьогодні</string>
+    <string name="time_week">Найближчі 7 днів</string>
+    <string name="time_later">Пізніше</string>
+    <string name="time_empty">Поки нічого з датою. Натисніть +, щоб додати строк; доручення й обіцянки з датою теж з\'являться тут.</string>
+    <string name="evening_title">Що просунулося сьогодні?</string>
+    <string name="evening_hint">Хвилина ввечері: що зрушило і що вивантажити з голови.</string>
+    <string name="evening_progress">Просунулося</string>
+    <string name="evening_unload">Вивантажити з голови</string>
+    <string name="evening_to_inbox">Покласти у «Вхідні»</string>
+    <string name="evening_earlier">Попередні дні</string>
+    <string name="search_hint">Введіть щонайменше дві літери, щоб шукати у справах, людях, нотатках і строках.</string>
+    <string name="search_nothing">Нічого не знайдено.</string>
+    <string name="reminders_title">Нагадування</string>
+    <string name="reminders_text">Раз на день, в обрану годину, у дні, коли щось має бути зроблено. У нагадуванні немає жодних подробиць: Мандат пам\'ятає лише, у які дні щось припадає, але ніколи не що саме.</string>
+    <string name="reminders_switch">Нагадувати</string>
+    <string name="reminders_hour">О годині</string>
+    <string name="reminders_denied">Сповіщення для Мандата заборонені. Їх можна дозволити в налаштуваннях телефона.</string>
+    <string name="reminders_channel">Нагадування</string>
+    <string name="reminder_text">Сьогодні є строки. Відкрийте Мандат, щоб побачити.</string>
 </resources>

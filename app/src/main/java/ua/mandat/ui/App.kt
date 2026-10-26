@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -187,6 +188,7 @@ private fun Main(db: MandatDb, session: Session) {
     // Task dialogs can open over any screen, including the editors
     session.delegationDraft?.let { DelegationDialog(db, session, it) }
     session.promiseDraft?.let { PromiseDialog(db, session, it) }
+    session.deadlineDraft?.let { DeadlineDialog(db, session, it) }
 
     session.draft?.let { draft ->
         MatterEditor(db, session, draft)
@@ -194,6 +196,10 @@ private fun Main(db: MandatDb, session: Session) {
     }
     session.personDraft?.let { draft ->
         PersonEditor(db, session, draft)
+        return
+    }
+    if (session.searching) {
+        SearchScreen(db, session)
         return
     }
     if (options) {
@@ -210,6 +216,9 @@ private fun Main(db: MandatDb, session: Session) {
             TopAppBar(
                 title = { Text(stringResource(tab.title)) },
                 actions = {
+                    IconButton(onClick = { session.searching = true }) {
+                        Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
+                    }
                     IconButton(onClick = { options = true }) {
                         Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.options))
                     }
@@ -252,6 +261,7 @@ private fun Main(db: MandatDb, session: Session) {
                 when (tab) {
                     Tab.Matters -> newMatter()
                     Tab.People -> session.personDraft = newPerson()
+                    Tab.Time -> session.deadlineDraft = newDeadline()
                     else -> session.inboxDraft = ""
                 }
             }) {
@@ -272,6 +282,8 @@ private fun Main(db: MandatDb, session: Session) {
                 )
                 Tab.Matters -> MattersList(db, onOpen = { session.draft = MatterDraft(EditRequest(it, isNew = false)) })
                 Tab.People -> PeopleList(db, session)
+                Tab.Time -> TimeScreen(db, session)
+                Tab.Review -> ReviewScreen(db, session)
                 else -> Centered {
                     Text(stringResource(R.string.coming_soon), style = MaterialTheme.typography.bodyLarge)
                 }

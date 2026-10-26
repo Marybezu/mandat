@@ -167,6 +167,12 @@ interface DelegationDao {
     @Query("SELECT * FROM delegations WHERE matterId = :matterId ORDER BY status = 'OPEN' DESC, (due IS NULL), due, createdAt DESC")
     fun observeForMatter(matterId: Long): Flow<List<Delegation>>
 
+    @Query("SELECT * FROM delegations WHERE status = 'OPEN'")
+    suspend fun open(): List<Delegation>
+
+    @Query("SELECT * FROM delegations WHERE id = :id")
+    suspend fun get(id: Long): Delegation?
+
     @Insert
     suspend fun insert(d: Delegation): Long
 
@@ -193,6 +199,12 @@ interface PromiseDao {
 
     @Query("SELECT * FROM promises WHERE matterId = :matterId ORDER BY status = 'OPEN' DESC, (due IS NULL), due, createdAt DESC")
     fun observeForMatter(matterId: Long): Flow<List<Promise>>
+
+    @Query("SELECT * FROM promises WHERE status = 'OPEN'")
+    suspend fun open(): List<Promise>
+
+    @Query("SELECT * FROM promises WHERE id = :id")
+    suspend fun get(id: Long): Promise?
 
     @Insert
     suspend fun insert(p: Promise): Long

@@ -1,0 +1,43 @@
+package ua.mandat
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Test
+import ua.mandat.data.Deadline
+import ua.mandat.data.DeadlineKind
+import ua.mandat.data.Delegation
+import ua.mandat.data.TaskStatus
+import ua.mandat.data.cleanDeadline
+import ua.mandat.data.likePattern
+import ua.mandat.data.reminderDays
+
+class TimeTest {
+    private fun deadline(day: Long, before: Int = 0, kind: DeadlineKind = DeadlineKind.SOFT, basis: String = "", status: TaskStatus = TaskStatus.OPEN) =
+        Deadline(title = "Вигаданий строк", day = day, kind = kind.name, basis = basis, matterId = null,
+            remindBefore = before, status = status.name, createdAt = 0, closedAt = null)
+
+    @Test fun hardDeadlineNeedsBasis() {
+        assertNull(cleanDeadline(deadline(10, kind = DeadlineKind.HARD)))
+        assertNotNull(cleanDeadline(deadline(10, kind = DeadlineKind.HARD, basis = "вигадана підстава")))
+        assertNotNull(cleanDeadline(deadline(10)))
+    }
+
+    @Test fun reminderDaysIncludeDayBeforeAndSkipClosed() {
+        val days = reminderDays(
+            listOf(deadline(20, before = 3), deadline(25, status = TaskStatus.DONE)),
+            listOf(Delegation(what = "x", personId = null, matterId = null, due = 22, status = TaskStatus.OPEN.name, createdAt = 0, closedAt = null)),
+            emptyList(),
+            today = 10,
+        )
+        assertEquals(listOf(17L, 20L, 22L), days)
+    }
+
+    @Test fun overdueMakesTodayAReminderDay() {
+        assertEquals(listOf(10L), reminderDays(listOf(deadline(5)), emptyList(), emptyList(), today = 10))
+    }
+
+    @Test fun searchPatternEscapesSpecialCharacters() {
+        assertEquals("%50\\%\\_a\\\\b%", likePattern(" 50%_a\\b "))
+    }
+}

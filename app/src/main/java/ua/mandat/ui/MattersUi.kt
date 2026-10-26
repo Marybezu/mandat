@@ -282,6 +282,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                             db.people().unlinkMatter(id)
                             db.delegations().clearMatter(id)
                             db.promises().clearMatter(id)
+                            db.deadlines().clearMatter(id)
                             db.matters().delete(id)
                         }
                     }
@@ -348,6 +349,12 @@ private fun MatterLinks(db: MandatDb, session: Session, matterId: Long) {
         }
     }
     TextButton(onClick = { adding = true }) { Text("+ " + stringResource(R.string.add_person)) }
+
+    val deadlinesFlow = remember(db, matterId) { db.deadlines().observeForMatter(matterId) }
+    val deadlines by deadlinesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    LinkSection(stringResource(R.string.deadlines))
+    deadlines.forEach { DeadlineRow(it, null, session) }
+    TextButton(onClick = { session.deadlineDraft = newDeadline(matterId = matterId) }) { Text("+ " + stringResource(R.string.add_deadline)) }
 
     LinkSection(stringResource(R.string.delegations))
     delegations.forEach { DelegationRow(it, it.personId?.let(nameOf::get), null, session) }

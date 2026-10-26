@@ -20,6 +20,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import ua.mandat.data.MandatDb
+import ua.mandat.data.reminderDays
+import ua.mandat.notify.Reminders
 import ua.mandat.data.sqlCipherRawKey
 
 sealed interface LockState {
@@ -51,6 +53,38 @@ class Session(app: Application) : AndroidViewModel(app) {
     /** A delegation or promise open in its dialog, if any. */
     var delegationDraft by mutableStateOf<DelegationDraft?>(null)
     var promiseDraft by mutableStateOf<PromiseDraft?>(null)
+    var deadlineDraft by mutableStateOf<DeadlineDraft?>(null)
+
+    /** Today's answer to the evening question while it is being typed; null when not editing. */
+    var reviewDraft by mutableStateOf<String?>(null)
+
+    /** The search screen is open. */
+    var searching by mutableStateOf(false)
+
+    fun saveDeadlineDraft() {
+        val d = deadlineDraft ?: return
+        deadlineDraft = null
+        write { d.persist(it) }
+    }
+
+    fun saveReviewDraft() {
+        val text = reviewDraft
+        reviewDraft = null
+        write { persistReview(it, text) }
+    }
+
+    /** Recomputes the reminder days now (for example right after reminders are switched on). */
+    fun refreshReminders() {
+        background.launch {
+            withOpenDb { db -> storeReminderDays(db) }
+        }
+    }
+
+    private suspend fun storeReminderDays(db: MandatDb) {
+        if (!Reminders.isOn(getApplication())) return
+        val days = reminderDays(db.deadlines().open(), db.delegations().open(), db.promises().open(), Dates.today())
+        Reminders.storeDays(getApplication(), days)
+    }
 
     fun savePersonDraft() {
         val d = personDraft ?: return
@@ -78,6 +112,29 @@ class Session(app: Application) : AndroidViewModel(app) {
             withContext(Dispatchers.Main) {
                 // Locked meanwhile: do not bring decrypted data back into memory
                 if (m != null && startedAt == generation && state is LockState.Open) draft = MatterDraft(EditRequest(m, isNew = false))
+            }
+        }
+    }
+
+    /** Opens a delegation, promise or deadline by id in its dialog. */
+    fun openTask(kind: String, id: Long) {
+        val startedAt = generation
+        background.launch {
+            val item: Any? = withOpenDb { db ->
+                when (kind) {
+                    "delegation" -> db.delegations().get(id)
+                    "promise" -> db.promises().get(id)
+                    "deadline" -> db.deadlines().get(id)
+                    else -> null
+                }
+            }
+            withContext(Dispatchers.Main) {
+                if (startedAt != generation || state !is LockState.Open) return@withContext
+                when (item) {
+                    is ua.mandat.data.Delegation -> delegationDraft = DelegationDraft(item, isNew = false)
+                    is ua.mandat.data.Promise -> promiseDraft = PromiseDraft(item, isNew = false)
+                    is ua.mandat.data.Deadline -> deadlineDraft = DeadlineDraft(item, isNew = false)
+                }
             }
         }
     }
@@ -265,6 +322,11 @@ class Session(app: Application) : AndroidViewModel(app) {
         val openPerson = personDraft
         val openDelegation = delegationDraft
         val openPromise = promiseDraft
+        val openDeadline = deadlineDraft
+        val openReview = reviewDraft
+        deadlineDraft = null
+        reviewDraft = null
+        searching = false
         draft = null
         inboxDraft = null
         personDraft = null
@@ -283,6 +345,10 @@ class Session(app: Application) : AndroidViewModel(app) {
                             { openPerson?.persist(current.db) },
                             { openDelegation?.persist(current.db) },
                             { openPromise?.persist(current.db) },
+                            { openDeadline?.persist(current.db) },
+                            { persistReview(current.db, openReview) },
+                            // Last: only the days on which something is due, for reminders
+                            { storeReminderDays(current.db) },
                         ).forEach { save ->
                             try {
                                 save()
