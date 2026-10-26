@@ -71,6 +71,10 @@ class Session(app: Application) : AndroidViewModel(app) {
     var smartList by mutableStateOf<SmartList?>(null)
     /** The topics screen, and the topic open in it. */
     var showTopics by mutableStateOf(false)
+    /** Sorting out old overdue items, and the evenings of a period (from the dashboard). */
+    var showTriage by mutableStateOf(false)
+    /** A list behind a dashboard tile: what kind and which period. */
+    var periodView by mutableStateOf<Pair<PeriodKind, ua.mandat.data.Span>?>(null)
     /** A request from elsewhere (for example the dashboard) to show a tab, and a filter for Matters. */
     var tabRequest by mutableStateOf<String?>(null)
     var mattersRequest by mutableStateOf<Pair<Int, String>?>(null)

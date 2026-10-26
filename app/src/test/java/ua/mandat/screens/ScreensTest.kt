@@ -111,5 +111,10 @@ class ScreensTest {
         val m = runBlocking { db.matters().get(1L)!! }
         ua.mandat.ui.MatterEditor(db, session, ua.mandat.ui.MatterDraft(ua.mandat.ui.EditRequest(m, isNew = false)))
     }
+    @Test fun triage() = shot("12-triage") { ua.mandat.ui.TriageScreen(db, session) }
+    @Test fun periodMoved() = shot("13-period-moved") {
+        val t = ua.mandat.ui.Dates.today()
+        ua.mandat.ui.PeriodScreen(db, session, ua.mandat.ui.PeriodKind.MOVED, ua.mandat.data.Span(t - 30, t))
+    }
     @Test fun next() = shot("07-smart-next") { SmartListScreen(db, session, SmartList.NEXT) }
 }

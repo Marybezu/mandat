@@ -189,6 +189,9 @@ private fun Locked(failed: Boolean, onUnlock: () -> Unit) = Centered {
 }
 
 // "Review" sits in the middle and stands out: the place to step back and see the whole picture
+/** Overdue for longer than this is folded into "old, to sort out". */
+const val OLD_OVERDUE_DAYS = 30
+
 private enum class Tab(val title: Int, val icon: Int, val central: Boolean = false) {
     Today(R.string.tab_today, R.drawable.sym_home),
     Matters(R.string.tab_matters, R.drawable.sym_folder),
@@ -242,6 +245,14 @@ private fun Main(db: MandatDb, session: Session) {
     }
     if (session.showTopics) {
         TopicsScreen(db, session)
+        return
+    }
+    if (session.showTriage) {
+        TriageScreen(db, session)
+        return
+    }
+    session.periodView?.let { (kind, span) ->
+        PeriodScreen(db, session, kind, span)
         return
     }
     session.smartList?.let {
@@ -448,19 +459,42 @@ internal fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onT
 
         SmartListChips(smartCounts(active, openD.size, openP.size, today)) { session.smartList = it }
 
+        // Overdue for more than a month is "old": folded into one line to sort out, so the list shows what is current
+        val oldLimit = today - OLD_OVERDUE_DAYS
+        val recentDl = overdueDl.filter { it.day >= oldLimit }
+        val recentD = overdueD.filter { it.due!! >= oldLimit }
+        val recentP = overdueP.filter { it.due!! >= oldLimit }
+        val oldCount = overdueCount - recentDl.size - recentD.size - recentP.size
         if (overdueCount > 0) {
             SectionCard(Sym.warning, stringResource(R.string.overdue_title), Modifier.bringIntoViewRequester(overdueAt),
                 count = overdueCount, attention = true) {
                 val rows = buildList<@Composable () -> Unit> {
-                    overdueDl.forEach { d -> add { DeadlineRow(d, d.matterId?.let(titleOf::get), session) } }
-                    overdueD.forEach { d -> add { DelegationRow(d, d.personId?.let(nameOf::get), d.matterId?.let(titleOf::get), session) } }
-                    overdueP.forEach { p -> add { PromiseRow(p, p.personId?.let(nameOf::get), p.matterId?.let(titleOf::get), session) } }
+                    recentDl.forEach { d -> add { DeadlineRow(d, d.matterId?.let(titleOf::get), session) } }
+                    recentD.forEach { d -> add { DelegationRow(d, d.personId?.let(nameOf::get), d.matterId?.let(titleOf::get), session) } }
+                    recentP.forEach { p -> add { PromiseRow(p, p.personId?.let(nameOf::get), p.matterId?.let(titleOf::get), session) } }
                 }
                 val shown = if (showAllOverdue) rows else rows.take(4)
                 shown.forEachIndexed { i, row -> if (i > 0) RowDivider(); row() }
                 if (rows.size > 4) {
                     TextButton(onClick = { showAllOverdue = !showAllOverdue }) {
                         Text(if (showAllOverdue) stringResource(R.string.show_less) else stringResource(R.string.show_more, rows.size - 4))
+                    }
+                }
+                if (oldCount > 0) {
+                    if (rows.isNotEmpty()) RowDivider()
+                    Row(
+                        Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.errorContainer).clickable { session.showTriage = true }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.old_overdue, oldCount), style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer)
+                            Text(stringResource(R.string.old_overdue_hint), style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer)
+                        }
+                        Text("→", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onErrorContainer)
                     }
                 }
             }

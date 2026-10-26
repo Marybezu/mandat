@@ -46,11 +46,12 @@ import ua.mandat.data.isStale
  * what is stuck, and what has no next step. Rules only, no AI.
  */
 enum class SmartList(val title: Int, val hint: Int) {
-    NEXT(R.string.smart_next, R.string.smart_next_hint),
-    WAITING(R.string.smart_waiting, R.string.smart_waiting_hint),
-    PROMISES(R.string.smart_promises, R.string.smart_promises_hint),
+    // Problems first: what is stuck or has no next step, then what others and the owner owe
     STUCK(R.string.smart_stuck, R.string.smart_stuck_hint),
     NO_NEXT(R.string.smart_no_next, R.string.smart_no_next_hint),
+    WAITING(R.string.smart_waiting, R.string.smart_waiting_hint),
+    PROMISES(R.string.smart_promises, R.string.smart_promises_hint),
+    NEXT(R.string.smart_next, R.string.smart_next_hint),
 }
 
 /** Counts for the chips on Today. */

@@ -494,4 +494,13 @@
     <string name="days_in_work">днів у роботі: %1$d</string>
     <string name="next_deadline_chip">найближчий строк %1$s</string>
     <string name="stances_people">Позиції людей</string>
+    <string name="old_overdue">Давні прострочені: %1$d</string>
+    <string name="old_overdue_hint">Запізнення понад місяць. Розберіть їх, щоб у списку було лише актуальне.</string>
+    <string name="triage_title">Давні прострочені</string>
+    <string name="triage_hint">Усе, що прострочено понад місяць. Для кожного: зроблено, на тиждень пізніше або скасувати. Скасована обіцянка відкривається, щоб записати причину.</string>
+    <string name="triage_done">Зроблено</string>
+    <string name="triage_week">+7 днів</string>
+    <string name="triage_drop">Скасувати</string>
+    <string name="triage_empty">Давнього не лишилося. Чудово.</string>
+    <string name="dash_evenings_title">Вечори за період</string>
 </resources>

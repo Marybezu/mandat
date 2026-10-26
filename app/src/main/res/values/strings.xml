@@ -492,4 +492,13 @@
     <string name="days_in_work">%1$d days in work</string>
     <string name="next_deadline_chip">next deadline %1$s</string>
     <string name="stances_people">Where people stand</string>
+    <string name="old_overdue">Old overdue: %1$d</string>
+    <string name="old_overdue_hint">More than a month late. Sort them out so the list shows what is current.</string>
+    <string name="triage_title">Old overdue</string>
+    <string name="triage_hint">Everything more than a month late. For each one: done, a week later, or dropped. A dropped promise opens so you can write why.</string>
+    <string name="triage_done">Done</string>
+    <string name="triage_week">+7 days</string>
+    <string name="triage_drop">Drop</string>
+    <string name="triage_empty">Nothing old is left. Well done.</string>
+    <string name="dash_evenings_title">Evenings in this period</string>
 </resources>

@@ -142,6 +142,19 @@ object NeutralData {
                 ),
             )
         }
+        // Old overdue things, for the sorting-out screen
+        (1..4).forEach { i ->
+            db.deadlines().insert(
+                Deadline(title = "Давній тестовий строк $i", day = today - 40 - i * 15, kind = DeadlineKind.SOFT.name, basis = "",
+                    matterId = matters[i], remindBefore = 1, status = TaskStatus.OPEN.name, createdAt = ms(-200), closedAt = null),
+            )
+        }
+        (1..3).forEach { i ->
+            db.delegations().insert(
+                Delegation(what = "Давнє тестове доручення $i", personId = people[i], matterId = matters[i + 2], due = today - 35 - i * 20,
+                    status = TaskStatus.OPEN.name, createdAt = ms(-150), closedAt = null),
+            )
+        }
         (1..12).forEach { i -> db.reviews().insert(Review(day = today - i, progress = "Тестовий запис вечора $i", createdAt = ms(-i.toLong()))) }
         (1..3).forEach { i -> db.inbox().insert(InboxItem(text = "Тестовий запис у вхідних $i", createdAt = ms(-i.toLong()))) }
     }

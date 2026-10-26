@@ -161,8 +161,9 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {
                         Attention.entries.map { a ->
                             Slice(a.name, stringResource(a.label()), active.count { it.attention == a.name },
                                 when (a) {
+                                    // Focus stands out; the rest is quiet grey
                                     Attention.FOCUS -> ChartColors.blue
-                                    Attention.BACKGROUND -> ChartColors.blueLight
+                                    Attention.BACKGROUND -> ChartColors.gray
                                     Attention.SLEEPING -> ChartColors.grayLight
                                 })
                         },

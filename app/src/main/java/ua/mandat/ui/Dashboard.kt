@@ -130,7 +130,7 @@ fun Dashboard(db: MandatDb, session: Session) {
                 if (long) {
                     if (o.years.any { it.started + it.promised + it.deadlinesDone > 0 }) add { YearsBlock(o) }
                 } else if (o.moved + o.evenings > 0) {
-                    add { MovedBlock(o, data?.prev, data?.weekly.orEmpty()) }
+                    add { MovedBlock(o, data?.prev, data?.weekly.orEmpty()) { kind -> session.periodView = kind to span } }
                 }
                 if (o.roles.any { it.moved > 0 }) add { RolesBlock(o, roles.associate { it.id to it.name }, hintIdle = !long, session) }
                 if (o.deadlinesDue + o.delegationsGiven + o.delegationsDone > 0) add { DeadlinesBlock(o) }
@@ -201,15 +201,15 @@ private fun Block(icon: androidx.compose.ui.graphics.vector.ImageVector, title: 
 private class DashData(val o: Overview, val prev: Overview?, val weekly: List<Int>)
 
 @Composable
-private fun MovedBlock(o: Overview, prev: Overview?, weekly: List<Int>) = Block(Sym.checkCircle, stringResource(R.string.dash_moved_title)) {
+private fun MovedBlock(o: Overview, prev: Overview?, weekly: List<Int>, open: (PeriodKind) -> Unit) = Block(Sym.checkCircle, stringResource(R.string.dash_moved_title)) {
     Column(verticalArrangement = Arrangement.spacedBy(Space.gap)) {
         Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
-            DeltaTile(o.moved, prev?.moved, stringResource(R.string.dash_moved))
-            DeltaTile(o.started, prev?.started, stringResource(R.string.dash_started))
+            DeltaTile(o.moved, prev?.moved, stringResource(R.string.dash_moved)) { open(PeriodKind.MOVED) }
+            DeltaTile(o.started, prev?.started, stringResource(R.string.dash_started)) { open(PeriodKind.STARTED) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
-            DeltaTile(o.finished, prev?.finished, stringResource(R.string.dash_finished))
-            DeltaTile(o.evenings, prev?.evenings, stringResource(R.string.dash_evenings))
+            DeltaTile(o.finished, prev?.finished, stringResource(R.string.dash_finished)) { open(PeriodKind.FINISHED) }
+            DeltaTile(o.evenings, prev?.evenings, stringResource(R.string.dash_evenings)) { open(PeriodKind.EVENINGS) }
         }
         if (weekly.any { it > 0 }) {
             Text(stringResource(R.string.dash_trend), style = MaterialTheme.typography.labelSmall, color = Muted)
@@ -220,9 +220,10 @@ private fun MovedBlock(o: Overview, prev: Overview?, weekly: List<Int>) = Block(
 
 /** A number with the change since the previous period (↑ or ↓), in calm colours. */
 @Composable
-private fun androidx.compose.foundation.layout.RowScope.DeltaTile(value: Int, prev: Int?, label: String) {
+private fun androidx.compose.foundation.layout.RowScope.DeltaTile(value: Int, prev: Int?, label: String, onClick: () -> Unit) {
     Column(
         Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(enabled = value > 0, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Row(verticalAlignment = Alignment.Bottom) {
