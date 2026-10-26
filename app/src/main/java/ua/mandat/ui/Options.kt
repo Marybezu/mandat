@@ -149,7 +149,7 @@ fun Options(session: Session, onBack: () -> Unit) {
             Spacer(Modifier.height(8.dp))
             Section(stringResource(R.string.security_title))
             Text(stringResource(R.string.security_text), style = MaterialTheme.typography.bodyLarge)
-            ScreenshotsSwitch()
+            ScreenshotsSwitch(session)
 
             Spacer(Modifier.height(8.dp))
             Section(stringResource(R.string.about_title))
@@ -409,21 +409,23 @@ private fun RemindersSection(session: Session) {
 
 /** Allowing screenshots is an explicit choice, confirmed with a warning every time. */
 @Composable
-private fun ScreenshotsSwitch() {
+private fun ScreenshotsSwitch(session: Session) {
     val context = LocalContext.current
     val activity = context as? android.app.Activity ?: return
-    var allowed by remember { mutableStateOf(Appearance.screenshotsAllowed(context)) }
     var confirm by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
+    fun set(on: Boolean) {
+        failed = !Appearance.setScreenshotsAllowed(activity, on)
+        session.screenshotsAllowed = Appearance.screenshotsAllowed(activity)
+    }
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
         Column(Modifier.weight(1f)) {
             Text(stringResource(R.string.screenshots_allow), style = MaterialTheme.typography.bodyLarge)
             Text(stringResource(R.string.screenshots_hint), style = MaterialTheme.typography.labelMedium, color = Muted)
+            if (failed) Text(stringResource(R.string.screenshots_failed), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
         }
-        androidx.compose.material3.Switch(checked = allowed, onCheckedChange = { on ->
-            if (on) confirm = true else {
-                allowed = false
-                Appearance.setScreenshotsAllowed(activity, false)
-            }
+        androidx.compose.material3.Switch(checked = session.screenshotsAllowed, onCheckedChange = { on ->
+            if (on) confirm = true else set(false)
         })
     }
     if (confirm) {
@@ -434,8 +436,7 @@ private fun ScreenshotsSwitch() {
             confirmButton = {
                 androidx.compose.material3.TextButton(onClick = {
                     confirm = false
-                    allowed = true
-                    Appearance.setScreenshotsAllowed(activity, true)
+                    set(true)
                 }) { Text(stringResource(R.string.screenshots_confirm_yes)) }
             },
             dismissButton = {

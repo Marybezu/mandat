@@ -337,7 +337,7 @@
     <string name="screenshots_allow">Дозволити знімки екрана</string>
     <string name="screenshots_hint">Типово вимкнено. Для показу застосунку тестувальникам.</string>
     <string name="screenshots_confirm_title">Дозволити знімки екрана?</string>
-    <string name="screenshots_confirm_text">Знімки й записи екрана зберігаються в галереї незашифрованими й можуть потрапити в хмарну копію чи інші застосунки. Коли закінчите, вимкніть знову. Мандат і далі блокується як звичайно.</string>
+    <string name="screenshots_confirm_text">Знімки й записи екрана зберігаються в галереї незашифрованими й можуть потрапити в хмарну копію чи інші застосунки. Вміст екрана зможуть бачити й записувати також асистенти, пошук по екрану, трансляція й демонстрація екрана, а деякі з них надсилають його в інтернет. Коли закінчите, вимкніть знову; поки дозвіл увімкнений, про нього нагадує смужка вгорі. Мандат і далі блокується як звичайно.</string>
     <string name="screenshots_confirm_yes">Дозволити</string>
     <string name="show_less">Згорнути</string>
     <string name="show_more">Ще %1$d</string>
@@ -360,4 +360,7 @@
     <string name="tally_open">у процесі</string>
     <string name="tally_failed">не вдалося</string>
     <string name="tally_dropped">знято</string>
+    <string name="screenshots_failed">Не вдалося зберегти налаштування. Знімки й далі заборонені.</string>
+    <string name="screenshots_banner">Знімки екрана дозволено</string>
+    <string name="screenshots_turn_off">Вимкнути</string>
 </resources>

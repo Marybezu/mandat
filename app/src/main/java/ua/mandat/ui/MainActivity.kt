@@ -61,8 +61,15 @@ class MainActivity : AppCompatActivity() {
         setIntent(Intent(Intent.ACTION_MAIN))
     }
 
+    override fun onPause() {
+        Appearance.guardWhileLeaving(this)
+        super.onPause()
+    }
+
     override fun onResume() {
         super.onResume()
+        Appearance.applyScreenGuard(this)
+        session.screenshotsAllowed = Appearance.screenshotsAllowed(this)
         refreshState()
         if (session.state == LockState.Locked && session.autoPrompt) {
             session.autoPrompt = false

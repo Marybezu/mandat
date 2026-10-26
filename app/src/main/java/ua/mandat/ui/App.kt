@@ -1,6 +1,8 @@
 package ua.mandat.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -230,6 +232,7 @@ private fun Main(db: MandatDb, session: Session) {
     Scaffold(
         topBar = {
             Column(Modifier.statusBarsPadding()) {
+                if (session.screenshotsAllowed) ScreenshotsBanner(session)
                 ScreenHeader(
                     title = stringResource(tab.title),
                     subtitle = if (tab == Tab.Today) Dates.longToday() else null,
@@ -483,4 +486,24 @@ private fun AddDialog(session: Session) {
         confirmButton = { TextButton(onClick = { session.saveInboxDraft() }) { Text(stringResource(R.string.save)) } },
         dismissButton = { TextButton(onClick = { session.inboxDraft = null }) { Text(stringResource(R.string.cancel)) } },
     )
+}
+
+/** A visible reminder while screenshots are allowed; tapping it forbids them again. */
+@Composable
+private fun ScreenshotsBanner(session: Session) {
+    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity ?: return
+    Row(
+        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.errorContainer)
+            .clickable {
+                Appearance.setScreenshotsAllowed(activity, false)
+                session.screenshotsAllowed = Appearance.screenshotsAllowed(activity)
+            }
+            .padding(horizontal = Space.screen, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(stringResource(R.string.screenshots_banner), style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.weight(1f))
+        Text(stringResource(R.string.screenshots_turn_off), style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onErrorContainer)
+    }
 }

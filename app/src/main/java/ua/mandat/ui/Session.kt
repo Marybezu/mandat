@@ -60,6 +60,8 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     /** Material You colours on or off; changing it recolours the app right away. */
     var dynamicColors by mutableStateOf(Appearance.dynamic(app))
+    /** Shown as a visible strip while screenshots are allowed, so the choice is not forgotten. */
+    var screenshotsAllowed by mutableStateOf(Appearance.screenshotsAllowed(app))
 
     /** The "My promises" screen is open. */
     var showPromises by mutableStateOf(false)

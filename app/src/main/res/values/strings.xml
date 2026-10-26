@@ -335,7 +335,7 @@
     <string name="screenshots_allow">Allow screenshots</string>
     <string name="screenshots_hint">Off by default. For showing the app to testers.</string>
     <string name="screenshots_confirm_title">Allow screenshots?</string>
-    <string name="screenshots_confirm_text">Screenshots and screen recordings are saved unencrypted in the gallery and may end up in a cloud backup or in other apps. Turn this back off when you are done. Mandat is still locked as usual.</string>
+    <string name="screenshots_confirm_text">Screenshots and screen recordings are saved unencrypted in the gallery and may end up in a cloud backup or in other apps. Assistants, screen search, casting and screen sharing will also be able to see and record the screen, and some of them send it to the internet. Turn this back off when you are done; a strip at the top reminds you while it is on. Mandat is still locked as usual.</string>
     <string name="screenshots_confirm_yes">Allow</string>
     <string name="show_less">Show less</string>
     <string name="show_more">%1$d more</string>
@@ -358,4 +358,7 @@
     <string name="tally_open">in progress</string>
     <string name="tally_failed">did not work out</string>
     <string name="tally_dropped">dropped</string>
+    <string name="screenshots_failed">Could not save the setting. Screenshots stay forbidden.</string>
+    <string name="screenshots_banner">Screenshots are allowed</string>
+    <string name="screenshots_turn_off">Turn off</string>
 </resources>
