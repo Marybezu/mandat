@@ -81,6 +81,11 @@ object NeutralData {
                     teamRole = if (inTeam) team[i].name else null,
                     createdAt = ms(-100), updatedAt = ms(-100),
                     category = if (inTeam) null else PersonCategory.entries[i % PersonCategory.entries.size].name,
+                    influence = if (inTeam || i % 7 == 0) null else 1 + i % 3,
+                    stance = if (inTeam) null else listOf("ALLY", "UNDECIDED", "OPPONENT", "NEUTRAL")[i % 4],
+                    isGroup = i == 12,
+                    reportsToId = null,
+                    lastContact = if (i % 2 == 0) today - i * 5 else null,
                 ),
             )
         }
@@ -98,6 +103,9 @@ object NeutralData {
                     what = "Тестове доручення $i", personId = people[i % 5], matterId = matters[i % matters.size],
                     due = today + (i - 4), status = if (done) TaskStatus.DONE.name else TaskStatus.OPEN.name,
                     createdAt = ms(-20L - i), closedAt = if (done) ms(-i.toLong()) else null,
+                    purpose = "Тестова мета доручення $i", doneMeans = "Тестовий результат $i",
+                    freedom = ua.mandat.data.Freedom.entries[i % 4].name, checkIn = if (i % 3 == 0) today + i % 5 else null,
+                    returned = i == 7,
                 ),
             )
         }

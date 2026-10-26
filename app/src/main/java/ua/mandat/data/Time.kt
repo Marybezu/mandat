@@ -157,6 +157,8 @@ fun reminderDays(deadlines: List<Deadline>, delegations: List<Delegation>, promi
         if (d.remindBefore > 0) days += d.day - d.remindBefore
     }
     delegations.filter { TaskStatus.of(it.status) == TaskStatus.OPEN }.mapNotNullTo(days) { it.due }
+    // A check-in day is a reminder too (only the day is kept, never what is due)
+    delegations.filter { TaskStatus.of(it.status) == TaskStatus.OPEN }.mapNotNullTo(days) { it.checkIn }
     promises.filter { TaskStatus.of(it.status) == TaskStatus.OPEN }.mapNotNullTo(days) { it.due }
     // Something already overdue: remind every day (of the stored window) until it is closed
     val future = days.filter { it >= today }

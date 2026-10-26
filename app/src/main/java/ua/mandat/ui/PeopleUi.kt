@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -122,6 +123,12 @@ fun PeopleList(db: MandatDb, session: Session) {
                 )
             }
         }
+        item(key = "map") {
+            OutlinedButton(onClick = { session.influenceFor = 0L }, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.influence_map_all))
+            }
+        }
+        if (people.any { it.teamRole != null }) item(key = "team") { TeamCard(people, delegations, session) }
         if (openD.isNotEmpty() || done30 > 0) {
             item(key = "delegations") {
                 SectionCard(Sym.checkCircle, stringResource(R.string.delegations)) {
@@ -226,6 +233,7 @@ fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
     BackHandler(onBack = onBack)
     var confirmDelete by remember { mutableStateOf(false) }
     val id = draft.person.id
+    val allPeople by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
 
     Scaffold(
         topBar = {
@@ -279,9 +287,51 @@ fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
                 OutlinedTextField(value = draft.teamCustom, onValueChange = { draft.teamCustom = it },
                     label = { Text(stringResource(R.string.own_words)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
             }
+            if (draft.teamRole != null) {
+                val team = allPeople.filter { it.teamRole != null && it.id != id }
+                val me = stringResource(R.string.reports_to_me)
+                Picker(
+                    label = stringResource(R.string.reports_to),
+                    current = team.firstOrNull { it.id == draft.reportsToId }?.name ?: me,
+                    options = listOf<Pair<Long?, String>>(null to me) + team.map { it.id to it.name },
+                    onPick = { draft.reportsToId = it },
+                )
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.person_is_group), style = MaterialTheme.typography.bodyLarge)
+                        Text(stringResource(R.string.person_is_group_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
+                    }
+                    androidx.compose.material3.Switch(checked = draft.isGroup, onCheckedChange = { draft.isGroup = it })
+                }
+                // Influence and stance: for the influence map; never for the team (no rating of people)
+                Text(stringResource(R.string.influence), style = MaterialTheme.typography.labelLarge)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(1, 2, 3).forEach { lv ->
+                        FilterChip(selected = draft.influence == lv, onClick = { draft.influence = if (draft.influence == lv) null else lv },
+                            label = { Text(stringResource(influenceLabel(lv))) })
+                    }
+                }
+                Text(stringResource(R.string.general_stance), style = MaterialTheme.typography.labelLarge)
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ua.mandat.data.Stance.entries.forEach { st ->
+                        FilterChip(selected = draft.stance == st, onClick = { draft.stance = if (draft.stance == st) null else st },
+                            label = { Text(stringResource(st.label())) })
+                    }
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) { DueField(draft.lastContact, label = R.string.last_contact) { draft.lastContact = it } }
+                TextButton(onClick = { draft.lastContact = Dates.today() }) { Text(stringResource(R.string.talked_today)) }
+            }
             OutlinedTextField(value = draft.notes, onValueChange = { draft.notes = it },
                 label = { Text(stringResource(R.string.person_notes)) }, minLines = 3, modifier = Modifier.fillMaxWidth())
 
+            if (!draft.isNew && draft.teamRole != null) {
+                OutlinedButton(onClick = { session.savePersonDraft(); session.oneOnOne = id }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.one_on_one))
+                }
+            }
             if (!draft.isNew) {
                 PersonLinks(db, session, id)
                 Spacer(Modifier.height(8.dp))
@@ -302,6 +352,7 @@ fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
                     session.write { db ->
                         db.withTransaction {
                             db.people().unlinkPerson(id)
+                            db.people().clearReportsTo(id)
                             db.delegations().clearPerson(id)
                             db.promises().clearPerson(id)
                             db.people().delete(id)

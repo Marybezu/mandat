@@ -163,7 +163,27 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
     }
 }
 
-val MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Delegation done well: intent, what done means, freedom, check-in, returned, thanked
+        db.execSQL("ALTER TABLE `delegations` ADD COLUMN `purpose` TEXT NOT NULL DEFAULT ''")
+        db.execSQL("ALTER TABLE `delegations` ADD COLUMN `doneMeans` TEXT NOT NULL DEFAULT ''")
+        db.execSQL("ALTER TABLE `delegations` ADD COLUMN `freedom` TEXT")
+        db.execSQL("ALTER TABLE `delegations` ADD COLUMN `checkIn` INTEGER")
+        db.execSQL("ALTER TABLE `delegations` ADD COLUMN `returned` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE `delegations` ADD COLUMN `thanked` INTEGER NOT NULL DEFAULT 0")
+        // Influence map and team structure
+        db.execSQL("ALTER TABLE `people` ADD COLUMN `influence` INTEGER")
+        db.execSQL("ALTER TABLE `people` ADD COLUMN `stance` TEXT")
+        db.execSQL("ALTER TABLE `people` ADD COLUMN `isGroup` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE `people` ADD COLUMN `reportsToId` INTEGER")
+        db.execSQL("ALTER TABLE `people` ADD COLUMN `lastContact` INTEGER")
+        // Who leads, approves, is consulted, is informed
+        db.execSQL("ALTER TABLE `matter_people` ADD COLUMN `raci` TEXT")
+    }
+}
+
+val MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
 
 /** The current database layout version; raise it together with a new migration. */
-const val DB_VERSION = 5
+const val DB_VERSION = 6

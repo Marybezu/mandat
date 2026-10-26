@@ -65,6 +65,11 @@ class PersonDraft(val person: ua.mandat.data.Person, val isNew: Boolean) {
     var category by mutableStateOf(ua.mandat.data.PersonCategory.of(person.category))
     var categoryCustom by mutableStateOf(person.categoryCustom)
     var teamCustom by mutableStateOf(person.teamCustom)
+    var influence by mutableStateOf(person.influence)
+    var stance by mutableStateOf(ua.mandat.data.Stance.of(person.stance))
+    var isGroup by mutableStateOf(person.isGroup)
+    var reportsToId by mutableStateOf(person.reportsToId)
+    var lastContact by mutableStateOf(person.lastContact)
 
     suspend fun persist(db: MandatDb) {
         val now = System.currentTimeMillis()
@@ -73,6 +78,8 @@ class PersonDraft(val person: ua.mandat.data.Person, val isNew: Boolean) {
                 name = name, organization = organization, jobTitle = jobTitle, contact = contact,
                 notes = notes, teamRole = teamRole?.name, updatedAt = now,
                 category = category?.name, categoryCustom = categoryCustom, teamCustom = teamCustom,
+                influence = influence, stance = stance?.name, isGroup = isGroup,
+                reportsToId = reportsToId, lastContact = lastContact,
             ),
         ) ?: return
         if (isNew) db.people().insert(edited.copy(id = 0, createdAt = now)) else db.people().update(edited)
@@ -86,13 +93,22 @@ class DelegationDraft(val delegation: ua.mandat.data.Delegation, val isNew: Bool
     var matterId by mutableStateOf(delegation.matterId)
     var due by mutableStateOf(delegation.due)
     var status by mutableStateOf(ua.mandat.data.TaskStatus.of(delegation.status))
+    var purpose by mutableStateOf(delegation.purpose)
+    var doneMeans by mutableStateOf(delegation.doneMeans)
+    var freedom by mutableStateOf(ua.mandat.data.Freedom.of(delegation.freedom))
+    var checkIn by mutableStateOf(delegation.checkIn)
+    var returned by mutableStateOf(delegation.returned)
 
     suspend fun persist(db: MandatDb) {
         val text = what.trim().take(2_000)
         if (text.isEmpty()) return
         val now = System.currentTimeMillis()
         val closed = if (status == ua.mandat.data.TaskStatus.OPEN) null else (delegation.closedAt ?: now)
-        val edited = delegation.copy(what = text, personId = personId, matterId = matterId, due = due, status = status.name, closedAt = closed)
+        val edited = delegation.copy(
+            what = text, personId = personId, matterId = matterId, due = due, status = status.name, closedAt = closed,
+            purpose = purpose.trim().take(2_000), doneMeans = doneMeans.trim().take(2_000), freedom = freedom?.name,
+            checkIn = checkIn, returned = returned,
+        )
         if (isNew) db.delegations().insert(edited.copy(id = 0, createdAt = now)) else db.delegations().update(edited)
     }
 }

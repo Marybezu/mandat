@@ -104,5 +104,8 @@ class ScreensTest {
     @Test fun promises() = shot("06-promises") { PromisesScreen(db, session) }
     @Test fun waiting() = shot("07-smart-waiting") { SmartListScreen(db, session, SmartList.WAITING) }
     @Test fun topics() = shot("08-topics") { ua.mandat.ui.TopicsScreen(db, session) }
+    @Test fun influenceAll() = shot("09-influence-all") { ua.mandat.ui.InfluenceMapScreen(db, session, null) }
+    @Test fun influenceMatter() = shot("09-influence-matter") { ua.mandat.ui.InfluenceMapScreen(db, session, 1L) }
+    @Test fun oneOnOne() = shot("10-one-on-one") { ua.mandat.ui.OneOnOneScreen(db, session, 2L) }
     @Test fun next() = shot("07-smart-next") { SmartListScreen(db, session, SmartList.NEXT) }
 }

@@ -467,7 +467,10 @@ private fun MatterLinks(db: MandatDb, session: Session, matterId: Long) {
             Column(Modifier.weight(1f)) {
                 Text(row.name, style = MaterialTheme.typography.bodyLarge)
                 Text(
-                    ua.mandat.data.Stance.of(row.stance)?.let { stringResource(it.label()) } ?: stringResource(R.string.stance_none),
+                    listOfNotNull(
+                        ua.mandat.data.Raci.of(row.raci)?.let { stringResource(it.label()) },
+                        ua.mandat.data.Stance.of(row.stance)?.let { stringResource(it.label()) } ?: stringResource(R.string.stance_none),
+                    ).joinToString(" · "),
                     style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary,
                 )
             }
@@ -476,7 +479,12 @@ private fun MatterLinks(db: MandatDb, session: Session, matterId: Long) {
             }
         }
     }
-    TextButton(onClick = { adding = true }) { Text("+ " + stringResource(R.string.add_person)) }
+    Row {
+        TextButton(onClick = { adding = true }) { Text("+ " + stringResource(R.string.add_person)) }
+        if (linked.isNotEmpty()) TextButton(onClick = { session.saveDraft(); session.influenceFor = matterId }) {
+            Text(stringResource(R.string.influence_map))
+        }
+    }
 
     val deadlinesFlow = remember(db, matterId) { db.deadlines().observeForMatter(matterId) }
     val deadlines by deadlinesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -508,13 +516,26 @@ private fun MatterLinks(db: MandatDb, session: Session, matterId: Long) {
             onDismissRequest = { stanceFor = null },
             title = { Text(row.name) },
             text = {
-                Column {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
                     Text(stringResource(R.string.stance), style = MaterialTheme.typography.labelLarge)
                     (listOf<ua.mandat.data.Stance?>(null) + ua.mandat.data.Stance.entries).forEach { st ->
                         TextButton(onClick = {
                             stanceFor = null
                             session.write { it.people().setStance(matterId, row.personId, st?.name) }
                         }) { Text(st?.let { stringResource(it.label()) } ?: stringResource(R.string.stance_none)) }
+                    }
+                    // Who does what (RACI); only one person leads
+                    Text(stringResource(R.string.raci_title), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
+                    (listOf<ua.mandat.data.Raci?>(null) + ua.mandat.data.Raci.entries).forEach { r ->
+                        TextButton(onClick = {
+                            stanceFor = null
+                            session.write { db ->
+                                db.withTransaction {
+                                    if (r == ua.mandat.data.Raci.LEAD) db.people().clearLead(matterId)
+                                    db.people().setRaci(matterId, row.personId, r?.name)
+                                }
+                            }
+                        }) { Text(r?.let { stringResource(it.label()) } ?: stringResource(R.string.raci_none)) }
                     }
                 }
             },

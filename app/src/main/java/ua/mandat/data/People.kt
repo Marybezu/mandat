@@ -29,6 +29,16 @@ data class Person(
     @ColumnInfo(defaultValue = "") val categoryCustom: String = "",
     /** The owner's own words when the team role is OTHER. */
     @ColumnInfo(defaultValue = "") val teamCustom: String = "",
+    /** Influence on decisions and on the owner's agenda: 1 low, 2 medium, 3 high; null unknown. */
+    val influence: Int? = null,
+    /** General stance towards the owner's work: a key of [Stance], or null. */
+    val stance: String? = null,
+    /** A group of people (for example "residents of a village") rather than one person. */
+    @ColumnInfo(defaultValue = "0") val isGroup: Boolean = false,
+    /** For the team: whom this person reports to; null means directly to the owner. */
+    val reportsToId: Long? = null,
+    /** The last day the owner talked with them (calendar day), or null. */
+    val lastContact: Long? = null,
 )
 
 /** Who takes part in a matter, and (optionally) where they stand on it. */
@@ -39,6 +49,8 @@ data class MatterPerson(
     /** A key of [Stance], or null when it does not apply. */
     val stance: String?,
     val note: String,
+    /** Who does what in this matter: a key of [Raci], or null. */
+    val raci: String? = null,
 )
 
 /** Something the owner handed to someone: what, to whom, by when. Seen from the owner's side. */
@@ -54,6 +66,18 @@ data class Delegation(
     val status: String,
     val createdAt: Long,
     val closedAt: Long?,
+    /** Why it matters: the intent, so the person can act sensibly when things change. */
+    @ColumnInfo(defaultValue = "") val purpose: String = "",
+    /** What "done" means. */
+    @ColumnInfo(defaultValue = "") val doneMeans: String = "",
+    /** How much freedom the person has: a key of [Freedom], or null. */
+    val freedom: String? = null,
+    /** A check-in day halfway, separate from the due day (calendar day), or null. */
+    val checkIn: Long? = null,
+    /** The task came back to the owner ("upward delegation"). */
+    @ColumnInfo(defaultValue = "0") val returned: Boolean = false,
+    /** The owner has thanked the person for it. */
+    @ColumnInfo(defaultValue = "0") val thanked: Boolean = false,
 )
 
 /** Something the owner promised: to whom, what, public or personal, by when. */
@@ -96,6 +120,24 @@ enum class PersonCategory {
     }
 }
 
+/** Levels of freedom in a delegation (after Management 3.0 and situational leadership). */
+enum class Freedom {
+    TELL, OPTIONS, DECIDE_INFORM, FULL;
+
+    companion object {
+        fun of(key: String?) = key?.let { k -> entries.firstOrNull { it.name == k } }
+    }
+}
+
+/** Who leads, approves, is consulted, is informed (RACI); only one leads a matter. */
+enum class Raci {
+    LEAD, APPROVE, CONSULT, INFORM;
+
+    companion object {
+        fun of(key: String?) = key?.let { k -> entries.firstOrNull { it.name == k } }
+    }
+}
+
 enum class Stance {
     ALLY, UNDECIDED, OPPONENT, NEUTRAL;
 
@@ -123,6 +165,7 @@ data class MatterPersonRow(
     val teamRole: String?,
     val stance: String?,
     val note: String,
+    val raci: String? = null,
 )
 
 /** A matter linked to a person, ready for display. */
@@ -150,7 +193,7 @@ interface PersonDao {
     suspend fun delete(id: Long)
 
     @Query(
-        "SELECT p.id AS personId, p.name AS name, p.teamRole AS teamRole, mp.stance AS stance, mp.note AS note " +
+        "SELECT p.id AS personId, p.name AS name, p.teamRole AS teamRole, mp.stance AS stance, mp.note AS note, mp.raci AS raci " +
             "FROM matter_people mp JOIN people p ON p.id = mp.personId WHERE mp.matterId = :matterId " +
             "ORDER BY p.name COLLATE NOCASE",
     )
@@ -173,8 +216,22 @@ interface PersonDao {
     @Query("UPDATE matter_people SET stance = :stance WHERE matterId = :matterId AND personId = :personId")
     suspend fun setStance(matterId: Long, personId: Long, stance: String?)
 
+    @Query("UPDATE matter_people SET raci = :raci WHERE matterId = :matterId AND personId = :personId")
+    suspend fun setRaci(matterId: Long, personId: Long, raci: String?)
+
+    /** Only one person leads a matter: choosing a new lead clears the old one. */
+    @Query("UPDATE matter_people SET raci = NULL WHERE matterId = :matterId AND raci = 'LEAD'")
+    suspend fun clearLead(matterId: Long)
+
+    @Query("UPDATE people SET lastContact = :day WHERE id = :personId")
+    suspend fun setLastContact(personId: Long, day: Long)
+
     @Query("DELETE FROM matter_people WHERE matterId = :matterId AND personId = :personId")
     suspend fun unlink(matterId: Long, personId: Long)
+
+    /** People who reported to a removed person now report to the owner directly. */
+    @Query("UPDATE people SET reportsToId = NULL WHERE reportsToId = :personId")
+    suspend fun clearReportsTo(personId: Long)
 
     /** Removing a person keeps delegations and promises, just without the person. */
     @Query("DELETE FROM matter_people WHERE personId = :personId")
@@ -269,6 +326,9 @@ fun cleanPerson(p: Person): Person? {
         notes = p.notes.trim().take(MAX_NOTE_LENGTH),
         categoryCustom = if (PersonCategory.of(p.category) == PersonCategory.OTHER) p.categoryCustom.trim().take(100) else "",
         teamCustom = if (TeamRole.of(p.teamRole) == TeamRole.OTHER) p.teamCustom.trim().take(100) else "",
+        influence = p.influence?.coerceIn(1, 3),
+        // Only someone in the team reports to someone, and never to themselves
+        reportsToId = if (p.teamRole != null && p.reportsToId != p.id) p.reportsToId else null,
     )
 }
 

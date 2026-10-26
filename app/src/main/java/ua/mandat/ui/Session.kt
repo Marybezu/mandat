@@ -69,6 +69,12 @@ class Session(app: Application) : AndroidViewModel(app) {
     var smartList by mutableStateOf<SmartList?>(null)
     /** The topics screen, and the topic open in it. */
     var showTopics by mutableStateOf(false)
+    /** A delegation just done by someone: offer to thank them. */
+    var thankFor by mutableStateOf<ua.mandat.data.Delegation?>(null)
+    /** The influence map: null closed, 0 for everyone, otherwise for one matter. */
+    var influenceFor by mutableStateOf<Long?>(null)
+    /** The one-to-one view for a person in the team. */
+    var oneOnOne by mutableStateOf<Long?>(null)
     var topicOpen by mutableStateOf<String?>(null)
 
     /** The search screen is open. */
@@ -340,6 +346,7 @@ class Session(app: Application) : AndroidViewModel(app) {
         deadlineDraft = null
         reviewDraft = null
         searching = false
+        thankFor = null
         draft = null
         inboxDraft = null
         personDraft = null

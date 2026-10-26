@@ -110,3 +110,31 @@ fun ua.mandat.data.TaskStatus.promiseLabel(): Int = when (this) {
 
 /** Statuses offered for delegations and deadlines (no "did not work out"). */
 val TASK_STATUSES = listOf(ua.mandat.data.TaskStatus.OPEN, ua.mandat.data.TaskStatus.DONE, ua.mandat.data.TaskStatus.CANCELLED)
+
+fun ua.mandat.data.Freedom.label(): Int = when (this) {
+    ua.mandat.data.Freedom.TELL -> R.string.freedom_TELL
+    ua.mandat.data.Freedom.OPTIONS -> R.string.freedom_OPTIONS
+    ua.mandat.data.Freedom.DECIDE_INFORM -> R.string.freedom_DECIDE_INFORM
+    ua.mandat.data.Freedom.FULL -> R.string.freedom_FULL
+}
+
+fun ua.mandat.data.Freedom.hint(): Int = when (this) {
+    ua.mandat.data.Freedom.TELL -> R.string.freedom_TELL_hint
+    ua.mandat.data.Freedom.OPTIONS -> R.string.freedom_OPTIONS_hint
+    ua.mandat.data.Freedom.DECIDE_INFORM -> R.string.freedom_DECIDE_INFORM_hint
+    ua.mandat.data.Freedom.FULL -> R.string.freedom_FULL_hint
+}
+
+fun ua.mandat.data.Raci.label(): Int = when (this) {
+    ua.mandat.data.Raci.LEAD -> R.string.raci_LEAD
+    ua.mandat.data.Raci.APPROVE -> R.string.raci_APPROVE
+    ua.mandat.data.Raci.CONSULT -> R.string.raci_CONSULT
+    ua.mandat.data.Raci.INFORM -> R.string.raci_INFORM
+}
+
+fun influenceLabel(level: Int?): Int = when (level) {
+    1 -> R.string.influence_1
+    2 -> R.string.influence_2
+    3 -> R.string.influence_3
+    else -> R.string.not_set
+}

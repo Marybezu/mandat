@@ -226,6 +226,15 @@ private fun Main(db: MandatDb, session: Session) {
         PersonEditor(db, session, draft)
         return
     }
+    session.thankFor?.let { ThankDialog(db, session, it) }
+    session.oneOnOne?.let {
+        OneOnOneScreen(db, session, it)
+        return
+    }
+    session.influenceFor?.let {
+        InfluenceMapScreen(db, session, it.takeIf { id -> id != 0L })
+        return
+    }
     if (session.showTopics) {
         TopicsScreen(db, session)
         return

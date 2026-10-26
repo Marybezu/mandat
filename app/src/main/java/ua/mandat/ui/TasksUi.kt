@@ -165,11 +165,18 @@ fun DelegationRow(d: Delegation, personName: String?, matterTitle: String?, sess
     TaskRow(
         what = d.what,
         kind = TaskKind.DELEGATION,
-        chips = listOfNotNull(personName, matterTitle),
+        chips = listOfNotNull(
+            personName, matterTitle,
+            d.checkIn?.takeIf { TaskStatus.of(d.status) == TaskStatus.OPEN }?.let { stringResource(R.string.check_in_chip, Dates.format(it)) },
+            if (d.returned) stringResource(R.string.returned_chip) else null,
+            ua.mandat.data.Freedom.of(d.freedom)?.let { stringResource(it.label()) },
+        ),
         due = d.due,
         status = d.status,
         onToggleDone = {
             val next = if (TaskStatus.of(d.status) == TaskStatus.OPEN) TaskStatus.DONE else TaskStatus.OPEN
+            // Done by someone: a gentle offer to thank them
+            if (next == TaskStatus.DONE && d.personId != null && !d.thanked) session.thankFor = d
             session.write {
                 it.delegations().update(
                     d.copy(status = next.name, closedAt = if (next == TaskStatus.OPEN) null else System.currentTimeMillis()),
@@ -299,8 +306,26 @@ fun DelegationDialog(db: MandatDb, session: Session, draft: DelegationDraft) {
                     label = { Text(stringResource(R.string.what)) }, minLines = 2, modifier = Modifier.fillMaxWidth(),
                 )
                 PersonPicker(people, draft.personId) { draft.personId = it }
+                // The intent and what "done" means: the person can act sensibly when things change
+                OutlinedTextField(
+                    value = draft.purpose, onValueChange = { draft.purpose = it },
+                    label = { Text(stringResource(R.string.delegation_purpose)) }, modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = draft.doneMeans, onValueChange = { draft.doneMeans = it },
+                    label = { Text(stringResource(R.string.delegation_done_means)) }, modifier = Modifier.fillMaxWidth(),
+                )
+                FreedomPicker(draft.freedom) { draft.freedom = it }
                 MatterPicker(matters, allMatters, draft.matterId) { draft.matterId = it }
                 DueField(draft.due) { draft.due = it }
+                DueField(draft.checkIn, label = R.string.delegation_check_in) { draft.checkIn = it }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.delegation_returned), style = MaterialTheme.typography.bodyLarge)
+                        Text(stringResource(R.string.delegation_returned_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
+                    }
+                    androidx.compose.material3.Switch(checked = draft.returned, onCheckedChange = { draft.returned = it })
+                }
                 if (!draft.isNew) {
                     StatusChips(draft.status, TASK_STATUSES, { it.delegationLabel() }) { draft.status = it }
                     TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
@@ -320,6 +345,21 @@ fun DelegationDialog(db: MandatDb, session: Session, draft: DelegationDraft) {
             session.delegationDraft = null
             session.write { it.delegations().delete(id) }
         }, onCancel = { confirmDelete = false })
+    }
+}
+
+/** How much freedom the person has; tapping the chosen level again clears it. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+fun FreedomPicker(current: ua.mandat.data.Freedom?, onPick: (ua.mandat.data.Freedom?) -> Unit) {
+    Column {
+        Text(stringResource(R.string.delegation_freedom), style = MaterialTheme.typography.labelLarge)
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            ua.mandat.data.Freedom.entries.forEach { f ->
+                FilterChip(selected = current == f, onClick = { onPick(if (current == f) null else f) }, label = { Text(stringResource(f.label())) })
+            }
+        }
+        current?.let { Text(stringResource(it.hint()), style = MaterialTheme.typography.labelSmall, color = Muted) }
     }
 }
 
