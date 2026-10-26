@@ -92,6 +92,10 @@ interface RoleDao {
 
 @Dao
 interface MatterDao {
+    /** Every matter, for the Review statistics. */
+    @Query("SELECT * FROM matters")
+    fun observeAll(): Flow<List<Matter>>
+
     @Query("SELECT * FROM matters WHERE status = 'ACTIVE' ORDER BY updatedAt DESC")
     fun observeActive(): Flow<List<Matter>>
 

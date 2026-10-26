@@ -182,6 +182,9 @@ interface PersonDao {
 
 @Dao
 interface DelegationDao {
+    @Query("SELECT * FROM delegations")
+    fun observeAll(): Flow<List<Delegation>>
+
     @Query("SELECT * FROM delegations WHERE status = 'OPEN' ORDER BY (due IS NULL), due, createdAt")
     fun observeOpen(): Flow<List<Delegation>>
 

@@ -108,6 +108,8 @@ class PromiseDraft(val promise: ua.mandat.data.Promise, val isNew: Boolean) {
     var status by mutableStateOf(ua.mandat.data.TaskStatus.of(promise.status))
     var source by mutableStateOf(promise.source)
     var statusNote by mutableStateOf(promise.statusNote)
+    /** The day it was promised; old promises can be written down later with their real date. */
+    var madeOn by mutableStateOf(if (promise.createdAt == 0L) Dates.today() else Dates.dayOf(promise.createdAt))
 
     suspend fun persist(db: MandatDb) {
         val text = what.trim().take(2_000)
@@ -120,7 +122,10 @@ class PromiseDraft(val promise: ua.mandat.data.Promise, val isNew: Boolean) {
             source = source.trim().take(1_000),
             statusNote = if (status == ua.mandat.data.TaskStatus.OPEN || status == ua.mandat.data.TaskStatus.DONE) "" else statusNote.trim().take(2_000),
         )
-        if (isNew) db.promises().insert(edited.copy(id = 0, createdAt = now)) else db.promises().update(edited)
+        // Keep the exact moment unless the owner picked another day (then noon of that day)
+        val original = if (isNew) now else promise.createdAt
+        val made = if (Dates.dayOf(original) == madeOn) original else Dates.noonOf(madeOn)
+        if (isNew) db.promises().insert(edited.copy(id = 0, createdAt = made)) else db.promises().update(edited.copy(createdAt = made))
     }
 }
 

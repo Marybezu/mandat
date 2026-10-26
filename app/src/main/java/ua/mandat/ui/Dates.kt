@@ -33,4 +33,8 @@ object Dates {
     /** The local calendar day of a moment (epoch milliseconds). */
     fun dayOf(millis: Long): Long =
         java.time.Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate().toEpochDay()
+
+    /** Noon of a calendar day in the phone's time zone, as epoch milliseconds. */
+    fun noonOf(day: Long): Long =
+        LocalDate.ofEpochDay(day).atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 }

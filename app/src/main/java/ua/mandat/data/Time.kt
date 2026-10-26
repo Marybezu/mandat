@@ -54,6 +54,9 @@ data class SearchHit(val kind: String, val id: Long, val title: String, val deta
 
 @Dao
 interface DeadlineDao {
+    @Query("SELECT * FROM deadlines")
+    fun observeAll(): Flow<List<Deadline>>
+
     @Query("SELECT * FROM deadlines WHERE status = 'OPEN' ORDER BY day, kind = 'SOFT'")
     fun observeOpen(): Flow<List<Deadline>>
 
@@ -81,6 +84,9 @@ interface DeadlineDao {
 
 @Dao
 interface ReviewDao {
+    @Query("SELECT * FROM reviews")
+    fun observeAll(): Flow<List<Review>>
+
     @Query("SELECT * FROM reviews ORDER BY day DESC LIMIT 60")
     fun observeRecent(): Flow<List<Review>>
 

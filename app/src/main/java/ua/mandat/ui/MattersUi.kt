@@ -83,10 +83,35 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit) {
     var roleFilter by rememberSaveable { mutableStateOf<Long?>(null) }
     var showClosed by rememberSaveable { mutableStateOf(false) }
 
+    // Quick filter from the summary strip: "FOCUS", "STALE" or null
+    var quick by rememberSaveable { mutableStateOf<String?>(null) }
+    val today = Dates.today()
+
     val roleNames = roles.associate { it.id to it.name }
-    fun visible(m: Matter) = roleFilter == null || m.roleId == roleFilter
+    fun visible(m: Matter) = (roleFilter == null || m.roleId == roleFilter) && when (quick) {
+        "FOCUS" -> Attention.of(m.attention) == Attention.FOCUS
+        "STALE" -> ua.mandat.data.isStale(m, today)
+        else -> true
+    }
 
     Column(Modifier.fillMaxSize()) {
+        if (active.isNotEmpty()) {
+            val strip = ua.mandat.data.mattersStrip(active, today)
+            SummaryStrip(
+                "matters",
+                listOfNotNull(
+                    StripItem(strip.active.toString(), stringResource(R.string.strip_active), selected = quick == null) { quick = null },
+                    StripItem("${strip.focus}/$FOCUS_LIMIT", stringResource(R.string.strip_focus), selected = quick == "FOCUS") {
+                        quick = if (quick == "FOCUS") null else "FOCUS"
+                    },
+                    if (strip.stale > 0) StripItem(strip.stale.toString(), stringResource(R.string.strip_stale, ua.mandat.data.STALE_DAYS),
+                        attention = quick != "STALE", selected = quick == "STALE") {
+                        quick = if (quick == "STALE") null else "STALE"
+                    } else null,
+                ),
+                Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp),
+            )
+        }
         if (roles.isNotEmpty()) {
             Row(
                 Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
@@ -120,7 +145,7 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit) {
                     items(group, key = { "a${it.id}" }) { m -> MatterCard(m, roleNames[m.roleId], onOpen, Modifier.padding(bottom = Space.gap)) }
                 }
             }
-            val closedVisible = closed.filter { visible(it) }
+            val closedVisible = if (quick != null) emptyList() else closed.filter { visible(it) }
             if (closedVisible.isNotEmpty()) {
                 item(key = "closed") {
                     TextButton(onClick = { showClosed = !showClosed }) {
@@ -210,6 +235,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (!request.isNew) MatterStrip(db, request.matter)
             OutlinedTextField(
                 value = draft.title, onValueChange = { draft.title = it },
                 label = { Text(stringResource(R.string.matter_title)) },
@@ -409,4 +435,27 @@ private fun MatterLinks(db: MandatDb, session: Session, matterId: Long) {
             dismissButton = { TextButton(onClick = { stanceFor = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
+}
+
+/** Facts about one matter: how long in work, the nearest deadline, who stands where. */
+@Composable
+private fun MatterStrip(db: MandatDb, matter: Matter) {
+    val linked by remember(db, matter.id) { db.people().observeForMatter(matter.id) }.collectAsStateWithLifecycle(emptyList())
+    val deadlines by remember(db, matter.id) { db.deadlines().observeForMatter(matter.id) }.collectAsStateWithLifecycle(emptyList())
+    val today = Dates.today()
+    val items = buildList {
+        if (MatterStatus.of(matter.status) == MatterStatus.ACTIVE) {
+            add(StripItem((today - Dates.dayOf(matter.createdAt)).coerceAtLeast(0).toString(), stringResource(R.string.strip_days_in_work)))
+        }
+        deadlines.filter { ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.OPEN }.minByOrNull { it.day }?.let { d ->
+            add(StripItem(Dates.format(d.day), stringResource(R.string.strip_next_deadline), attention = d.day < today))
+        }
+        val stances = linked.mapNotNull { ua.mandat.data.Stance.of(it.stance) }.groupingBy { it }.eachCount()
+        listOf(
+            ua.mandat.data.Stance.ALLY to R.string.strip_allies,
+            ua.mandat.data.Stance.UNDECIDED to R.string.strip_undecided,
+            ua.mandat.data.Stance.OPPONENT to R.string.strip_opponents,
+        ).forEach { (st, label) -> stances[st]?.let { n -> add(StripItem(n.toString(), stringResource(label))) } }
+    }
+    SummaryStrip("matter", items)
 }

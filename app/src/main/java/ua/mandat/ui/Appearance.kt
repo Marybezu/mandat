@@ -29,6 +29,13 @@ object Appearance {
         prefs(context).edit().putBoolean("dynamic", on).apply()
     }
 
+    /** Whether the small summary strip on a screen is open (only a layout choice). */
+    fun stripOpen(context: Context, key: String) = prefs(context).getBoolean("strip_$key", true)
+
+    fun setStripOpen(context: Context, key: String, open: Boolean) {
+        prefs(context).edit().putBoolean("strip_$key", open).apply()
+    }
+
     /** Sets the theme for the whole app, including the system bars. */
     fun apply(mode: Int) {
         AppCompatDelegate.setDefaultNightMode(

@@ -126,6 +126,76 @@ fun ScreenHeader(title: String, subtitle: String? = null, actions: @Composable R
     }
 }
 
+/** One fact in a summary strip; tapping it can filter the list below. */
+class StripItem(
+    val value: String,
+    val label: String,
+    val attention: Boolean = false,
+    val selected: Boolean = false,
+    val onClick: (() -> Unit)? = null,
+)
+
+/**
+ * The small summary at the top of a screen: a few facts about this screen only. It can be
+ * folded away; the choice is remembered per screen.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+fun SummaryStrip(key: String, items: List<StripItem>, modifier: Modifier = Modifier) {
+    if (items.isEmpty()) return
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var open by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(Appearance.stripOpen(context, key)) }
+    fun toggle() {
+        open = !open
+        Appearance.setStripOpen(context, key, open)
+    }
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+        if (open) {
+            androidx.compose.foundation.layout.FlowRow(
+                Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                items.forEach { item -> StripChip(item) }
+            }
+        } else {
+            Spacer(Modifier.weight(1f))
+        }
+        androidx.compose.material3.IconButton(onClick = ::toggle, modifier = Modifier.size(32.dp)) {
+            Icon(
+                if (open) androidx.compose.material.icons.Icons.Filled.KeyboardArrowUp else androidx.compose.material.icons.Icons.Filled.KeyboardArrowDown,
+                contentDescription = androidx.compose.ui.res.stringResource(if (open) ua.mandat.R.string.strip_hide else ua.mandat.R.string.strip_show),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun StripChip(item: StripItem) {
+    val scheme = MaterialTheme.colorScheme
+    val bg = when {
+        item.selected -> scheme.primaryContainer
+        item.attention -> scheme.errorContainer
+        else -> scheme.surfaceVariant
+    }
+    val fg = when {
+        item.selected -> scheme.onPrimaryContainer
+        item.attention -> scheme.onErrorContainer
+        else -> scheme.onSurface
+    }
+    Row(
+        Modifier.clip(RoundedCornerShape(8.dp)).background(bg)
+            .let { if (item.onClick != null) it.clickable(onClick = item.onClick) else it }
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(item.value, style = MaterialTheme.typography.labelLarge, color = fg)
+        Spacer(Modifier.width(6.dp))
+        Text(item.label, style = MaterialTheme.typography.labelMedium, color = if (item.selected || item.attention) fg else scheme.onSurfaceVariant)
+    }
+}
+
 /** Plain colour helper for text that is not important. */
 val Muted: Color @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
 

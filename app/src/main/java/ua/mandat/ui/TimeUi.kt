@@ -181,7 +181,27 @@ fun TimeScreen(db: MandatDb, session: Session) {
         Column(Modifier.padding(Space.screen)) { EmptyHint(Sym.calendar, stringResource(R.string.time_empty)) }
         return
     }
+    val allDeadlines by remember(db) { db.deadlines().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val month = ua.mandat.data.spanOf(ua.mandat.data.Period.MONTH, today)
+    val dueMonth = allDeadlines.filter {
+        it.day in month && it.day <= today && ua.mandat.data.TaskStatus.of(it.status) != ua.mandat.data.TaskStatus.CANCELLED
+    }
+    val onTimeMonth = dueMonth.count {
+        ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.DONE && it.closedAt != null && Dates.dayOf(it.closedAt) <= it.day
+    }
+    val week = ua.mandat.data.spanOf(ua.mandat.data.Period.WEEK, today)
     LazyColumn(contentPadding = PaddingValues(start = Space.screen, end = Space.screen, bottom = 96.dp)) {
+        item(key = "strip") {
+            SummaryStrip(
+                "time",
+                listOfNotNull(
+                    StripItem(entries.count { it.day in today..week.to }.toString(), stringResource(R.string.strip_this_week)),
+                    StripItem(entries.count { it.day in (week.to + 1)..(week.to + 7) }.toString(), stringResource(R.string.strip_next_week)),
+                    if (dueMonth.isNotEmpty()) StripItem("$onTimeMonth/${dueMonth.size}", stringResource(R.string.strip_on_time_month)) else null,
+                ),
+                Modifier.padding(top = 8.dp),
+            )
+        }
         groups.forEach { (title, list) ->
             if (list.isNotEmpty()) {
                 item(key = "h$title") {
@@ -207,6 +227,7 @@ fun ReviewScreen(db: MandatDb, session: Session) {
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        item(key = "dash") { Dashboard(db, session) }
         item(key = "evening") {
             MCard {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {

@@ -70,9 +70,27 @@ fun PeopleList(db: MandatDb, session: Session) {
         Column(Modifier.padding(Space.screen)) { EmptyHint(Sym.group, stringResource(R.string.people_empty)) }
         return
     }
+    val allDelegations by remember(db) { db.delegations().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val monthAgo = Dates.today() - 30
+    val doneMonth = allDelegations.count {
+        ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.DONE && it.closedAt != null && Dates.dayOf(it.closedAt) > monthAgo
+    }
+    val overdue = open.count { ua.mandat.data.isOverdue(it.due, it.status, Dates.today()) }
     LazyColumn(
         contentPadding = PaddingValues(start = Space.screen, end = Space.screen, bottom = 96.dp),
     ) {
+        item(key = "strip") {
+            SummaryStrip(
+                "people",
+                listOfNotNull(
+                    StripItem(people.count { it.teamRole != null }.toString(), stringResource(R.string.strip_team)),
+                    StripItem(open.size.toString(), stringResource(R.string.strip_delegations_open)),
+                    if (overdue > 0) StripItem(overdue.toString(), stringResource(R.string.stat_overdue), attention = true) else null,
+                    StripItem(doneMonth.toString(), stringResource(R.string.strip_done_30)),
+                ),
+                Modifier.padding(top = 8.dp),
+            )
+        }
         item(key = "search") {
             OutlinedTextField(
                 value = query, onValueChange = { query = it }, singleLine = true,

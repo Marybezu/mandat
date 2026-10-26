@@ -151,10 +151,10 @@ fun MatterPicker(active: List<MatterTitle>, all: List<MatterTitle>, current: Lon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DueField(due: Long?, allowClear: Boolean = true, onChange: (Long?) -> Unit) {
+fun DueField(due: Long?, allowClear: Boolean = true, label: Int = R.string.due, onChange: (Long?) -> Unit) {
     var picking by remember { mutableStateOf(false) }
     Column {
-        Text(stringResource(R.string.due), style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(label), style = MaterialTheme.typography.labelLarge)
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { picking = true }) {
                 Text(due?.let { Dates.format(it) } ?: stringResource(R.string.pick_date))
@@ -163,18 +163,25 @@ fun DueField(due: Long?, allowClear: Boolean = true, onChange: (Long?) -> Unit) 
         }
     }
     if (picking) {
-        val state = rememberDatePickerState(initialSelectedDateMillis = due?.let { Dates.toPicker(it) })
-        DatePickerDialog(
-            onDismissRequest = { picking = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    state.selectedDateMillis?.let { onChange(Dates.fromPicker(it)) }
-                    picking = false
-                }) { Text(stringResource(R.string.ok)) }
-            },
-            dismissButton = { TextButton(onClick = { picking = false }) { Text(stringResource(R.string.cancel)) } },
-        ) { DatePicker(state = state) }
+        DayPickerDialog(due) { day ->
+            picking = false
+            if (day != null) onChange(day)
+        }
     }
+}
+
+/** The system date picker; gives a calendar day, or null when cancelled. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DayPickerDialog(initial: Long?, onPick: (Long?) -> Unit) {
+    val state = rememberDatePickerState(initialSelectedDateMillis = initial?.let { Dates.toPicker(it) })
+    DatePickerDialog(
+        onDismissRequest = { onPick(null) },
+        confirmButton = {
+            TextButton(onClick = { onPick(state.selectedDateMillis?.let { Dates.fromPicker(it) }) }) { Text(stringResource(R.string.ok)) }
+        },
+        dismissButton = { TextButton(onClick = { onPick(null) }) { Text(stringResource(R.string.cancel)) } },
+    ) { DatePicker(state = state) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
@@ -277,6 +284,7 @@ fun PromiseDialog(db: MandatDb, session: Session, draft: PromiseDraft) {
                     supportingText = { Text(stringResource(R.string.promise_source_hint)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
+                DueField(draft.madeOn, allowClear = false, label = R.string.promise_made_on) { d -> d?.let { draft.madeOn = minOf(it, Dates.today()) } }
                 MatterPicker(matters, allMatters, draft.matterId) { draft.matterId = it }
                 DueField(draft.due) { draft.due = it }
                 if (!draft.isNew) {
