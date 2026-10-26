@@ -288,9 +288,9 @@ fun SectionCard(
     }
 }
 
-/** A thin line between rows inside a [SectionCard]. */
+/** The gap between tiles inside a [SectionCard]. */
 @Composable
-fun RowDivider() = HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+fun RowDivider() = Spacer(Modifier.height(6.dp))
 
 /** A small removable label showing an active filter. */
 @Composable

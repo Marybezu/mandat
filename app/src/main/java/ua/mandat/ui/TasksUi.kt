@@ -1,6 +1,14 @@
 package ua.mandat.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,42 +51,107 @@ import ua.mandat.data.Promise
 import ua.mandat.data.TaskStatus
 import ua.mandat.data.isOverdue
 
-/** One line for a delegation or promise: a tick to close it, the text, and who/when. */
+/** What a row is; each kind has its own colour and picture, readable at a glance. */
+enum class TaskKind { HARD, SOFT, DELEGATION, PROMISE }
+
+@Composable
+private fun TaskKind.badge(): Pair<androidx.compose.ui.graphics.Color, androidx.compose.ui.graphics.Color> {
+    val dark = androidx.compose.foundation.isSystemInDarkTheme()
+    fun c(v: Long) = androidx.compose.ui.graphics.Color(v)
+    return when (this) {
+        TaskKind.HARD -> FlagBlue to c(0xFFFFFFFF)
+        TaskKind.SOFT -> if (dark) c(0xFF042C53) to c(0xFFB5D4F4) else c(0xFFE6F1FB) to c(0xFF0C447C)
+        TaskKind.DELEGATION -> if (dark) c(0xFF04342C) to c(0xFF9FE1CB) else c(0xFFE1F5EE) to c(0xFF085041)
+        TaskKind.PROMISE -> if (dark) c(0xFF412402) to c(0xFFFAC775) else c(0xFFFAEEDA) to c(0xFF633806)
+    }
+}
+
+private fun TaskKind.icon(): androidx.compose.ui.graphics.vector.ImageVector = when (this) {
+    TaskKind.HARD, TaskKind.SOFT -> androidx.compose.material.icons.Icons.Filled.DateRange
+    TaskKind.DELEGATION -> androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowForward
+    TaskKind.PROMISE -> androidx.compose.material.icons.Icons.Filled.ThumbUp
+}
+
+/** A small label inside a row: a person, a matter, a date. */
+@Composable
+fun MiniChip(text: String, bg: androidx.compose.ui.graphics.Color? = null, fg: androidx.compose.ui.graphics.Color? = null) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelSmall,
+        color = fg ?: MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
+            .background(bg ?: MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 7.dp, vertical = 2.dp),
+    )
+}
+
+/** The due date as a label: "today", "tomorrow", "overdue N days" or the date. */
+@Composable
+fun DueChip(due: Long, open: Boolean) {
+    val today = Dates.today()
+    val scheme = MaterialTheme.colorScheme
+    when {
+        open && due < today -> MiniChip(stringResource(R.string.overdue_days, (today - due).toInt()), scheme.errorContainer, scheme.onErrorContainer)
+        due == today -> MiniChip(stringResource(R.string.due_today), scheme.primaryContainer, scheme.onPrimaryContainer)
+        due == today + 1 -> MiniChip(stringResource(R.string.due_tomorrow), scheme.primaryContainer, scheme.onPrimaryContainer)
+        else -> MiniChip(Dates.format(due))
+    }
+}
+
+/**
+ * One deadline, delegation or promise as a tile: a coloured picture of its kind, the text,
+ * small labels (who, which matter, when), and a tick to close it.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun TaskRow(
     what: String,
-    detail: String,
+    kind: TaskKind,
+    chips: List<String>,
     due: Long?,
     status: String,
     onToggleDone: () -> Unit,
     onOpen: () -> Unit,
 ) {
-    val today = Dates.today()
-    val overdue = isOverdue(due, status, today)
     val done = TaskStatus.of(status) != TaskStatus.OPEN
+    val (bg, fg) = kind.badge()
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(vertical = 4.dp),
+        Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+            .clickable(onClick = onOpen).padding(start = 10.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Checkbox(checked = done, onCheckedChange = { onToggleDone() })
+        androidx.compose.foundation.layout.Box(
+            Modifier.size(32.dp).clip(androidx.compose.foundation.shape.CircleShape).background(bg),
+            contentAlignment = Alignment.Center,
+        ) {
+            androidx.compose.material3.Icon(kind.icon(), contentDescription = null, tint = fg, modifier = Modifier.size(18.dp))
+        }
+        androidx.compose.foundation.layout.Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 what,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleSmall,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 color = if (done) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface,
+                textDecoration = if (done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
             )
-            val dueText = due?.let { Dates.format(it) + if (overdue) " · " + stringResource(R.string.overdue_label) else "" }
-            val line = listOfNotNull(detail.ifBlank { null }, dueText).joinToString(" · ")
-            if (line.isNotEmpty()) {
-                Text(
-                    line,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
-                )
+            val labels = chips.filter { it.isNotBlank() }
+            if (labels.isNotEmpty() || due != null) {
+                androidx.compose.foundation.layout.Spacer(Modifier.height(4.dp))
+                androidx.compose.foundation.layout.FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    if (due != null) DueChip(due, !done)
+                    labels.forEach { MiniChip(it) }
+                }
             }
         }
+        Checkbox(checked = done, onCheckedChange = { onToggleDone() })
     }
 }
 
@@ -86,7 +159,8 @@ fun TaskRow(
 fun DelegationRow(d: Delegation, personName: String?, matterTitle: String?, session: Session) {
     TaskRow(
         what = d.what,
-        detail = listOfNotNull(personName, matterTitle).joinToString(" · "),
+        kind = TaskKind.DELEGATION,
+        chips = listOfNotNull(personName, matterTitle),
         due = d.due,
         status = d.status,
         onToggleDone = {
@@ -107,7 +181,8 @@ fun PromiseRow(p: Promise, personName: String?, matterTitle: String?, session: S
     val kind = stringResource(if (p.isPublic) R.string.promise_public else R.string.promise_personal)
     TaskRow(
         what = p.what,
-        detail = listOfNotNull(whom, kind, matterTitle).joinToString(" · "),
+        kind = TaskKind.PROMISE,
+        chips = listOfNotNull(kind, whom, matterTitle),
         due = p.due,
         status = p.status,
         onToggleDone = {

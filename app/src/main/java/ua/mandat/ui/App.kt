@@ -225,6 +225,10 @@ private fun Main(db: MandatDb, session: Session) {
         PersonEditor(db, session, draft)
         return
     }
+    session.smartList?.let {
+        SmartListScreen(db, session, it)
+        return
+    }
     if (session.showPromises) {
         PromisesScreen(db, session)
         return
@@ -379,6 +383,7 @@ private fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onTo
     val soonDl = openDl.filter { it.day == today || it.day == tomorrow }
     val soonD = openD.filter { it.due == today || it.due == tomorrow }
     val soonP = openP.filter { it.due == today || it.due == tomorrow }
+    val active by remember(db) { db.matters().observeActive() }.collectAsStateWithLifecycle(emptyList())
     val overdueCount = overdueDl.size + overdueD.size + overdueP.size
     val dated = openDl.size + openD.count { it.due != null } + openP.count { it.due != null }
     // Everything due today, and how much of it is already done
@@ -421,6 +426,8 @@ private fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onTo
                 ) { jump(overdueAt) }
             }
         }
+
+        SmartListChips(smartCounts(active, openD.size, openP.size, today)) { session.smartList = it }
 
         if (overdueCount > 0) {
             SectionCard(Sym.warning, stringResource(R.string.overdue_title), Modifier.bringIntoViewRequester(overdueAt),

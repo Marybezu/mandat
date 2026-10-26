@@ -365,4 +365,19 @@
     <string name="screenshots_turn_off">Вимкнути</string>
     <string name="screenshots_need_13">Потрібен Android 13 або новіший.</string>
     <string name="screenshots_off_failed">Не вдалося зберегти. Знімки заборонено до закриття застосунку, спробуйте ще раз.</string>
+    <string name="overdue_days">прострочено %1$d дн.</string>
+    <string name="due_today">сьогодні</string>
+    <string name="due_tomorrow">завтра</string>
+    <string name="smart_next">Наступні кроки</string>
+    <string name="smart_waiting">Чекаю від інших</string>
+    <string name="smart_promises">Мої обіцянки</string>
+    <string name="smart_stuck">Застрягло</string>
+    <string name="smart_no_next">Без наступного кроку</string>
+    <string name="smart_next_hint">Наступний крок кожної активної справи: що можете зробити самі.</string>
+    <string name="smart_waiting_hint">Відкриті доручення за справами: що винні вам інші.</string>
+    <string name="smart_promises_hint">Відкриті обіцянки за справами: що винні ви.</string>
+    <string name="smart_stuck_hint">Активні справи, у яких не було руху 30 днів і більше.</string>
+    <string name="smart_no_next_hint">Справи, де не записано наступного кроку. Досить одного рядка.</string>
+    <string name="smart_empty">Тут порожньо.</string>
+    <string name="no_matter_group">Без справи</string>
 </resources>

@@ -65,6 +65,8 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     /** The "My promises" screen is open. */
     var showPromises by mutableStateOf(false)
+    /** The smart list open on its own screen, if any. */
+    var smartList by mutableStateOf<SmartList?>(null)
 
     /** The search screen is open. */
     var searching by mutableStateOf(false)

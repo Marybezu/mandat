@@ -233,8 +233,15 @@ fun MatterCard(m: Matter, roleName: String?, onOpen: (Matter) -> Unit, modifier:
 @Composable
 fun MatterLine(m: Matter, roleName: String?, onOpen: () -> Unit) {
     val type = MatterType.of(m.type)
-    Row(Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(10.dp).clip(androidx.compose.foundation.shape.CircleShape).background(type.chartColor()))
+    Row(
+        Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+            .clickable(onClick = onOpen).padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(32.dp).clip(androidx.compose.foundation.shape.CircleShape).background(type.tint().bg), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(12.dp).clip(androidx.compose.foundation.shape.CircleShape).background(type.chartColor()))
+        }
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(m.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)

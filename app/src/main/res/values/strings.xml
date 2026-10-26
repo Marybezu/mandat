@@ -363,4 +363,19 @@
     <string name="screenshots_turn_off">Turn off</string>
     <string name="screenshots_need_13">Needs Android 13 or newer.</string>
     <string name="screenshots_off_failed">Could not save. Screenshots are forbidden until the app is closed; try again.</string>
+    <string name="overdue_days">overdue %1$d d.</string>
+    <string name="due_today">today</string>
+    <string name="due_tomorrow">tomorrow</string>
+    <string name="smart_next">Next steps</string>
+    <string name="smart_waiting">Waiting for others</string>
+    <string name="smart_promises">My promises</string>
+    <string name="smart_stuck">Stuck</string>
+    <string name="smart_no_next">No next step</string>
+    <string name="smart_next_hint">The next step of every awake matter: what you can do yourself.</string>
+    <string name="smart_waiting_hint">Open delegations, grouped by matter: what others owe you.</string>
+    <string name="smart_promises_hint">Open promises, grouped by matter: what you owe.</string>
+    <string name="smart_stuck_hint">Active matters without any movement for 30 days or more.</string>
+    <string name="smart_no_next_hint">Matters where the next step is not written down. One line is enough.</string>
+    <string name="smart_empty">Nothing here.</string>
+    <string name="no_matter_group">Without a matter</string>
 </resources>

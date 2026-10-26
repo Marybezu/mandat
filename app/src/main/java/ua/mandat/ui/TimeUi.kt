@@ -65,7 +65,8 @@ fun DeadlineRow(d: Deadline, matterTitle: String?, session: Session) {
     val kind = stringResource(if (hard) R.string.deadline_hard else R.string.deadline_soft)
     TaskRow(
         what = d.title,
-        detail = listOfNotNull(kind, d.basis.ifBlank { null }, matterTitle).joinToString(" · "),
+        kind = if (hard) TaskKind.HARD else TaskKind.SOFT,
+        chips = listOfNotNull(kind, d.basis.ifBlank { null }, matterTitle),
         due = d.day,
         status = d.status,
         onToggleDone = {

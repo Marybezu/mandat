@@ -2,6 +2,8 @@ package ua.mandat.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
 import androidx.compose.material3.FilterChip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -76,7 +78,6 @@ fun PeopleList(db: MandatDb, session: Session) {
     fun categoryKey(p: Person) = if (p.teamRole != null) "TEAM" else (p.category ?: "NONE")
     val notSet = stringResource(R.string.not_set)
     val teamLabel = stringResource(R.string.team)
-    val othersLabel = stringResource(R.string.others)
     val categorySlices = buildList {
         add(Slice("TEAM", teamLabel, people.count { it.teamRole != null }, ChartColors.blue))
         ua.mandat.data.PersonCategory.entries.forEachIndexed { i, c ->
@@ -177,10 +178,10 @@ fun PeopleList(db: MandatDb, session: Session) {
                 }
             }
         }
-        listOf(
-            teamLabel to shown.filter { it.teamRole != null },
-            othersLabel to shown.filter { it.teamRole == null },
-        ).forEach { (title, list) ->
+        // Team first, then one card per kind of person, largest groups first
+        val groups = listOf(teamLabel to shown.filter { it.teamRole != null }) +
+            categorySlices.filter { it.key != "TEAM" }.map { sl -> sl.label to shown.filter { it.teamRole == null && categoryKey(it) == sl.key } }
+        groups.forEach { (title, list) ->
             if (list.isNotEmpty()) item(key = "group_$title") {
                 SectionCard(Sym.group, title, count = list.size) {
                     list.forEachIndexed { i, p ->
@@ -196,7 +197,11 @@ fun PeopleList(db: MandatDb, session: Session) {
 /** Plain facts only: who it is and how much is open. No scores, no ranking. */
 @Composable
 private fun PersonLine(p: Person, openCount: Int, onOpen: () -> Unit) {
-    Column(Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(vertical = 8.dp)) {
+    Column(
+        Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+            .clickable(onClick = onOpen).padding(10.dp),
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Initials(p.name, team = p.teamRole != null)
             Spacer(Modifier.width(12.dp))
