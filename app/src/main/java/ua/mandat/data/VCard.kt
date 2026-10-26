@@ -15,11 +15,10 @@ object VCard {
     private const val MAX_VALUE = 10_000
     private val SKIPPED = setOf("PHOTO", "LOGO", "SOUND", "KEY", "X-ANDROID-CUSTOM", "AGENT")
 
-    class Result(val contacts: List<Contact>, val categories: Map<Int, List<String>>, val tooMany: Boolean)
+    class Result(val contacts: List<Contact>, val tooMany: Boolean)
 
     fun read(reader: BufferedReader, now: Long = System.currentTimeMillis()): Result {
         val out = ArrayList<Contact>()
-        val categories = HashMap<Int, List<String>>()
         var card: Card? = null
         var tooMany = false
 
@@ -32,7 +31,6 @@ object VCard {
                     card = null
                     val contact = c.toContact(now) ?: return
                     if (out.size >= MAX_CONTACTS) { tooMany = true; return }
-                    if (c.categories.isNotEmpty()) categories[out.size] = c.categories
                     out += contact
                 }
                 else -> card?.add(p)
@@ -45,7 +43,7 @@ object VCard {
         var skipping = false
         var qpOpen = false
         while (!tooMany) {
-            val raw = reader.readLine() ?: break
+            val raw = readBounded(reader) ?: break
             if (qpOpen) {
                 if (!skipping && current.length < MAX_VALUE) {
                     current.setLength(current.length - 1) // the soft break "="
@@ -67,7 +65,28 @@ object VCard {
             qpOpen = isQp(raw) && raw.endsWith("=")
         }
         if (current.isNotEmpty() && !tooMany) handle(current.toString())
-        return Result(out, categories, tooMany)
+        return Result(out, tooMany)
+    }
+
+    /**
+     * Reads one line but keeps at most [MAX_VALUE] characters of it; the rest of a very long line
+     * (for example a photo written on one line) is read and thrown away, never kept in memory.
+     */
+    private fun readBounded(reader: BufferedReader): String? {
+        val b = StringBuilder()
+        var any = false
+        while (true) {
+            val ch = reader.read()
+            if (ch < 0) return if (any) b.toString() else null
+            any = true
+            if (ch == '\n'.code) return b.toString()
+            if (ch == '\r'.code) {
+                reader.mark(1)
+                if (reader.read() != '\n'.code) reader.reset()
+                return b.toString()
+            }
+            if (b.length < MAX_VALUE) b.append(ch.toChar())
+        }
     }
 
     private fun isQp(s: CharSequence): Boolean {
@@ -163,8 +182,6 @@ object VCard {
         var org = ""
         var title = ""
         var note = ""
-        val categories = ArrayList<String>()
-
         fun add(p: Prop) {
             when (p.name) {
                 "FN" -> fn = unescape(p.value).trim()
@@ -173,13 +190,12 @@ object VCard {
                     // Family;Given;Middle;Prefix;Suffix → "Given Middle Family"
                     n = listOfNotNull(c.getOrNull(1), c.getOrNull(2), c.getOrNull(0)).filter { it.isNotEmpty() }.joinToString(" ")
                 }
-                "TEL" -> p.value.removePrefix("tel:").trim().takeIf { it.isNotEmpty() }?.let { phones += it }
-                "EMAIL" -> unescape(p.value).trim().takeIf { it.isNotEmpty() }?.let { emails += it }
+                // At most 20 of each, however many a file lists
+                "TEL" -> if (phones.size < 20) p.value.removePrefix("tel:").trim().takeIf { it.isNotEmpty() }?.let { phones += it }
+                "EMAIL" -> if (emails.size < 20) unescape(p.value).trim().takeIf { it.isNotEmpty() }?.let { emails += it }
                 "ORG" -> org = components(p.value).map { it.trim() }.filter { it.isNotEmpty() }.joinToString(", ")
                 "TITLE" -> title = unescape(p.value).trim()
                 "NOTE" -> note = unescape(p.value).trim()
-                "CATEGORIES" -> p.value.split(',').map { unescape(it).trim() }.filter { it.isNotEmpty() && !it.equals("myContacts", true) && !it.equals("starred", true) }
-                    .forEach { categories += it }
             }
         }
 

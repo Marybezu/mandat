@@ -27,7 +27,6 @@ class VCardTest {
         assertEquals("Тестова організація, Відділ", c.organization)
         assertEquals("Тестова посада", c.jobTitle)
         assertEquals("Перший рядок\nдругий, з комою і продовження", c.notes)
-        assertEquals(listOf("Список"), r.categories[0])
     }
 
     @Test fun readsVersion21QuotedPrintable() {

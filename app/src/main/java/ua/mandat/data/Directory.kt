@@ -102,8 +102,8 @@ fun normalizePhone(raw: String): String? {
     if (digits.length < 5 || digits.length > 15) return null
     return when {
         t.startsWith("+") -> "+$digits"
-        digits.startsWith("00") -> "+" + digits.drop(2)
         digits.length == 10 && digits.startsWith("0") -> "+38$digits"
+        digits.startsWith("00") -> "+" + digits.drop(2)
         digits.length == 12 && digits.startsWith("380") -> "+$digits"
         else -> digits
     }

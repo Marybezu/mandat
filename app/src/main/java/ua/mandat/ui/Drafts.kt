@@ -259,3 +259,27 @@ fun newEvent(day: Long = Dates.today(), matterId: Long? = null, personId: Long? 
     isNew = true,
     people = setOfNotNull(personId),
 )
+
+/** An address-book entry being edited; saved like the other drafts if Mandat locks meanwhile. */
+class ContactDraft(val contact: ua.mandat.data.Contact) {
+    val isNew get() = contact.id == 0L
+    var name by mutableStateOf(contact.name)
+    var phones by mutableStateOf(contact.phones)
+    var emails by mutableStateOf(contact.emails)
+    var organization by mutableStateOf(contact.organization)
+    var jobTitle by mutableStateOf(contact.jobTitle)
+    var label by mutableStateOf(contact.label)
+    var notes by mutableStateOf(contact.notes)
+
+    fun edited(): ua.mandat.data.Contact? = ua.mandat.data.cleanContact(
+        contact.copy(
+            name = name, phones = phones, emails = emails, organization = organization, jobTitle = jobTitle, label = label, notes = notes,
+            createdAt = if (isNew) System.currentTimeMillis() else contact.createdAt,
+        ),
+    )
+
+    suspend fun persist(db: MandatDb) {
+        val e = edited() ?: return
+        if (isNew) db.contacts().insert(e.copy(id = 0)) else db.contacts().update(e)
+    }
+}

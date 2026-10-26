@@ -279,7 +279,7 @@ private fun Legend() {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         listOf(
             ChartColors.blue to R.string.cal_legend_events,
-            ChartColors.coral to R.string.deadline_hard,
+            ChartColors.coral to R.string.cal_legend_hard,
             ChartColors.amber to R.string.cal_legend_dates,
             ChartColors.gray to R.string.cal_legend_phone,
         ).forEach { (c, label) ->

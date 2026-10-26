@@ -113,7 +113,6 @@ fun DirectoryScreen(db: MandatDb, session: Session) {
     }
     var query by rememberSaveable { mutableStateOf("") }
     var label by rememberSaveable { mutableStateOf<String?>(null) }
-    var open by remember { mutableStateOf<Contact?>(null) }
     var pickedAt by remember { mutableStateOf(-1) }
     val context = LocalContext.current
     val listState = rememberLazyListState()
@@ -127,7 +126,7 @@ fun DirectoryScreen(db: MandatDb, session: Session) {
         session.pickingFile = false
         if (uri != null && pickedAt == session.generationNow()) {
             val c = readPicked(context, uri)
-            if (c != null) open = c
+            if (c != null) session.contactDraft = ContactDraft(c)
         }
     }
 
@@ -175,7 +174,7 @@ fun DirectoryScreen(db: MandatDb, session: Session) {
                         try { pickPhone.launch(Unit) } catch (e: android.content.ActivityNotFoundException) { session.pickingFile = false }
                     }) { Text(stringResource(R.string.dir_from_phone)) }
                 }
-                TextButton(onClick = { open = Contact(name = "", sortKey = "", createdAt = 0) }) { Text("+ " + stringResource(R.string.dir_add)) }
+                TextButton(onClick = { session.contactDraft = ContactDraft(Contact(name = "", sortKey = "", createdAt = 0)) }) { Text("+ " + stringResource(R.string.dir_add)) }
             }
             if (session.vcfBusy) item(key = "busy") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -229,12 +228,12 @@ fun DirectoryScreen(db: MandatDb, session: Session) {
                     last = l
                     item(key = "h$l$i") { Text(l, style = MaterialTheme.typography.titleSmall, color = Muted, modifier = Modifier.padding(top = 8.dp)) }
                 }
-                item(key = c.id) { ContactLine(c) { open = c } }
+                item(key = c.id) { ContactLine(c) { session.contactDraft = ContactDraft(c) } }
             }
         }
     }
 
-    open?.let { c -> ContactDialog(db, session, c) { open = null } }
+    session.contactDraft?.let { d -> ContactDialog(session, d) }
 }
 
 /** How many items come before the first letter header (for jumping from the alphabet). */
@@ -269,40 +268,32 @@ private fun ContactLine(c: Contact, onOpen: () -> Unit) {
 
 /** A contact's card: edit the basics, call or write, move to People, or delete. */
 @Composable
-private fun ContactDialog(db: MandatDb, session: Session, c: Contact, onClose: () -> Unit) {
-    var name by remember(c) { mutableStateOf(c.name) }
-    var phones by remember(c) { mutableStateOf(c.phones) }
-    var emails by remember(c) { mutableStateOf(c.emails) }
-    var org by remember(c) { mutableStateOf(c.organization) }
-    var job by remember(c) { mutableStateOf(c.jobTitle) }
-    var label by remember(c) { mutableStateOf(c.label) }
-    var notes by remember(c) { mutableStateOf(c.notes) }
+private fun ContactDialog(session: Session, d: ContactDraft) {
     var confirmDelete by remember { mutableStateOf(false) }
-    val isNew = c.id == 0L
-    fun edited() = cleanContact(c.copy(name = name, phones = phones, emails = emails, organization = org, jobTitle = job, label = label, notes = notes,
-        createdAt = if (isNew) System.currentTimeMillis() else c.createdAt))
+    val c = d.contact
+    fun close() { session.contactDraft = null }
 
     AlertDialog(
-        onDismissRequest = onClose,
+        onDismissRequest = ::close,
         properties = DialogProperties(dismissOnClickOutside = false),
-        title = { Text(stringResource(if (isNew) R.string.dir_add else R.string.dir_contact)) },
+        title = { Text(stringResource(if (d.isNew) R.string.dir_add else R.string.dir_contact)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (!isNew) {
+                if (!d.isNew) {
                     ReachButtons(c.phones.lines().mapNotNull { normalizePhone(it) }.distinct(), emailsIn(c.emails))
                     Spacer(Modifier.height(4.dp))
                 }
-                OutlinedTextField(name, { name = it }, label = { Text(stringResource(R.string.person_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(phones, { phones = it }, label = { Text(stringResource(R.string.dir_phones)) }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(emails, { emails = it }, label = { Text(stringResource(R.string.dir_emails)) }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(org, { org = it }, label = { Text(stringResource(R.string.person_org)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(job, { job = it }, label = { Text(stringResource(R.string.person_job)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(label, { label = it }, label = { Text(stringResource(R.string.dir_group)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(notes, { notes = it }, label = { Text(stringResource(R.string.person_notes)) }, modifier = Modifier.fillMaxWidth())
-                if (!isNew) {
+                OutlinedTextField(d.name, { d.name = it }, label = { Text(stringResource(R.string.person_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(d.phones, { d.phones = it }, label = { Text(stringResource(R.string.dir_phones)) }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(d.emails, { d.emails = it }, label = { Text(stringResource(R.string.dir_emails)) }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(d.organization, { d.organization = it }, label = { Text(stringResource(R.string.person_org)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(d.jobTitle, { d.jobTitle = it }, label = { Text(stringResource(R.string.person_job)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(d.label, { d.label = it }, label = { Text(stringResource(R.string.dir_group)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(d.notes, { d.notes = it }, label = { Text(stringResource(R.string.person_notes)) }, modifier = Modifier.fillMaxWidth())
+                if (!d.isNew) {
                     TextButton(onClick = {
-                        val e = edited() ?: return@TextButton
-                        onClose()
+                        val e = d.edited() ?: return@TextButton
+                        close()
                         session.write { db2 ->
                             val id = db2.contacts().moveToPeople(db2.people(), e, System.currentTimeMillis())
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { session.openPerson(id) }
@@ -314,17 +305,16 @@ private fun ContactDialog(db: MandatDb, session: Session, c: Contact, onClose: (
         },
         confirmButton = {
             TextButton(onClick = {
-                val e = edited()
-                onClose()
-                if (e != null) session.write { if (isNew) it.contacts().insert(e.copy(id = 0)) else it.contacts().update(e) }
-            }, enabled = name.isNotBlank() || phones.isNotBlank()) { Text(stringResource(R.string.save)) }
+                close()
+                session.write { d.persist(it) }
+            }, enabled = d.name.isNotBlank() || d.phones.isNotBlank()) { Text(stringResource(R.string.save)) }
         },
-        dismissButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.cancel)) } },
+        dismissButton = { TextButton(onClick = ::close) { Text(stringResource(R.string.cancel)) } },
     )
     if (confirmDelete) {
         ConfirmDelete(onConfirm = {
             confirmDelete = false
-            onClose()
+            close()
             session.write { it.contacts().delete(c.id) }
         }, onCancel = { confirmDelete = false })
     }

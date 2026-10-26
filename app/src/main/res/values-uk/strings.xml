@@ -546,7 +546,7 @@
     <string name="reach_call">Дзвінок</string>
     <string name="reach_sms">SMS</string>
     <string name="reach_hint">Відкриває застосунок телефона; Мандат не читає дзвінки й переписку.</string>
-    <string name="vcf_too_big">Файл завеликий (понад 200 МБ).</string>
+    <string name="vcf_too_big">Файл завеликий (понад 50 МБ).</string>
     <string name="vcf_failed">Не вдалося прочитати файл.</string>
     <string name="vcf_empty">У файлі не знайдено контактів.</string>
     <string name="dir_no_group">Без групи</string>
@@ -581,4 +581,6 @@
     <string name="phone_cal_switch">Показувати події з календаря телефона</string>
     <string name="phone_cal_hint">Лише показуються поруч із подіями Мандата, ніколи не зберігаються. Потрібен дозвіл «Календар»; вимкнення повертає дозвіл.</string>
     <string name="phone_cal_denied">Дозвіл не надано. Його можна дати в налаштуваннях телефона.</string>
+    <string name="phone_cal_hint_12">Лише показуються поруч із подіями Мандата, ніколи не зберігаються. Потрібен дозвіл «Календар». На цій версії Android забрати дозвіл можна лише в налаштуваннях телефона.</string>
+    <string name="cal_legend_hard">жорсткі строки</string>
 </resources>

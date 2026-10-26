@@ -516,7 +516,7 @@ private fun PhoneCalendarSwitch(session: Session) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(stringResource(R.string.phone_cal_switch), style = MaterialTheme.typography.bodyLarge)
-            Text(stringResource(R.string.phone_cal_hint), style = MaterialTheme.typography.labelMedium, color = Muted)
+            Text(stringResource(if (PhoneCalendar.canGiveBack) R.string.phone_cal_hint else R.string.phone_cal_hint_12), style = MaterialTheme.typography.labelMedium, color = Muted)
             if (denied) Text(stringResource(R.string.phone_cal_denied), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
         }
         androidx.compose.material3.Switch(checked = on, onCheckedChange = { want ->

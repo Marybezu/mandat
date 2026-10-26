@@ -59,6 +59,7 @@ class Session(app: Application) : AndroidViewModel(app) {
     var promiseDraft by mutableStateOf<PromiseDraft?>(null)
     var deadlineDraft by mutableStateOf<DeadlineDraft?>(null)
     var eventDraft by mutableStateOf<EventDraft?>(null)
+    var contactDraft by mutableStateOf<ContactDraft?>(null)
 
     /** Today's answer to the evening question while it is being typed; null when not editing. */
     var reviewDraft by mutableStateOf<String?>(null)
@@ -101,9 +102,6 @@ class Session(app: Application) : AndroidViewModel(app) {
     fun saveEventDraft() {
         val d = eventDraft ?: return
         eventDraft = null
-        vcfImport = null
-        vcfDone = null
-        vcfBusy = false
         write { d.persist(it) }
     }
 
@@ -158,8 +156,8 @@ class Session(app: Application) : AndroidViewModel(app) {
                 withOpenDb { db -> ua.mandat.data.planImport(r.contacts, db.contacts().all(), db.people().all()) }?.let { it to r }
             }
             withContext(Dispatchers.Main) {
-                if (startedAt != generation || state !is LockState.Open) return@withContext
                 vcfBusy = false
+                if (startedAt != generation || state !is LockState.Open) return@withContext
                 when {
                     result is Int -> vcfError = result
                     plan == null -> vcfError = R.string.vcf_failed
@@ -511,6 +509,14 @@ class Session(app: Application) : AndroidViewModel(app) {
         val openDeadline = deadlineDraft
         val openEvent = eventDraft
         eventDraft = null
+        val openContact = contactDraft
+        contactDraft = null
+        // A .vcf being imported is decrypted personal data: it leaves memory with the lock
+        vcfImport = null
+        vcfDone = null
+        vcfBusy = false
+        vcfError = null
+        showDirectory = false
         val openReview = reviewDraft
         deadlineDraft = null
         reviewDraft = null
@@ -538,6 +544,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                             { openPromise?.persist(current.db) },
                             { openDeadline?.persist(current.db) },
                             { openEvent?.persist(current.db) },
+                            { openContact?.persist(current.db) },
                             { persistReview(current.db, openReview) },
                             // Last: only the days on which something is due, for reminders
                             { storeReminderDays(current.db) },
@@ -569,8 +576,8 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     companion object {
         private const val PICKER_TIMEOUT_MS = 90 * 1000L
-        /** A larger .vcf is refused (photos make files big; 6 000 contacts without photos are a few MB). */
-        const val MAX_VCF_BYTES = 200L * 1024 * 1024
+        /** A larger .vcf is refused (6 000 contacts without photos are a few MB; with photos tens of MB). */
+        const val MAX_VCF_BYTES = 50L * 1024 * 1024
         private const val AUTO_WAIT_MS = 30 * 1000L
         private const val AUTO_STUCK_MS = 24 * 60 * 60 * 1000L
     }

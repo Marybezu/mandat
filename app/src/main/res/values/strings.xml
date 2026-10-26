@@ -544,7 +544,7 @@
     <string name="reach_call">Call</string>
     <string name="reach_sms">SMS</string>
     <string name="reach_hint">Opens the phone\'s own app; Mandat does not read calls or chats.</string>
-    <string name="vcf_too_big">The file is too big (more than 200 MB).</string>
+    <string name="vcf_too_big">The file is too big (more than 50 MB).</string>
     <string name="vcf_failed">Could not read the file.</string>
     <string name="vcf_empty">No contacts found in the file.</string>
     <string name="dir_no_group">No group</string>
@@ -579,4 +579,6 @@
     <string name="phone_cal_switch">Show phone calendar events</string>
     <string name="phone_cal_hint">Only shown next to Mandat\'s own events, never saved. Needs the Calendar permission; turning it off gives the permission back.</string>
     <string name="phone_cal_denied">Permission not given. You can allow it in the phone settings.</string>
+    <string name="phone_cal_hint_12">Only shown next to Mandat\'s own events, never saved. Needs the Calendar permission. On this Android version it can be taken back only in the phone settings.</string>
+    <string name="cal_legend_hard">hard deadlines</string>
 </resources>

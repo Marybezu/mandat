@@ -109,11 +109,15 @@ interface EventDao {
         deleteRow(id)
     }
 
-    /** Saves the people of an event: exactly the given ones. */
+    @Query("SELECT id FROM people WHERE id IN (:ids)")
+    suspend fun existingPeople(ids: Collection<Long>): List<Long>
+
+    /** Saves the people of an event: exactly the given ones that still exist (one may have been deleted meanwhile). */
     @Transaction
     suspend fun setPeople(eventId: Long, people: Collection<Long>) {
         unlinkAll(eventId)
-        people.forEach { link(EventPerson(eventId, it)) }
+        if (people.isEmpty()) return
+        existingPeople(people).forEach { link(EventPerson(eventId, it)) }
     }
 }
 

@@ -117,6 +117,9 @@ object PhoneCalendar {
     fun isOn(context: Context) =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_ON, false) && allowed(context)
 
+    /** From Android 13 Mandat can give the permission back itself; before that, only the phone settings can. */
+    val canGiveBack get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+
     fun setOn(context: Context, on: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_ON, on).apply()
         if (!on && allowed(context) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -165,9 +168,8 @@ object PhoneCalendar {
                     }
                 }
             }
-        } catch (e: SecurityException) {
-            return emptyList()
-        } catch (e: IllegalArgumentException) {
+        } catch (e: RuntimeException) {
+            // Not allowed any more, or the calendar app failed: show nothing rather than crash
             return emptyList()
         }
         return out
