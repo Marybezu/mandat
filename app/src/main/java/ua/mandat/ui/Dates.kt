@@ -1,28 +1,28 @@
 package ua.mandat.ui
 
 import java.text.DateFormat
-import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.ZoneOffset
 import java.util.Date
 
-/** Dates are stored as the start of the day in the phone's time zone. */
+/**
+ * Due dates are stored as a calendar day (days since 1970-01-01), with no time zone,
+ * so a date stays the same day after travelling or a time-zone change.
+ */
 object Dates {
-    fun today(): Long = startOfDay(LocalDate.now())
+    private const val DAY_MS = 86_400_000L
 
-    fun startOfDay(date: LocalDate): Long = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    fun today(): Long = LocalDate.now().toEpochDay()
 
-    /** The date picker gives midnight UTC of the chosen day; keep the same calendar day locally. */
-    fun fromPicker(utcMillis: Long): Long = startOfDay(Instant.ofEpochMilli(utcMillis).atZone(ZoneOffset.UTC).toLocalDate())
+    /** The date picker gives midnight UTC of the chosen day. */
+    fun fromPicker(utcMillis: Long): Long = Math.floorDiv(utcMillis, DAY_MS)
 
-    /** Back to the picker's form, so it opens on the stored day. */
-    fun toPicker(stored: Long): Long =
-        Instant.ofEpochMilli(stored).atZone(ZoneId.systemDefault()).toLocalDate()
-            .atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+    fun toPicker(day: Long): Long = day * DAY_MS
 
-    fun format(stored: Long): String = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(stored))
+    fun format(day: Long): String {
+        val local = LocalDate.ofEpochDay(day).atStartOfDay(ZoneId.systemDefault()).toInstant()
+        return DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date.from(local))
+    }
 
-    fun addDays(stored: Long, days: Long): Long =
-        startOfDay(Instant.ofEpochMilli(stored).atZone(ZoneId.systemDefault()).toLocalDate().plusDays(days))
+    fun addDays(day: Long, days: Long): Long = day + days
 }

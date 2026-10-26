@@ -167,7 +167,7 @@
     <string name="team_ASSISTANT">Помічник</string>
     <string name="team_INTERN">Стажер</string>
     <string name="team_SECRETARIAT">Секретаріат</string>
-    <string name="team_LAWYER">Адвокат</string>
+    <string name="team_LAWYER">Адвокат чи юрист</string>
     <string name="team_ADVISOR">Радник</string>
     <string name="team_OTHER">Член команди</string>
     <string name="not_team">Не в команді</string>
@@ -213,7 +213,6 @@
     <string name="matter_link">Справа</string>
     <string name="no_matter">Без справи</string>
     <string name="due">До коли</string>
-    <string name="no_due">Без строку</string>
     <string name="pick_date">Обрати дату</string>
     <string name="clear_date">Прибрати дату</string>
     <string name="promise_public">Публічна обіцянка</string>
@@ -222,7 +221,6 @@
     <string name="overdue_title">Прострочене</string>
     <string name="soon_title">Сьогодні й завтра</string>
     <string name="overdue_label">прострочено</string>
-    <string name="mark_done">Позначити виконаним</string>
     <string name="open_count">відкрито: %1$d</string>
     <string name="overdue_count">прострочено: %1$d</string>
     <string name="save_matter_first">Збережіть справу, щоб додавати людей, доручення й обіцянки.</string>

@@ -378,7 +378,7 @@ private fun MatterLinks(db: MandatDb, session: Session, matterId: Long) {
                     (listOf<ua.mandat.data.Stance?>(null) + ua.mandat.data.Stance.entries).forEach { st ->
                         TextButton(onClick = {
                             stanceFor = null
-                            session.write { it.people().link(ua.mandat.data.MatterPerson(matterId, row.personId, st?.name, row.note)) }
+                            session.write { it.people().setStance(matterId, row.personId, st?.name) }
                         }) { Text(st?.let { stringResource(it.label()) } ?: stringResource(R.string.stance_none)) }
                     }
                 }

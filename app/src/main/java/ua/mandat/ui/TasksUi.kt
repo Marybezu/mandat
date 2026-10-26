@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ua.mandat.R
 import ua.mandat.data.Delegation
@@ -133,13 +134,16 @@ fun PersonPicker(people: List<Person>, current: Long?, onPick: (Long?) -> Unit) 
     )
 }
 
+/** Offers active matters; [all] (also closed ones) is used to show the current choice. */
 @Composable
-fun MatterPicker(matters: List<MatterTitle>, current: Long?, onPick: (Long?) -> Unit) {
+fun MatterPicker(active: List<MatterTitle>, all: List<MatterTitle>, current: Long?, onPick: (Long?) -> Unit) {
     val none = stringResource(R.string.no_matter)
+    val currentTitle = all.firstOrNull { it.id == current }
+    val choices = if (currentTitle != null && active.none { it.id == current }) active + currentTitle else active
     Picker(
         label = stringResource(R.string.matter_link),
-        current = matters.firstOrNull { it.id == current }?.title ?: none,
-        options = listOf<Pair<Long?, String>>(null to none) + matters.map { it.id to it.title },
+        current = currentTitle?.title ?: none,
+        options = listOf<Pair<Long?, String>>(null to none) + choices.map { it.id to it.title },
         onPick = onPick,
     )
 }
@@ -188,12 +192,16 @@ private fun StatusChips(current: TaskStatus, label: (TaskStatus) -> Int, onPick:
 fun DelegationDialog(db: MandatDb, session: Session, draft: DelegationDraft) {
     val peopleFlow = remember(db) { db.people().observeAll() }
     val mattersFlow = remember(db) { db.matters().observeActiveTitles() }
+    val allFlow = remember(db) { db.matters().observeAllTitles() }
+    val allMatters by allFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val people by peopleFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val matters by mattersFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     var confirmDelete by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = { session.delegationDraft = null },
+        // A tap outside must not throw away what was typed
+        properties = DialogProperties(dismissOnClickOutside = false),
         title = { Text(stringResource(R.string.delegation_new)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -202,7 +210,7 @@ fun DelegationDialog(db: MandatDb, session: Session, draft: DelegationDraft) {
                     label = { Text(stringResource(R.string.what)) }, minLines = 2, modifier = Modifier.fillMaxWidth(),
                 )
                 PersonPicker(people, draft.personId) { draft.personId = it }
-                MatterPicker(matters, draft.matterId) { draft.matterId = it }
+                MatterPicker(matters, allMatters, draft.matterId) { draft.matterId = it }
                 DueField(draft.due) { draft.due = it }
                 if (!draft.isNew) {
                     StatusChips(draft.status, { it.delegationLabel() }) { draft.status = it }
@@ -232,12 +240,15 @@ fun DelegationDialog(db: MandatDb, session: Session, draft: DelegationDraft) {
 fun PromiseDialog(db: MandatDb, session: Session, draft: PromiseDraft) {
     val peopleFlow = remember(db) { db.people().observeAll() }
     val mattersFlow = remember(db) { db.matters().observeActiveTitles() }
+    val allFlow = remember(db) { db.matters().observeAllTitles() }
+    val allMatters by allFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val people by peopleFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val matters by mattersFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     var confirmDelete by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = { session.promiseDraft = null },
+        properties = DialogProperties(dismissOnClickOutside = false),
         title = { Text(stringResource(R.string.promise_new)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -259,7 +270,7 @@ fun PromiseDialog(db: MandatDb, session: Session, draft: PromiseDraft) {
                     FilterChip(selected = draft.isPublic, onClick = { draft.isPublic = true },
                         label = { Text(stringResource(R.string.promise_public)) })
                 }
-                MatterPicker(matters, draft.matterId) { draft.matterId = it }
+                MatterPicker(matters, allMatters, draft.matterId) { draft.matterId = it }
                 DueField(draft.due) { draft.due = it }
                 if (!draft.isNew) {
                     StatusChips(draft.status, { it.promiseLabel() }) { draft.status = it }

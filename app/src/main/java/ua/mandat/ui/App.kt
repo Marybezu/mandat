@@ -319,7 +319,7 @@ private fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onTo
     val delegationsFlow = remember(db) { db.delegations().observeOpen() }
     val promisesFlow = remember(db) { db.promises().observeOpen() }
     val peopleFlow = remember(db) { db.people().observeAll() }
-    val titlesFlow = remember(db) { db.matters().observeActiveTitles() }
+    val titlesFlow = remember(db) { db.matters().observeAllTitles() }
     val delegations by delegationsFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val promises by promisesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val people by peopleFlow.collectAsStateWithLifecycle(initialValue = emptyList())

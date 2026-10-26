@@ -206,7 +206,7 @@ private fun PersonLinks(db: MandatDb, session: Session, personId: Long) {
     val mattersFlow = remember(db, personId) { db.people().observeMattersOf(personId) }
     val delegationsFlow = remember(db, personId) { db.delegations().observeForPerson(personId) }
     val promisesFlow = remember(db, personId) { db.promises().observeForPerson(personId) }
-    val titlesFlow = remember(db) { db.matters().observeActiveTitles() }
+    val titlesFlow = remember(db) { db.matters().observeAllTitles() }
     val matters by mattersFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val delegations by delegationsFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val promises by promisesFlow.collectAsStateWithLifecycle(initialValue = emptyList())

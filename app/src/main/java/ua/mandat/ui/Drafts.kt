@@ -109,7 +109,7 @@ class PromiseDraft(val promise: ua.mandat.data.Promise, val isNew: Boolean) {
         val now = System.currentTimeMillis()
         val closed = if (status == ua.mandat.data.TaskStatus.OPEN) null else (promise.closedAt ?: now)
         val edited = promise.copy(
-            what = text, personId = personId, toWhom = toWhom.trim().take(300), isPublic = isPublic,
+            what = text, personId = personId, toWhom = if (personId != null) "" else toWhom.trim().take(300), isPublic = isPublic,
             matterId = matterId, due = due, status = status.name, closedAt = closed,
         )
         if (isNew) db.promises().insert(edited.copy(id = 0, createdAt = now)) else db.promises().update(edited)

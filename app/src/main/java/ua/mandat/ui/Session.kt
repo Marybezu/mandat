@@ -72,17 +72,24 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     /** Opens a matter by id in the editor (read under the write lock, shown on the main thread). */
     fun openMatter(id: Long) {
+        val startedAt = generation
         background.launch {
             val m = withOpenDb { db -> db.matters().get(id) }
-            if (m != null) withContext(Dispatchers.Main) { draft = MatterDraft(EditRequest(m, isNew = false)) }
+            withContext(Dispatchers.Main) {
+                // Locked meanwhile: do not bring decrypted data back into memory
+                if (m != null && startedAt == generation && state is LockState.Open) draft = MatterDraft(EditRequest(m, isNew = false))
+            }
         }
     }
 
     /** Opens a person by id in the editor. */
     fun openPerson(id: Long) {
+        val startedAt = generation
         background.launch {
             val p = withOpenDb { db -> db.people().get(id) }
-            if (p != null) withContext(Dispatchers.Main) { personDraft = PersonDraft(p, isNew = false) }
+            withContext(Dispatchers.Main) {
+                if (p != null && startedAt == generation && state is LockState.Open) personDraft = PersonDraft(p, isNew = false)
+            }
         }
     }
 
@@ -268,16 +275,21 @@ class Session(app: Application) : AndroidViewModel(app) {
             key = null
             background.launch {
                 writes.withLock {
-                    try {
-                        if (current.db.isOpen) {
-                            openDraft?.persist(current.db)
-                            persistInboxDraft(current.db, openInbox)
-                            openPerson?.persist(current.db)
-                            openDelegation?.persist(current.db)
-                            openPromise?.persist(current.db)
+                    if (current.db.isOpen) {
+                        // Each draft on its own: one failure must not lose the others
+                        listOf<suspend () -> Unit>(
+                            { openDraft?.persist(current.db) },
+                            { persistInboxDraft(current.db, openInbox) },
+                            { openPerson?.persist(current.db) },
+                            { openDelegation?.persist(current.db) },
+                            { openPromise?.persist(current.db) },
+                        ).forEach { save ->
+                            try {
+                                save()
+                            } catch (e: Exception) {
+                                // Not saved; nothing about the content is logged
+                            }
                         }
-                    } catch (e: Exception) {
-                        // Not saved; nothing about the content is logged
                     }
                     current.db.close()
                     oldKey?.fill(0)

@@ -41,7 +41,7 @@ data class Delegation(
     val what: String,
     val personId: Long?,
     val matterId: Long?,
-    /** Due date as epoch milliseconds (start of the day, local time), or null. */
+    /** Due date as a calendar day (days since 1970-01-01, no time zone), or null. */
     val due: Long?,
     /** A key of [TaskStatus]. */
     val status: String,
@@ -59,6 +59,7 @@ data class Promise(
     val toWhom: String,
     val isPublic: Boolean,
     val matterId: Long?,
+    /** Due date as a calendar day (days since 1970-01-01, no time zone), or null. */
     val due: Long?,
     /** A key of [TaskStatus]. */
     val status: String,
@@ -138,8 +139,11 @@ interface PersonDao {
     )
     fun observeMattersOf(personId: Long): Flow<List<PersonMatterRow>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun link(link: MatterPerson)
+
+    @Query("UPDATE matter_people SET stance = :stance WHERE matterId = :matterId AND personId = :personId")
+    suspend fun setStance(matterId: Long, personId: Long, stance: String?)
 
     @Query("DELETE FROM matter_people WHERE matterId = :matterId AND personId = :personId")
     suspend fun unlink(matterId: Long, personId: Long)
@@ -219,6 +223,6 @@ fun cleanPerson(p: Person): Person? {
     )
 }
 
-/** Open and past its due date (the due day itself is not yet overdue). */
+/** Open and past its due day (the due day itself is not yet overdue). Days as in [Delegation.due]. */
 fun isOverdue(due: Long?, status: String, today: Long): Boolean =
     due != null && TaskStatus.of(status) == TaskStatus.OPEN && due < today

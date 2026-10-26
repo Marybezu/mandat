@@ -211,7 +211,6 @@
     <string name="matter_link">Matter</string>
     <string name="no_matter">No matter</string>
     <string name="due">By when</string>
-    <string name="no_due">No date</string>
     <string name="pick_date">Choose a date</string>
     <string name="clear_date">Remove date</string>
     <string name="promise_public">Public promise</string>
@@ -220,7 +219,6 @@
     <string name="overdue_title">Overdue</string>
     <string name="soon_title">Today and tomorrow</string>
     <string name="overdue_label">overdue</string>
-    <string name="mark_done">Mark as done</string>
     <string name="open_count">open: %1$d</string>
     <string name="overdue_count">overdue: %1$d</string>
     <string name="save_matter_first">Save the matter first to add people, delegations and promises.</string>

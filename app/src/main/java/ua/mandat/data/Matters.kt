@@ -107,6 +107,10 @@ interface MatterDao {
     @Query("SELECT id, title FROM matters WHERE status = 'ACTIVE' ORDER BY title COLLATE NOCASE")
     fun observeActiveTitles(): Flow<List<MatterTitle>>
 
+    /** All titles, also of closed matters: to show what a delegation or promise belongs to. */
+    @Query("SELECT id, title FROM matters ORDER BY title COLLATE NOCASE")
+    fun observeAllTitles(): Flow<List<MatterTitle>>
+
     @Insert
     suspend fun insert(matter: Matter): Long
 
