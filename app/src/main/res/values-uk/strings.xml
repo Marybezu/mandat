@@ -881,7 +881,7 @@
     <string name="export_everything">Усе (.json)</string>
     <string name="export_protection">Захист</string>
     <string name="export_with_password">З паролем (раджу)</string>
-    <string name="export_with_password_hint">ZIP-файл з AES-256. Відкривається з паролем у 7-Zip, Keka, ZArchiver та подібних застосунках.</string>
+    <string name="export_with_password_hint">ZIP з AES-256: відкривається з паролем у 7-Zip, Keka, ZArchiver. Захист слабший, ніж у файлі Мандата, а назви файлів усередині видно без пароля.</string>
     <string name="export_password">Пароль, щонайменше %1$d символів</string>
     <string name="export_password_repeat">Пароль ще раз</string>
     <string name="export_open">Відкритий файл, без пароля</string>
@@ -904,4 +904,15 @@
     <string name="import_go">Імпортувати</string>
     <string name="import_done">Імпортовано: %1$d</string>
     <string name="export_pdf">Документи також у PDF</string>
+    <string name="export_mandat">Файл Мандата з паролем (найнадійніше)</string>
+    <string name="export_mandat_hint">Зашифровано так само, як резервну копію; приховано й назви файлів. Відкрити можна лише в Мандаті: календар і контакти з нього імпортуються.</string>
+    <string name="export_suggested_note">Запишіть цей пароль зараз і зберігайте окремо від файлу:</string>
+    <string name="export_password_weak">Надто простий: щонайменше 16 символів, без поширених слів. Або натисніть «Запропонувати пароль».</string>
+    <string name="export_everything_hidden">«Усе (.json)» недоступне, поки лінза чи режим поїздки щось ховають.</string>
+    <string name="import_mandat">Файл Мандата (.mandatx)</string>
+    <string name="import_mandat_wrong">Неправильний пароль або пошкоджений файл.</string>
+    <string name="import_open">Відкрити</string>
+    <string name="import_mandat_summary">Подій: %1$d, контактів: %2$d. Інших файлів (таблиці, документи) не імпортується: %3$d.</string>
+    <string name="import_done_short">Імпортовано</string>
+    <string name="import_delete_offer">Вихідний файл на телефоні не зашифрований. Видалити його зараз? Дані вже надійно в Мандаті.</string>
 </resources>

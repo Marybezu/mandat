@@ -235,7 +235,7 @@ class Session(app: Application) : AndroidViewModel(app) {
     var vcfBusy by mutableStateOf(false)
     var vcfError by mutableStateOf<Int?>(null)
     /** After an import: how many were added, and the file to offer for deletion. */
-    var vcfDone by mutableStateOf<Pair<Int, android.net.Uri>?>(null)
+    var vcfDone by mutableStateOf<Pair<Int, android.net.Uri?>?>(null)
 
     /** Reads a .vcf file chosen by the owner, leaving out entries already known. Nothing is saved yet. */
     fun readVcf(uri: android.net.Uri) {
@@ -282,7 +282,7 @@ class Session(app: Application) : AndroidViewModel(app) {
     var showExport by mutableStateOf(false)
 
     /** Contacts read from another file (CSV) go through the same preview as a .vcf. */
-    fun previewContacts(list: List<ua.mandat.data.Contact>, source: android.net.Uri) {
+    fun previewContacts(list: List<ua.mandat.data.Contact>, source: android.net.Uri?) {
         val startedAt = generation
         background.launch {
             val plan = withOpenDb { db -> ua.mandat.data.planImport(list, db.contacts().all(), db.people().all()) }

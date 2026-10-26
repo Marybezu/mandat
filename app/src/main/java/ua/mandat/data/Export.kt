@@ -16,17 +16,22 @@ object Export {
 
     // ── vCard 3.0 ──
 
-    private fun vEsc(s: String) = s.replace("\\", "\\\\").replace("\n", "\\n").replace(",", "\\,").replace(";", "\\;")
+    private fun vEsc(s: String) = s.replace("\r\n", "\n").replace('\r', '\n').replace("\\", "\\\\").replace("\n", "\\n").replace(",", "\\,").replace(";", "\\;")
 
     /** Lines longer than 75 bytes are folded, as the format asks. */
     private fun fold(line: String): String {
         val out = StringBuilder()
         var count = 0
-        for (ch in line) {
-            val len = ch.toString().toByteArray(Charsets.UTF_8).size
+        var i = 0
+        while (i < line.length) {
+            // One whole character at a time, so an emoji (two chars) is never split
+            val cp = line.codePointAt(i)
+            val n = Character.charCount(cp)
+            val len = when { cp < 0x80 -> 1; cp < 0x800 -> 2; cp < 0x10000 -> 3; else -> 4 }
             if (count + len > 74) { out.append("\r\n "); count = 1 }
-            out.append(ch)
+            out.appendCodePoint(cp)
             count += len
+            i += n
         }
         return out.toString()
     }
@@ -90,9 +95,14 @@ object Export {
 
     // ── CSV ──
 
-    /** One CSV field: quoted when needed; a leading =,+,-,@ is neutralised so spreadsheets never run it as a formula. */
+    private val plainNumber = Regex("-?\\d+(\\.\\d+)?")
+
+    /**
+     * One CSV field: quoted when needed; a leading =,+,-,@ is neutralised so spreadsheets never run
+     * it as a formula. A plain number such as -12.00 stays a number.
+     */
     fun csvField(s: String): String {
-        val safe = if (s.isNotEmpty() && s[0] in "=+-@\t\r") "'$s" else s
+        val safe = if (s.isNotEmpty() && s[0] in "=+-@\t\r" && !plainNumber.matches(s)) "'$s" else s
         return if (safe.any { it == ',' || it == '"' || it == '\n' || it == '\r' || it == ';' }) "\"" + safe.replace("\"", "\"\"") + "\"" else safe
     }
 
@@ -109,8 +119,17 @@ object Export {
 
     // ── Markdown ──
 
-    /** Escapes characters that would change the meaning of Markdown. */
-    fun md(s: String): String = s.replace("\\", "\\\\").replace("*", "\\*").replace("_", "\\_").replace("#", "\\#").replace("`", "\\`")
+    /** Escapes characters that would change the meaning of Markdown, including links, images and HTML. */
+    fun md(s: String): String {
+        val out = StringBuilder(s.length + 8)
+        for (ch in s) {
+            if (ch in MD_SPECIAL) out.append('\\')
+            out.append(ch)
+        }
+        return out.toString()
+    }
+
+    private const val MD_SPECIAL = "\\*_#`<>[]!"
 }
 
 /**
@@ -123,14 +142,9 @@ object IcsReader {
     const val MAX_EVENTS = 5_000
 
     fun read(text: String, zone: ZoneId = ZoneId.systemDefault()): List<Item> {
-        // Unfold continuation lines
-        val lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n").fold(mutableListOf<String>()) { acc, l ->
-            if ((l.startsWith(" ") || l.startsWith("\t")) && acc.isNotEmpty()) acc[acc.size - 1] = acc.last() + l.substring(1) else acc += l
-            acc
-        }
         val out = ArrayList<Item>()
         var cur: MutableMap<String, Pair<String, String>>? = null
-        for (l in lines) {
+        for (l in unfold(text)) {
             if (out.size >= MAX_EVENTS) break
             when {
                 l.equals("BEGIN:VEVENT", true) -> cur = HashMap()
@@ -143,6 +157,27 @@ object IcsReader {
             }
         }
         return out
+    }
+
+    /** Longest logical line kept; anything beyond is dropped, so a hostile file cannot grow one line forever. */
+    private const val MAX_LINE = 100_000
+
+    /** Joins continuation lines (starting with a space or tab) in one pass, in linear time. */
+    internal fun unfold(text: String): Sequence<String> = sequence {
+        val cur = StringBuilder()
+        var has = false
+        for (raw in text.lineSequence()) {
+            val l = raw.removeSuffix("\r")
+            if ((l.startsWith(" ") || l.startsWith("\t")) && has) {
+                if (cur.length < MAX_LINE) cur.append(l, 1, minOf(l.length, 1 + MAX_LINE - cur.length))
+            } else {
+                if (has) yield(cur.toString())
+                cur.setLength(0)
+                cur.append(l, 0, minOf(l.length, MAX_LINE))
+                has = true
+            }
+        }
+        if (has) yield(cur.toString())
     }
 
     private fun unescape(s: String) = VCard.unescape(s).take(MAX_NOTE_LENGTH)
@@ -197,7 +232,7 @@ object ContactCsv {
             when {
                 quoted && ch == '"' && i + 1 < t.length && t[i + 1] == '"' -> { cell.append('"'); i++ }
                 ch == '"' -> quoted = !quoted
-                !quoted && ch == sep -> { row += cell.toString(); cell.setLength(0) }
+                !quoted && ch == sep -> { if (row.size < MAX_COLUMNS) row += cell.toString(); cell.setLength(0) }
                 !quoted && (ch == '\n' || ch == '\r') -> {
                     if (ch == '\r' && i + 1 < t.length && t[i + 1] == '\n') i++
                     row += cell.toString(); cell.setLength(0)
@@ -213,6 +248,9 @@ object ContactCsv {
         if (row.any { it.isNotBlank() }) out += row
         return out
     }
+
+    /** More columns than any real contact table has; the rest of a row is ignored. */
+    const val MAX_COLUMNS = 200
 
     private val NAME = listOf("name", "full name", "ім'я", "імʼя", "піб", "прізвище та ім'я", "назва")
     private val PHONE = listOf("phone", "mobile", "tel", "телефон", "мобільний", "номер")

@@ -53,6 +53,37 @@ class ExportTest {
         assertEquals("Особа; друга", list[1].name)
     }
 
+    @Test fun negativeAmountStaysNumber() {
+        assertEquals("-12.00", Export.csvField("-12.00"))
+        assertEquals("'-1+2", Export.csvField("-1+2"))
+    }
+
+    @Test fun emojiNotSplitByFolding() {
+        val name = "Тест " + "🙂".repeat(40)
+        val text = Export.vcard(listOf(Export.VContact(name, emptyList(), emptyList(), "", "", "", emptyList())))
+        assertEquals(name, VCard.read(text.reader().buffered()).contacts.single().name)
+        // No lone carriage return inside a value can start a new property
+        val crText = Export.vcard(listOf(Export.VContact("А", emptyList(), emptyList(), "", "", "x\rTEL:1", emptyList())))
+        assertTrue(crText.lines().none { it.startsWith("TEL:1") })
+    }
+
+    @Test fun markdownLinksEscaped() {
+        assertEquals("\\!\\[\\](x) \\<b\\>", Export.md("![](x) <b>"))
+    }
+
+    @Test fun longContinuationIsLinearAndBounded() {
+        val text = "BEGIN:VCALENDAR\nBEGIN:VEVENT\nDTSTART:20260101T100000Z\nSUMMARY:a\n" + " x\n".repeat(300_000) + "END:VEVENT\n"
+        val started = System.nanoTime()
+        val items = IcsReader.read(text, kyiv)
+        assertTrue(System.nanoTime() - started < 5_000_000_000L)
+        assertEquals(1, items.size)
+        assertTrue(items[0].title.length <= 500)
+    }
+
+    @Test fun csvColumnsCapped() {
+        assertTrue(ContactCsv.rows(";".repeat(10_000)).all { it.size <= ContactCsv.MAX_COLUMNS + 1 })
+    }
+
     @Test fun notes() {
         assertEquals(listOf("перша", "друга\nз продовженням"), notesFromText("перша\n\n\nдруга\nз продовженням\n"))
     }

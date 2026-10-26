@@ -70,7 +70,7 @@ import ua.mandat.data.emailsIn
 import ua.mandat.data.normalizePhone
 
 /** A .vcf file read and waiting for the owner's choice. */
-class VcfImport(val uri: Uri, val plan: ImportPlan, val tooMany: Boolean)
+class VcfImport(val uri: Uri?, val plan: ImportPlan, val tooMany: Boolean)
 
 /** The system contact picker for one phone number: no permission, only the chosen entry is shared. */
 private object PickPhone : ActivityResultContract<Unit, Uri?>() {
@@ -397,15 +397,16 @@ fun VcfPreviewScreen(session: Session, job: VcfImport) {
 
 /** After an import: offer to delete the open .vcf file, which is not encrypted. */
 @Composable
-fun VcfDoneDialog(session: Session, count: Int, uri: Uri) {
+fun VcfDoneDialog(session: Session, count: Int, uri: Uri?) {
     val context = LocalContext.current
     var failed by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = { session.vcfDone = null },
         title = { Text(stringResource(R.string.vcf_done, count)) },
-        text = { Text(stringResource(if (failed) R.string.vcf_delete_failed else R.string.vcf_delete_offer)) },
+        // A source that was itself encrypted (Mandat's own file) needs no deleting
+        text = if (uri == null) null else { { Text(stringResource(if (failed) R.string.vcf_delete_failed else R.string.vcf_delete_offer)) } },
         confirmButton = {
-            if (!failed) TextButton(onClick = {
+            if (uri != null && !failed) TextButton(onClick = {
                 val ok = try {
                     android.provider.DocumentsContract.deleteDocument(context.contentResolver, uri)
                 } catch (e: Exception) {
@@ -414,6 +415,6 @@ fun VcfDoneDialog(session: Session, count: Int, uri: Uri) {
                 if (ok) session.vcfDone = null else failed = true
             }) { Text(stringResource(R.string.vcf_delete)) }
         },
-        dismissButton = { TextButton(onClick = { session.vcfDone = null }) { Text(stringResource(if (failed) R.string.ok else R.string.vcf_keep)) } },
+        dismissButton = { TextButton(onClick = { session.vcfDone = null }) { Text(stringResource(if (failed || uri == null) R.string.ok else R.string.vcf_keep)) } },
     )
 }

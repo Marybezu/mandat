@@ -879,7 +879,7 @@
     <string name="export_everything">Everything (.json)</string>
     <string name="export_protection">Protection</string>
     <string name="export_with_password">With a password (recommended)</string>
-    <string name="export_with_password_hint">A ZIP file with AES-256. Opens with the password in 7-Zip, Keka, ZArchiver and similar apps.</string>
+    <string name="export_with_password_hint">ZIP with AES-256: opens with the password in 7-Zip, Keka, ZArchiver. Weaker than a Mandat file, and the names of the files inside can be seen without the password.</string>
     <string name="export_password">Password, at least %1$d characters</string>
     <string name="export_password_repeat">The password again</string>
     <string name="export_open">Open file, without a password</string>
@@ -902,4 +902,15 @@
     <string name="import_go">Import</string>
     <string name="import_done">Imported: %1$d</string>
     <string name="export_pdf">Documents also as PDF</string>
+    <string name="export_mandat">Mandat file with a password (strongest)</string>
+    <string name="export_mandat_hint">Encrypted the same way as a backup; file names are hidden too. Opens only in Mandat: the calendar and contacts in it can be imported.</string>
+    <string name="export_suggested_note">Write this password down now and keep it apart from the file:</string>
+    <string name="export_password_weak">Too simple: at least 16 characters, without common words. Or tap "Suggest a password".</string>
+    <string name="export_everything_hidden">"Everything (.json)" is not offered while the lens or trip mode hides something.</string>
+    <string name="import_mandat">Mandat file (.mandatx)</string>
+    <string name="import_mandat_wrong">Wrong password or a damaged file.</string>
+    <string name="import_open">Open</string>
+    <string name="import_mandat_summary">Events: %1$d, contacts: %2$d. Other files (tables, documents) are not imported: %3$d.</string>
+    <string name="import_done_short">Imported</string>
+    <string name="import_delete_offer">The source file on the phone is not encrypted. Delete it now? The data is already safe in Mandat.</string>
 </resources>

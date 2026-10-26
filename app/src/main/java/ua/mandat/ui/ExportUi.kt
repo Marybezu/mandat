@@ -99,7 +99,10 @@ fun ExportScreen(db: MandatDb, session: Session) {
     val contacts by remember(db) { db.contacts().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val trip by session.tripOn.collectAsStateWithLifecycle()
-    var protect by remember { mutableStateOf(true) }
+    // 0 a ZIP with a password (other apps open it), 1 Mandat's own encrypted file, 2 an open file
+    var mode by remember { mutableStateOf(PROTECT_ZIP) }
+    val protect = mode != PROTECT_OPEN
+    var suggested by remember { mutableStateOf(false) }
     var password by remember { mutableStateOf("") }
     var repeat by remember { mutableStateOf("") }
     var warnOpen by remember { mutableStateOf(false) }
@@ -109,15 +112,21 @@ fun ExportScreen(db: MandatDb, session: Session) {
     var importKind by remember { mutableStateOf<String?>(null) }
     var pendingImport by remember { mutableStateOf<PendingImport?>(null) }
     var pickingMatter by remember { mutableStateOf(false) }
+    // An imported open file that can now be deleted; an encrypted Mandat file waiting for its password
+    var offerDelete by remember { mutableStateOf<Uri?>(null) }
+    var sealed by remember { mutableStateOf<ByteArray?>(null) }
+    val hidden by session.hiddenMatters.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(hidden) { if (hidden.isNotEmpty()) plan.everything = false }
 
     val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
         session.pickingFile = false
         if (uri == null || pickedAt != session.generationNow()) return@rememberLauncherForActivityResult
         busy = true
         val pass = if (protect) password.toCharArray() else null
-        password = ""; repeat = ""
+        val own = mode == PROTECT_MANDAT
+        password = ""; repeat = ""; suggested = false
         scope.launch {
-            val ok = withContext(Dispatchers.IO) { runExport(context, session, plan, uri, pass) }
+            val ok = withContext(Dispatchers.IO) { runExport(context, session, plan, uri, pass, own) }
             pass?.fill(' ')
             busy = false
             message = context.getString(if (ok) R.string.export_done else R.string.export_failed)
@@ -130,6 +139,12 @@ fun ExportScreen(db: MandatDb, session: Session) {
         if (uri == null || kind == null || pickedAt != session.generationNow()) return@rememberLauncherForActivityResult
         busy = true
         scope.launch {
+            if (kind == "mandat") {
+                val bytes = withContext(Dispatchers.IO) { readBytes(context, uri) }
+                busy = false
+                if (bytes == null) message = context.getString(R.string.import_failed) else sealed = bytes
+                return@launch
+            }
             val p = withContext(Dispatchers.IO) { readImport(context, kind, uri) }
             busy = false
             if (p == null) message = context.getString(R.string.import_failed) else pendingImport = p
@@ -139,6 +154,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
         val date = java.time.LocalDate.now().toString()
         val single = listOf(plan.people || plan.book, plan.calendar, plan.tables.isNotEmpty(), plan.diary, plan.matterId != null, plan.everything).count { it } == 1 &&
             plan.tables.size <= 1 && !(plan.people && plan.book)
+        if (mode == PROTECT_MANDAT) return "mandat-$date.$MANDAT_EXPORT_EXT"
         if (protect || !single) return "mandat-$date.zip"
         return "mandat-$date." + when {
             plan.people || plan.book -> "vcf"
@@ -153,7 +169,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
         session.pickingFile = true
         save.launch(fileName())
     }
-    val passOk = !protect || (password.length >= MIN_EXPORT_PASSWORD && password == repeat)
+    val passOk = !protect || (!ua.mandat.backup.BackupCrypto.isTooSimple(password) && password == repeat)
 
     Scaffold(
         topBar = {
@@ -209,31 +225,42 @@ fun ExportScreen(db: MandatDb, session: Session) {
                         modifier = Modifier.clickable { pickingMatter = true })
                 }
                 if (plan.diary || plan.matterId != null) Check(stringResource(R.string.export_pdf), plan.pdf) { plan.pdf = it }
-                if (!trip) Check(stringResource(R.string.export_everything), plan.everything) { plan.everything = it }
+                if (hidden.isEmpty()) Check(stringResource(R.string.export_everything), plan.everything) { plan.everything = it }
+                else Text(stringResource(R.string.export_everything_hidden), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(start = 12.dp))
             }
             SectionCard(Sym.lock, stringResource(R.string.export_protection)) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { protect = true }) {
-                    RadioButton(selected = protect, onClick = { protect = true })
-                    Column {
-                        Text(stringResource(R.string.export_with_password), style = MaterialTheme.typography.bodyMedium)
-                        Text(stringResource(R.string.export_with_password_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
+                @Composable
+                fun Choice(value: Int, title: Int, hint: Int, warn: Boolean = false) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { mode = value }) {
+                        RadioButton(selected = mode == value, onClick = { mode = value })
+                        Column {
+                            Text(stringResource(title), style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(hint), style = MaterialTheme.typography.labelSmall, color = if (warn) MaterialTheme.colorScheme.error else Muted)
+                        }
                     }
                 }
+                Choice(PROTECT_ZIP, R.string.export_with_password, R.string.export_with_password_hint)
+                Choice(PROTECT_MANDAT, R.string.export_mandat, R.string.export_mandat_hint)
                 if (protect) {
-                    OutlinedTextField(password, { password = it }, label = { Text(stringResource(R.string.export_password, MIN_EXPORT_PASSWORD)) }, singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    TextButton(onClick = {
+                        password = ua.mandat.backup.BackupCrypto.suggestPassword(session.backups.words)
+                        repeat = password
+                        suggested = true
+                    }) { Text(stringResource(R.string.suggest_password)) }
+                    if (suggested) {
+                        Text(stringResource(R.string.export_suggested_note), style = MaterialTheme.typography.bodyMedium)
+                        Text(password, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                    }
+                    OutlinedTextField(password, { password = it; suggested = false }, label = { Text(stringResource(R.string.export_password, ua.mandat.backup.BackupCrypto.MIN_PASSWORD_LENGTH)) }, singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
+                        isError = password.isNotEmpty() && ua.mandat.backup.BackupCrypto.isTooSimple(password),
+                        supportingText = { if (password.isNotEmpty() && ua.mandat.backup.BackupCrypto.isTooSimple(password)) Text(stringResource(R.string.export_password_weak)) },
                         modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(repeat, { repeat = it }, label = { Text(stringResource(R.string.export_password_repeat)) }, singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    OutlinedTextField(repeat, { repeat = it; suggested = false }, label = { Text(stringResource(R.string.export_password_repeat)) }, singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
                         isError = repeat.isNotEmpty() && repeat != password, modifier = Modifier.fillMaxWidth())
                 }
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { protect = false }) {
-                    RadioButton(selected = !protect, onClick = { protect = false })
-                    Column {
-                        Text(stringResource(R.string.export_open), style = MaterialTheme.typography.bodyMedium)
-                        Text(stringResource(R.string.export_open_hint), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
-                    }
-                }
+                Choice(PROTECT_OPEN, R.string.export_open, R.string.export_open_hint, warn = true)
             }
             if (busy) Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.padding(8.dp)); Text(stringResource(R.string.export_working)) }
             Button(onClick = { if (protect) startSave() else warnOpen = true }, enabled = plan.any() && passOk && !busy, modifier = Modifier.fillMaxWidth()) {
@@ -243,7 +270,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
             SectionCard(Sym.inbox, stringResource(R.string.import_title)) {
                 Text(stringResource(R.string.import_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
                 listOf(
-                    "ics" to R.string.import_ics, "notes" to R.string.import_notes, "csv" to R.string.import_csv, "vcf" to R.string.vcf_import,
+                    "mandat" to R.string.import_mandat, "ics" to R.string.import_ics, "notes" to R.string.import_notes, "csv" to R.string.import_csv, "vcf" to R.string.vcf_import,
                 ).forEach { (k, label) ->
                     OutlinedButton(onClick = {
                         if (k == "vcf") { session.showExport = false; session.showDirectory = true; return@OutlinedButton }
@@ -270,20 +297,73 @@ fun ExportScreen(db: MandatDb, session: Session) {
         AlertDialog(
             onDismissRequest = { pendingImport = null },
             title = { Text(stringResource(R.string.import_title)) },
-            text = { Text(stringResource(p.summary, p.count)) },
+            text = { Text(stringResource(p.summary, *p.args.toTypedArray())) },
             confirmButton = {
                 TextButton(onClick = {
                     pendingImport = null
                     p.apply(session)
-                    message = context.getString(R.string.import_done, p.count)
+                    if (p.source != null) offerDelete = p.source else message = context.getString(R.string.import_done, p.count)
                 }, enabled = p.count > 0) { Text(stringResource(R.string.import_go)) }
             },
             dismissButton = { TextButton(onClick = { pendingImport = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
+    offerDelete?.let { uri ->
+        var failed by remember(uri) { mutableStateOf(false) }
+        AlertDialog(
+            onDismissRequest = { offerDelete = null },
+            title = { Text(stringResource(R.string.import_done_short)) },
+            text = { Text(stringResource(if (failed) R.string.vcf_delete_failed else R.string.import_delete_offer)) },
+            confirmButton = {
+                if (!failed) TextButton(onClick = {
+                    val ok = try { android.provider.DocumentsContract.deleteDocument(context.contentResolver, uri) } catch (e: Exception) { false }
+                    if (ok) offerDelete = null else failed = true
+                }) { Text(stringResource(R.string.vcf_delete)) }
+            },
+            dismissButton = { TextButton(onClick = { offerDelete = null }) { Text(stringResource(if (failed) R.string.ok else R.string.vcf_keep)) } },
+        )
+    }
+    sealed?.let { bytes ->
+        var pass by remember(bytes) { mutableStateOf("") }
+        var wrong by remember(bytes) { mutableStateOf(false) }
+        var opening by remember(bytes) { mutableStateOf(false) }
+        AlertDialog(
+            onDismissRequest = { if (!opening) { bytes.fill(0); sealed = null } },
+            title = { Text(stringResource(R.string.import_mandat)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(pass, { pass = it; wrong = false }, label = { Text(stringResource(R.string.password)) }, singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
+                        isError = wrong, supportingText = { if (wrong) Text(stringResource(R.string.import_mandat_wrong)) }, modifier = Modifier.fillMaxWidth())
+                    if (opening) Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.padding(8.dp)); Text(stringResource(R.string.export_working)) }
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = pass.isNotEmpty() && !opening, onClick = {
+                    opening = true
+                    val given = pass
+                    pass = ""
+                    scope.launch {
+                        val result = withContext(Dispatchers.Default) { openMandatExport(bytes, given) }
+                        opening = false
+                        when (result) {
+                            null -> wrong = true
+                            else -> { bytes.fill(0); sealed = null; pendingImport = result }
+                        }
+                    }
+                }) { Text(stringResource(R.string.import_open)) }
+            },
+            dismissButton = { TextButton(enabled = !opening, onClick = { bytes.fill(0); sealed = null }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
 }
 
-const val MIN_EXPORT_PASSWORD = 10
+const val PROTECT_ZIP = 0
+const val PROTECT_MANDAT = 1
+const val PROTECT_OPEN = 2
+
+/** Extension of Mandat's own encrypted export file. */
+const val MANDAT_EXPORT_EXT = "mandatx"
 
 @Composable
 private fun Check(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
@@ -303,13 +383,37 @@ private fun tableLabel(t: String): Int = when (t) {
     else -> R.string.tab_people
 }
 
-/** Gathers what was chosen (leaving out what trip mode hides), and writes one file. */
-private suspend fun runExport(context: Context, session: Session, plan: ExportPlan, uri: Uri, password: CharArray?): Boolean {
-    val files: List<Pair<String, ByteArray>> = session.withOpenDb { db -> buildFiles(context, db, session.hiddenMatters.value, plan) } ?: return false
-    if (files.isEmpty()) return false
+/** Files packed into one ZIP in memory (no encryption of its own). */
+private fun zipInMemory(files: List<Pair<String, ByteArray>>): ByteArray {
+    val buf = java.io.ByteArrayOutputStream()
+    java.util.zip.ZipOutputStream(buf).use { zip ->
+        files.forEach { (name, bytes) ->
+            zip.putNextEntry(java.util.zip.ZipEntry(name))
+            zip.write(bytes)
+            zip.closeEntry()
+        }
+    }
+    return buf.toByteArray()
+}
+
+/**
+ * Gathers what was chosen (leaving out what trip mode and the lens hide), and writes one file.
+ * Any failure, even running out of memory, ends without a crash and removes the new file.
+ */
+private suspend fun runExport(context: Context, session: Session, plan: ExportPlan, uri: Uri, password: CharArray?, own: Boolean): Boolean {
+    var files: List<Pair<String, ByteArray>> = emptyList()
+    fun discard() { try { android.provider.DocumentsContract.deleteDocument(context.contentResolver, uri) } catch (x: Exception) { } }
     return try {
-        context.contentResolver.openOutputStream(uri, "wt")?.use { out ->
+        files = session.withOpenDb { db -> buildFiles(context, db, session.hiddenMatters.value, plan) }.orEmpty()
+        if (files.isEmpty()) { discard(); return false }
+        val written = context.contentResolver.openOutputStream(uri, "wt")?.use { out ->
             when {
+                password != null && own -> {
+                    // Mandat's own file: the same encryption as a backup (Argon2id and AES-256-GCM); file names are hidden too
+                    val inner = zipInMemory(files)
+                    val sealed = try { ua.mandat.backup.BackupCrypto.encrypt(inner, String(password)) } finally { inner.fill(0) }
+                    out.write(sealed)
+                }
                 password != null -> {
                     // ZIP with AES-256: a standard that 7-Zip, Keka and similar apps open with the password
                     val params = net.lingala.zip4j.model.ZipParameters().apply {
@@ -327,19 +431,16 @@ private suspend fun runExport(context: Context, session: Session, plan: ExportPl
                     }
                 }
                 files.size == 1 -> out.write(files.first().second)
-                else -> java.util.zip.ZipOutputStream(out).use { zip ->
-                    files.forEach { (name, bytes) ->
-                        zip.putNextEntry(java.util.zip.ZipEntry(name))
-                        zip.write(bytes)
-                        zip.closeEntry()
-                    }
-                }
+                else -> out.write(zipInMemory(files))
             }
-        } ?: return false
-        true
-    } catch (e: Exception) {
+            true
+        } ?: false
+        if (!written) discard()
+        written
+    } catch (e: Throwable) {
+        if (e is kotlinx.coroutines.CancellationException) { discard(); throw e }
         // Nothing half-written should stay as if it were complete
-        try { android.provider.DocumentsContract.deleteDocument(context.contentResolver, uri) } catch (x: Exception) { }
+        discard()
         false
     } finally {
         files.forEach { it.second.fill(0) }
@@ -354,7 +455,11 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
         add("$base.md", markdown)
         if (plan.pdf) out += "$base.pdf" to PdfText.render(markdown)
     }
-    val people = db.people().all()
+    val links = db.people().observeLinks().first()
+    // A person known only through hidden matters stays hidden too
+    val onlyHidden = if (hidden.isEmpty()) emptySet() else links.groupBy { it.personId }
+        .filterValues { l -> l.all { it.matterId in hidden } }.keys
+    val people = db.people().all().filter { it.id !in onlyHidden }
     val titles = db.matters().observeAllTitles().first().filter { visible(it.id) }.associate { it.id to it.title }
     val nameOf = people.associate { it.id to it.name }
     fun catName(k: String): String = when {
@@ -433,7 +538,8 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
             ua.mandat.data.TeamRole.of(p.teamRole)?.let { context.getString(it.label()) }.orEmpty(), p.notes) },
     ))
     if (plan.diary) {
-        val reviews = db.reviews().observeAll().first().sortedBy { it.day }
+        val hiddenReviews = db.reviews().observeLinks().first().filter { it.kind == "matter" && it.refId in hidden }.map { it.reviewId }.toSet()
+        val reviews = db.reviews().observeAll().first().filter { it.id !in hiddenReviews }.sortedBy { it.day }
         addDoc("diary", buildString {
             append("# ").append(context.getString(R.string.diary_title)).append("\n\n")
             reviews.filter { it.progress.isNotBlank() || it.mood != null || it.energy != null }.forEach { r ->
@@ -458,10 +564,10 @@ private suspend fun matterDossier(context: Context, db: MandatDb, m: ua.mandat.d
     line(R.string.matter_goal, m.goal)
     line(R.string.matter_next_step, m.nextStep)
     if (m.description.isNotBlank()) append("\n").append(Export.md(m.description)).append("\n")
-    val links = db.people().observeForMatter(m.id).first()
-    if (links.isNotEmpty()) {
+    val linked = db.people().observeForMatter(m.id).first()
+    if (linked.isNotEmpty()) {
         append("\n## ").append(context.getString(R.string.people_in_matter)).append("\n\n")
-        links.forEach { append("- ").append(Export.md(it.name)).append(ua.mandat.data.Stance.of(it.stance)?.let { s -> " — " + context.getString(s.label()) }.orEmpty()).append("\n") }
+        linked.forEach { append("- ").append(Export.md(it.name)).append(ua.mandat.data.Stance.of(it.stance)?.let { s -> " — " + context.getString(s.label()) }.orEmpty()).append("\n") }
     }
     val dls = db.deadlines().observeForMatter(m.id).first()
     if (dls.isNotEmpty()) {
@@ -488,48 +594,116 @@ private suspend fun matterDossier(context: Context, db: MandatDb, m: ua.mandat.d
 }
 
 /** A file read for import, waiting for confirmation. */
-class PendingImport(val summary: Int, val count: Int, val apply: (Session) -> Unit)
+/** [args] fill the [summary] text (by default the count); [source] is an open file that may be deleted afterwards. */
+class PendingImport(val summary: Int, val count: Int, val args: List<Int> = listOf(count), val source: Uri? = null, val apply: (Session) -> Unit)
 
 private const val MAX_IMPORT_BYTES = 20L * 1024 * 1024
 
-private fun readImport(context: Context, kind: String, uri: Uri): PendingImport? = try {
+/** The whole file, at most [MAX_IMPORT_BYTES] (checked while reading, not only by the reported size). */
+private fun readBytes(context: Context, uri: Uri): ByteArray? = try {
     val size = context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
     if (size > MAX_IMPORT_BYTES) null
-    else {
-        val bytes = context.contentResolver.openInputStream(uri)?.use { input ->
-            val buf = java.io.ByteArrayOutputStream()
-            val chunk = ByteArray(64 * 1024)
-            var total = 0L
-            while (true) {
-                val n = input.read(chunk)
-                if (n < 0) break
-                total += n
-                if (total > MAX_IMPORT_BYTES) throw java.io.IOException()
-                buf.write(chunk, 0, n)
+    else context.contentResolver.openInputStream(uri)?.use { input ->
+        val buf = java.io.ByteArrayOutputStream()
+        val chunk = ByteArray(64 * 1024)
+        var total = 0L
+        while (true) {
+            val n = input.read(chunk)
+            if (n < 0) break
+            total += n
+            if (total > MAX_IMPORT_BYTES) throw java.io.IOException()
+            buf.write(chunk, 0, n)
+        }
+        buf.toByteArray()
+    }
+} catch (e: Exception) {
+    null
+} catch (e: OutOfMemoryError) {
+    null
+}
+
+/** Saves events read from a calendar file, skipping those already there (same title, day and time). */
+private fun importEvents(s: Session, items: List<ua.mandat.data.IcsReader.Item>) {
+    s.write { db ->
+        val now = System.currentTimeMillis()
+        val existing = db.events().observeAll().first().map { Triple(it.title, it.day, it.startMin) }.toSet()
+        db.withTransaction {
+            items.filter { Triple(it.title, it.day, it.startMin) !in existing }.forEach { i ->
+                ua.mandat.data.cleanEvent(ua.mandat.data.Event(title = i.title, day = i.day, endDay = i.endDay, startMin = i.startMin, endMin = i.endMin,
+                    kind = ua.mandat.data.EventKind.OTHER.name, place = i.place, notes = i.notes, createdAt = now, updatedAt = now))?.let { db.events().insert(it) }
             }
-            buf.toByteArray()
-        } ?: throw java.io.IOException()
+        }
+    }
+}
+
+private const val MAX_INNER_FILES = 64
+private const val MAX_INNER_TOTAL = 40L * 1024 * 1024
+
+/**
+ * Opens Mandat's own export file with its password: calendars and contacts inside can be taken
+ * in; tables and documents are for reading elsewhere and are skipped. Null for a wrong password
+ * or a damaged file. Everything stays in memory.
+ */
+private fun openMandatExport(file: ByteArray, password: String): PendingImport? {
+    val inner = try { ua.mandat.backup.BackupCrypto.decrypt(file, password) } catch (e: Exception) { return null } catch (e: OutOfMemoryError) { return null }
+    return try {
+        if (inner.size < 4 || inner[0] != 'P'.code.toByte() || inner[1] != 'K'.code.toByte()) return null
+        val events = ArrayList<ua.mandat.data.IcsReader.Item>()
+        val contacts = ArrayList<ua.mandat.data.Contact>()
+        var skipped = 0
+        var total = 0L
+        java.util.zip.ZipInputStream(java.io.ByteArrayInputStream(inner)).use { zip ->
+            var count = 0
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                if (++count > MAX_INNER_FILES) break
+                val name = entry.name.substringAfterLast('/').lowercase()
+                val ext = name.substringAfterLast('.', "")
+                if (entry.isDirectory || ext !in setOf("ics", "vcf")) { skipped++; continue }
+                // Read with a running limit: the sizes written in the ZIP itself are not trusted
+                val buf = java.io.ByteArrayOutputStream()
+                val chunk = ByteArray(64 * 1024)
+                while (true) {
+                    val n = zip.read(chunk)
+                    if (n < 0) break
+                    total += n
+                    if (total > MAX_INNER_TOTAL) throw java.io.IOException()
+                    buf.write(chunk, 0, n)
+                }
+                val text = String(buf.toByteArray(), Charsets.UTF_8)
+                when (ext) {
+                    "ics" -> events += ua.mandat.data.IcsReader.read(text).take(ua.mandat.data.IcsReader.MAX_EVENTS - events.size)
+                    else -> contacts += ua.mandat.data.VCard.read(text.reader().buffered()).contacts.take(ua.mandat.data.VCard.MAX_CONTACTS - contacts.size)
+                }
+            }
+        }
+        PendingImport(R.string.import_mandat_summary, events.size + contacts.size, args = listOf(events.size, contacts.size, skipped)) { s ->
+            if (events.isNotEmpty()) importEvents(s, events)
+            if (contacts.isNotEmpty()) s.previewContacts(contacts, null)
+        }
+    } catch (e: Exception) {
+        null
+    } catch (e: OutOfMemoryError) {
+        null
+    } finally {
+        inner.fill(0)
+    }
+}
+
+private fun readImport(context: Context, kind: String, uri: Uri): PendingImport? = try {
+    val bytes = readBytes(context, uri)
+    if (bytes == null) null
+    else {
         val text = String(bytes, Charsets.UTF_8)
         bytes.fill(0)
         when (kind) {
             "ics" -> {
                 val items = ua.mandat.data.IcsReader.read(text)
-                PendingImport(R.string.import_ics_summary, items.size) { s ->
-                    s.write { db ->
-                        val now = System.currentTimeMillis()
-                        val existing = db.events().observeAll().first().map { Triple(it.title, it.day, it.startMin) }.toSet()
-                        db.withTransaction {
-                            items.filter { Triple(it.title, it.day, it.startMin) !in existing }.forEach { i ->
-                                ua.mandat.data.cleanEvent(ua.mandat.data.Event(title = i.title, day = i.day, endDay = i.endDay, startMin = i.startMin, endMin = i.endMin,
-                                    kind = ua.mandat.data.EventKind.OTHER.name, place = i.place, notes = i.notes, createdAt = now, updatedAt = now))?.let { db.events().insert(it) }
-                            }
-                        }
-                    }
-                }
+                PendingImport(R.string.import_ics_summary, items.size, source = uri) { s -> importEvents(s, items) }
             }
             "notes" -> {
                 val notes = ua.mandat.data.notesFromText(text)
-                PendingImport(R.string.import_notes_summary, notes.size) { s ->
+                PendingImport(R.string.import_notes_summary, notes.size, source = uri) { s ->
                     s.write { db ->
                         val now = System.currentTimeMillis()
                         if (notes.isNotEmpty()) notes.forEachIndexed { i, n -> db.inbox().insert(ua.mandat.data.InboxItem(text = n, createdAt = now + i)) }
@@ -576,7 +750,7 @@ object PdfText {
         }
         newPage()
         // Markup first (bold, italics), then the escaped characters back to themselves
-        fun plain(s: String) = s.replace("**", "").replace(Regex("(?<!\\\\)_"), "").replace(Regex("\\\\([*_#`\\\\])"), "$1")
+        fun plain(s: String) = s.replace("**", "").replace(Regex("(?<!\\\\)_"), "").replace(Regex("\\\\([*_#`<>\\[\\]!\\\\])"), "$1")
         for (raw in markdown.split("\n")) {
             val (paint, text, gap) = when {
                 raw.startsWith("# ") -> Triple(h1, plain(raw.removePrefix("# ")), 10f)
