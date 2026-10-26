@@ -224,7 +224,7 @@ fun BudgetScreen(db: MandatDb, session: Session) {
                     if (limits.isEmpty()) Text(stringResource(R.string.money_limits_none), style = MaterialTheme.typography.bodySmall, color = Muted)
                     limits.forEach { (cat, limit) ->
                         val spent = expenses.filter { it.category == cat }.sumOf { it.uah }
-                        LimitRow(categoryName(cat), spent, limit)
+                        LimitRow(categoryName(cat), spent, limit) { catPick = cat; kindPick = MoneyKind.EXPENSE.name; charityPick = null; awaitingOnly = false }
                     }
                     TextButton(onClick = { editLimits = true }) { Text(stringResource(R.string.money_limits_edit)) }
                 }
@@ -317,9 +317,9 @@ private fun LegendDot(color: Color, label: String) {
 
 /** A limit: what was spent against it this month; past the limit the bar turns coral. */
 @Composable
-private fun LimitRow(name: String, spent: Long, limit: Long) {
+private fun LimitRow(name: String, spent: Long, limit: Long, onClick: () -> Unit) {
     val over = spent > limit
-    Column(Modifier.padding(vertical = 4.dp)) {
+    Column(Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick).padding(vertical = 4.dp)) {
         Row {
             Text(name, style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
             Text("${formatAmount(spent)} / ${hryvnias(limit)}", style = MaterialTheme.typography.labelMedium,
