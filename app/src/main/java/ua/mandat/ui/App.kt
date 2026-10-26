@@ -1,6 +1,8 @@
 package ua.mandat.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.relocation.bringIntoViewRequester
@@ -83,8 +85,17 @@ import ua.mandat.data.MandatDb
 import ua.mandat.data.cleanInboxText
 
 @Composable
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 fun App(session: Session, onUnlock: () -> Unit, onStartOver: () -> Unit) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+      Column(Modifier.fillMaxSize()) {
+        // Over every screen, the lock screen included: screenshots are allowed right now
+        if (session.screenshotsAllowed) ScreenshotsBanner(session)
+        Box(
+            Modifier.weight(1f).let {
+                if (session.screenshotsAllowed) it.consumeWindowInsets(androidx.compose.foundation.layout.WindowInsets.statusBars) else it
+            },
+        ) {
         when (val state = session.state) {
             LockState.NeedsScreenLock -> Message(stringResource(R.string.no_screen_lock))
             LockState.KeyLost -> KeyLost(onStartOver)
@@ -93,6 +104,8 @@ fun App(session: Session, onUnlock: () -> Unit, onStartOver: () -> Unit) {
             LockState.Opening -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
             is LockState.Open -> PrivateKeyboard { Main(state.db, session) }
         }
+        }
+      }
     }
 }
 
@@ -232,7 +245,6 @@ private fun Main(db: MandatDb, session: Session) {
     Scaffold(
         topBar = {
             Column(Modifier.statusBarsPadding()) {
-                if (session.screenshotsAllowed) ScreenshotsBanner(session)
                 ScreenHeader(
                     title = stringResource(tab.title),
                     subtitle = if (tab == Tab.Today) Dates.longToday() else null,
@@ -492,16 +504,17 @@ private fun AddDialog(session: Session) {
 @Composable
 private fun ScreenshotsBanner(session: Session) {
     val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity ?: return
+    var failed by remember { mutableStateOf(false) }
     Row(
-        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.errorContainer)
+        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.errorContainer).statusBarsPadding()
             .clickable {
-                Appearance.setScreenshotsAllowed(activity, false)
+                failed = !Appearance.setScreenshotsAllowed(activity, false)
                 session.screenshotsAllowed = Appearance.screenshotsAllowed(activity)
             }
             .padding(horizontal = Space.screen, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(stringResource(R.string.screenshots_banner), style = MaterialTheme.typography.labelLarge,
+        Text(stringResource(if (failed) R.string.screenshots_off_failed else R.string.screenshots_banner), style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.weight(1f))
         Text(stringResource(R.string.screenshots_turn_off), style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onErrorContainer)

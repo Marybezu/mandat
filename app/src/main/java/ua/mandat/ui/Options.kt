@@ -422,9 +422,10 @@ private fun ScreenshotsSwitch(session: Session) {
         Column(Modifier.weight(1f)) {
             Text(stringResource(R.string.screenshots_allow), style = MaterialTheme.typography.bodyLarge)
             Text(stringResource(R.string.screenshots_hint), style = MaterialTheme.typography.labelMedium, color = Muted)
-            if (failed) Text(stringResource(R.string.screenshots_failed), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+            if (!Appearance.canAllowScreenshots) Text(stringResource(R.string.screenshots_need_13), style = MaterialTheme.typography.labelMedium, color = Muted)
+            if (failed) Text(stringResource(if (session.screenshotsAllowed) R.string.screenshots_off_failed else R.string.screenshots_failed), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
         }
-        androidx.compose.material3.Switch(checked = session.screenshotsAllowed, onCheckedChange = { on ->
+        androidx.compose.material3.Switch(checked = session.screenshotsAllowed, enabled = Appearance.canAllowScreenshots, onCheckedChange = { on ->
             if (on) confirm = true else set(false)
         })
     }

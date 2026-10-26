@@ -33,9 +33,15 @@ object Appearance {
      * Screenshots are forbidden unless the owner explicitly allows them (for example to show the
      * app to testers). Kept here because the lock screen must be protected before unlocking.
      */
+    /**
+     * Android 12 cannot hide the recent-apps preview reliably, so screenshots can be allowed
+     * only from Android 13 on.
+     */
+    val canAllowScreenshots get() = android.os.Build.VERSION.SDK_INT >= 33
+
     fun screenshotsAllowed(context: Context): Boolean =
         try {
-            prefs(context).getBoolean("screenshots", false)
+            canAllowScreenshots && prefs(context).getBoolean("screenshots", false)
         } catch (e: Exception) {
             false // anything unreadable means "forbidden"
         }
