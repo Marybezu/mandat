@@ -42,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.room.withTransaction
 import ua.mandat.R
 import ua.mandat.data.Delegation
 import ua.mandat.data.MandatDb
@@ -303,8 +304,8 @@ private fun StatusChips(current: TaskStatus, options: List<TaskStatus>, label: (
 @Composable
 fun DelegationDialog(db: MandatDb, session: Session, draft: DelegationDraft) {
     val peopleFlow = remember(db) { db.people().observeAll() }
-    val mattersFlow = remember(db) { db.matters().observeActiveTitles() }
-    val allFlow = remember(db) { db.matters().observeAllTitles() }
+    val mattersFlow = remember(db) { db.matters().observeActiveTitles().hiding(session) { it.id } }
+    val allFlow = remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }
     val allMatters by allFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val people by peopleFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val matters by mattersFlow.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -384,8 +385,8 @@ fun FreedomPicker(current: ua.mandat.data.Freedom?, onPick: (ua.mandat.data.Free
 @Composable
 fun PromiseDialog(db: MandatDb, session: Session, draft: PromiseDraft) {
     val peopleFlow = remember(db) { db.people().observeAll() }
-    val mattersFlow = remember(db) { db.matters().observeActiveTitles() }
-    val allFlow = remember(db) { db.matters().observeAllTitles() }
+    val mattersFlow = remember(db) { db.matters().observeActiveTitles().hiding(session) { it.id } }
+    val allFlow = remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }
     val allMatters by allFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val people by peopleFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val matters by mattersFlow.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -443,7 +444,7 @@ fun PromiseDialog(db: MandatDb, session: Session, draft: PromiseDraft) {
         ConfirmDelete(onConfirm = {
             val id = draft.promise.id
             session.promiseDraft = null
-            session.write { it.promises().delete(id); it.communities().unlinkRef(ua.mandat.data.LinkKind.PROMISE, id) }
+            session.write { db -> db.withTransaction { db.communities().unlinkRef(ua.mandat.data.LinkKind.PROMISE, id); db.promises().delete(id) } }
         }, onCancel = { confirmDelete = false })
     }
 }

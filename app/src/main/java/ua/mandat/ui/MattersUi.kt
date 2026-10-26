@@ -80,8 +80,8 @@ data class EditRequest(val matter: Matter, val isNew: Boolean, val fromInboxId: 
 @Composable
 fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {}, session: Session? = null) {
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val active by remember(db) { db.matters().observeActive() }.collectAsStateWithLifecycle(emptyList())
-    val closed by remember(db) { db.matters().observeClosed() }.collectAsStateWithLifecycle(emptyList())
+    val active by remember(db) { db.matters().observeActive().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
+    val closed by remember(db) { db.matters().observeClosed().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     // 0 = by type, 1 = by role, 2 = by topic
     var mode by rememberSaveable { mutableStateOf(0) }
     val byRole = mode == 1
@@ -300,7 +300,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
     val onDone = { session.draft = null }
     BackHandler(onBack = onDone)
     val rolesFlow = remember(db) { db.roles().observeAll() }
-    val focusFlow = remember(db) { db.matters().observeFocus() }
+    val focusFlow = remember(db) { db.matters().observeFocus().hiding(session) { it.id } }
     val roles by rolesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val focus by focusFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     var confirmDelete by remember { mutableStateOf(false) }
@@ -382,6 +382,13 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                 minLines = 4,
                 modifier = Modifier.fillMaxWidth(),
             )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.Checkbox(checked = draft.sensitive, onCheckedChange = { draft.sensitive = it })
+                Column {
+                    Text(stringResource(R.string.matter_sensitive), style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.matter_sensitive_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
+                }
+            }
             if (request.isNew) {
                 Text(stringResource(R.string.save_matter_first), style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.secondary)
@@ -405,7 +412,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
     }
 
     if (confirmDelete) {
-        val aidRecords by remember(db, request.matter.id) { db.money().observeAidFor(request.matter.id) }.collectAsStateWithLifecycle(emptyList())
+        val aidRecords by remember(db, request.matter.id) { db.money().observeAidFor(request.matter.id).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
             text = {
@@ -476,8 +483,8 @@ fun <T> Picker(label: String, current: String, options: List<Pair<T, String>>, o
 private fun MatterLinks(db: MandatDb, session: Session, matterId: Long) {
     val linkedFlow = remember(db, matterId) { db.people().observeForMatter(matterId) }
     val peopleFlow = remember(db) { db.people().observeAll() }
-    val delegationsFlow = remember(db, matterId) { db.delegations().observeForMatter(matterId) }
-    val promisesFlow = remember(db, matterId) { db.promises().observeForMatter(matterId) }
+    val delegationsFlow = remember(db, matterId) { db.delegations().observeForMatter(matterId).hiding(session) { it.matterId } }
+    val promisesFlow = remember(db, matterId) { db.promises().observeForMatter(matterId).hiding(session) { it.matterId } }
     val linked by linkedFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val people by peopleFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val delegations by delegationsFlow.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -511,13 +518,13 @@ private fun MatterLinks(db: MandatDb, session: Session, matterId: Long) {
         }
     }
 
-    val deadlinesFlow = remember(db, matterId) { db.deadlines().observeForMatter(matterId) }
+    val deadlinesFlow = remember(db, matterId) { db.deadlines().observeForMatter(matterId).hiding(session) { it.matterId } }
     val deadlines by deadlinesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     LinkSection(stringResource(R.string.deadlines))
     deadlines.forEach { DeadlineRow(it, null, session) }
     TextButton(onClick = { session.deadlineDraft = newDeadline(matterId = matterId) }) { Text("+ " + stringResource(R.string.add_deadline)) }
 
-    EventLinks(db, session, db.events().observeForMatter(matterId), matterId = matterId)
+    EventLinks(db, session, db.events().observeForMatter(matterId).hiding(session) { it.matterId }, matterId = matterId)
     MatterInfoLinks(db, session, matterId)
 
     LinkSection(stringResource(R.string.delegations))
@@ -581,8 +588,8 @@ private fun MatterLinks(db: MandatDb, session: Session, matterId: Long) {
 @Composable
 private fun MatterStrip(db: MandatDb, matter: Matter, session: Session) {
     val linked by remember(db, matter.id) { db.people().observeForMatter(matter.id) }.collectAsStateWithLifecycle(emptyList())
-    val deadlines by remember(db, matter.id) { db.deadlines().observeForMatter(matter.id) }.collectAsStateWithLifecycle(emptyList())
-    val delegations by remember(db, matter.id) { db.delegations().observeForMatter(matter.id) }.collectAsStateWithLifecycle(emptyList())
+    val deadlines by remember(db, matter.id) { db.deadlines().observeForMatter(matter.id).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db, matter.id) { db.delegations().observeForMatter(matter.id).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val topics = rememberTopics(db)
     val today = Dates.today()
     val open = ua.mandat.data.TaskStatus.OPEN

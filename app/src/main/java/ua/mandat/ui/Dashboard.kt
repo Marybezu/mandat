@@ -58,10 +58,10 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun Dashboard(db: MandatDb, session: Session) {
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val matters by remember(db) { db.matters().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val promises by remember(db) { db.promises().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val delegations by remember(db) { db.delegations().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val deadlines by remember(db) { db.deadlines().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val matters by remember(db) { db.matters().observeAll().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db) { db.delegations().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val deadlines by remember(db) { db.deadlines().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val reviews by remember(db) { db.reviews().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val cadenceSetting by remember(db) { db.settings().observe(SETTING_CADENCE_START) }.collectAsStateWithLifecycle(null)
     val cadenceStart = cadenceSetting?.value?.toLongOrNull()

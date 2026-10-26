@@ -56,6 +56,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.room.withTransaction
 import ua.mandat.R
 import ua.mandat.data.DeadlineKind
 import ua.mandat.data.Event
@@ -135,13 +136,13 @@ fun CalendarScreen(db: MandatDb, session: Session) {
     val from = if (weekMode) weekStart(selected) else weekStart(monthFirst)
     val to = if (weekMode) from + 6 else from + 41
 
-    val events by remember(db, from, to) { db.events().observeRange(from, to) }.collectAsStateWithLifecycle(emptyList())
+    val events by remember(db, from, to) { db.events().observeRange(from, to).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val links by remember(db) { db.events().observeLinks() }.collectAsStateWithLifecycle(emptyList())
-    val deadlines by remember(db) { db.deadlines().observeOpen() }.collectAsStateWithLifecycle(emptyList())
-    val delegations by remember(db) { db.delegations().observeOpen() }.collectAsStateWithLifecycle(emptyList())
-    val promises by remember(db) { db.promises().observeOpen() }.collectAsStateWithLifecycle(emptyList())
+    val deadlines by remember(db) { db.deadlines().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db) { db.delegations().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val titles by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
+    val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val nameOf = people.associate { it.id to it.name }
     val titleOf = titles.associate { it.id to it.title }
     val peopleOf = links.groupBy({ it.eventId }, { it.personId })
@@ -347,8 +348,8 @@ private fun PhoneEventRow(p: PhoneEvent) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EventDialog(db: MandatDb, session: Session, draft: EventDraft) {
-    val matters by remember(db) { db.matters().observeActiveTitles() }.collectAsStateWithLifecycle(emptyList())
-    val allMatters by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
+    val matters by remember(db) { db.matters().observeActiveTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
+    val allMatters by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
     var confirmDelete by remember { mutableStateOf(false) }
     var pickingPerson by remember { mutableStateOf(false) }
@@ -449,7 +450,7 @@ fun EventDialog(db: MandatDb, session: Session, draft: EventDraft) {
         ConfirmDelete(onConfirm = {
             val id = draft.event.id
             session.eventDraft = null
-            session.write { it.events().delete(id); it.communities().unlinkRef(ua.mandat.data.LinkKind.EVENT, id) }
+            session.write { db -> db.withTransaction { db.communities().unlinkRef(ua.mandat.data.LinkKind.EVENT, id); db.events().delete(id) } }
         }, onCancel = { confirmDelete = false })
     }
 }
@@ -524,7 +525,7 @@ fun PersonOrContactDialog(db: MandatDb, session: Session, exclude: Set<Long>, on
 @Composable
 fun EventLinks(db: MandatDb, session: Session, flow: kotlinx.coroutines.flow.Flow<List<Event>>, matterId: Long? = null, personId: Long? = null) {
     val events by remember(flow) { flow }.collectAsStateWithLifecycle(emptyList())
-    val titles by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
+    val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val today = Dates.today()
     var all by remember { mutableStateOf(false) }
     LinkSection(stringResource(R.string.events) + if (events.isEmpty()) "" else " · ${events.size}")

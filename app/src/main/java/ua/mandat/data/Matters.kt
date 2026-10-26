@@ -31,6 +31,8 @@ data class Matter(
     val status: String,
     val createdAt: Long,
     val updatedAt: Long,
+    /** Kept off every screen while trip mode is on. */
+    @androidx.room.ColumnInfo(defaultValue = "0") val sensitive: Boolean = false,
 )
 
 /** Small settings kept inside the encrypted database (not in plain app preferences). */
@@ -114,6 +116,12 @@ interface MatterDao {
     /** All titles, also of closed matters: to show what a delegation or promise belongs to. */
     @Query("SELECT id, title FROM matters ORDER BY title COLLATE NOCASE")
     fun observeAllTitles(): Flow<List<MatterTitle>>
+
+    @Query("SELECT id FROM matters WHERE sensitive = 1")
+    fun observeSensitiveIds(): Flow<List<Long>>
+
+    @Query("SELECT id FROM matters WHERE sensitive = 1")
+    suspend fun sensitiveIds(): List<Long>
 
     @Insert
     suspend fun insert(matter: Matter): Long

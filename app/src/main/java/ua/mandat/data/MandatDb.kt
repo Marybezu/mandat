@@ -283,6 +283,8 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
                 "PRIMARY KEY(`communityId`, `kind`, `refId`))",
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_community_links_refId` ON `community_links` (`refId`)")
+        // Trip mode: matters that are kept off the screen while it is on
+        db.execSQL("ALTER TABLE `matters` ADD COLUMN `sensitive` INTEGER NOT NULL DEFAULT 0")
     }
 }
 

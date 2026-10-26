@@ -87,8 +87,8 @@ fun DeadlineRow(d: Deadline, matterTitle: String?, session: Session) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeadlineDialog(db: MandatDb, session: Session, draft: DeadlineDraft) {
-    val mattersFlow = remember(db) { db.matters().observeActiveTitles() }
-    val allFlow = remember(db) { db.matters().observeAllTitles() }
+    val mattersFlow = remember(db) { db.matters().observeActiveTitles().hiding(session) { it.id } }
+    val allFlow = remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }
     val matters by mattersFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val allMatters by allFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     var confirmDelete by remember { mutableStateOf(false) }
@@ -158,12 +158,12 @@ private fun remindLabel(days: Int): String =
 /** Time: deadlines, delegations and promises with dates, in order. */
 @Composable
 fun TimeScreen(db: MandatDb, session: Session) {
-    val deadlines by remember(db) { db.deadlines().observeOpen() }.collectAsStateWithLifecycle(emptyList())
-    val delegations by remember(db) { db.delegations().observeOpen() }.collectAsStateWithLifecycle(emptyList())
-    val promises by remember(db) { db.promises().observeOpen() }.collectAsStateWithLifecycle(emptyList())
+    val deadlines by remember(db) { db.deadlines().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db) { db.delegations().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val titles by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
-    val allDeadlines by remember(db) { db.deadlines().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
+    val allDeadlines by remember(db) { db.deadlines().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val nameOf = people.associate { it.id to it.name }
     val titleOf = titles.associate { it.id to it.title }
     val today = Dates.today()
@@ -323,7 +323,7 @@ fun SearchScreen(db: MandatDb, session: Session) {
     BackHandler { session.searching = false }
     var query by remember { mutableStateOf("") }
     val trimmed = query.trim()
-    val flow = remember(db) { db.search().everything() }
+    val flow = remember(db) { db.search().everything().hiding(session) { it.matterId } }
     val rows by flow.collectAsStateWithLifecycle(initialValue = emptyList())
     val hits = remember(rows, trimmed) { ua.mandat.data.search(rows, trimmed) }
 
@@ -410,9 +410,9 @@ private fun openHit(db: MandatDb, session: Session, kind: String, id: Long) {
  */
 @Composable
 fun ReputationTiles(db: MandatDb, session: Session) {
-    val promises by remember(db) { db.promises().observeOpen() }.collectAsStateWithLifecycle(emptyList())
-    val items by remember(db) { db.info().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val alliances by remember(db) { db.info().observeAlliances() }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val items by remember(db) { db.info().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val alliances by remember(db) { db.info().observeAlliances().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val today = Dates.today()
     val risky = promises.count { isRisky(it, today) }
     val attacks = items.count { !it.closed && it.kind == ua.mandat.data.InfoKind.ATTACK.name }

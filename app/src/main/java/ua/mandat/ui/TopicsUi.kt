@@ -62,11 +62,11 @@ fun saveTopics(session: Session, list: List<Topic>) {
 }
 
 /** Everything that mentions a topic, in all sections. */
-private class TopicItems(db: MandatDb) {
-    val matters = db.matters().observeAll()
-    val delegations = db.delegations().observeAll()
-    val promises = db.promises().observeAll()
-    val deadlines = db.deadlines().observeAll()
+private class TopicItems(db: MandatDb, session: Session) {
+    val matters = db.matters().observeAll().hiding(session) { it.id }
+    val delegations = db.delegations().observeAll().hiding(session) { it.matterId }
+    val promises = db.promises().observeAll().hiding(session) { it.matterId }
+    val deadlines = db.deadlines().observeAll().hiding(session) { it.matterId }
     val inbox = db.inbox().observeAll()
     val reviews = db.reviews().observeAll()
 }
@@ -81,7 +81,7 @@ fun TopicsScreen(db: MandatDb, session: Session) {
     }
     BackHandler { session.showTopics = false }
     val topics = rememberTopics(db)
-    val src = remember(db) { TopicItems(db) }
+    val src = remember(db) { TopicItems(db, session) }
     val matters by src.matters.collectAsStateWithLifecycle(emptyList())
     val delegations by src.delegations.collectAsStateWithLifecycle(emptyList())
     val promises by src.promises.collectAsStateWithLifecycle(emptyList())
@@ -206,7 +206,7 @@ private fun TopicDetail(db: MandatDb, session: Session, name: String) {
     BackHandler { session.topicOpen = null }
     val topics = rememberTopics(db)
     val topic = topics.firstOrNull { it.name == name }
-    val src = remember(db) { TopicItems(db) }
+    val src = remember(db) { TopicItems(db, session) }
     val matters by src.matters.collectAsStateWithLifecycle(emptyList())
     val delegations by src.delegations.collectAsStateWithLifecycle(emptyList())
     val promises by src.promises.collectAsStateWithLifecycle(emptyList())

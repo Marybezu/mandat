@@ -64,8 +64,8 @@ import ua.mandat.data.isOverdue
 @Composable
 fun PeopleList(db: MandatDb, session: Session) {
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val delegations by remember(db) { db.delegations().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val links by remember(db) { db.people().observeLinks() }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db) { db.delegations().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val links by remember(db) { db.people().observeLinks().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     var query by remember { mutableStateOf("") }
     var byTeam by rememberSaveable { mutableStateOf(false) }
     var pick by rememberSaveable { mutableStateOf<String?>(null) }
@@ -77,7 +77,7 @@ fun PeopleList(db: MandatDb, session: Session) {
     var stanceByMatter by rememberSaveable { mutableStateOf(false) }
     var allDeleg by rememberSaveable { mutableStateOf(false) }
     var allStance by rememberSaveable { mutableStateOf(false) }
-    val titles by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
+    val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val titleOf = titles.associate { it.id to it.title }
     val today = Dates.today()
 
@@ -467,10 +467,10 @@ fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
 /** A person's matters, delegations and promises. */
 @Composable
 private fun PersonLinks(db: MandatDb, session: Session, personId: Long) {
-    val mattersFlow = remember(db, personId) { db.people().observeMattersOf(personId) }
-    val delegationsFlow = remember(db, personId) { db.delegations().observeForPerson(personId) }
-    val promisesFlow = remember(db, personId) { db.promises().observeForPerson(personId) }
-    val titlesFlow = remember(db) { db.matters().observeAllTitles() }
+    val mattersFlow = remember(db, personId) { db.people().observeMattersOf(personId).hiding(session) { it.matterId } }
+    val delegationsFlow = remember(db, personId) { db.delegations().observeForPerson(personId).hiding(session) { it.matterId } }
+    val promisesFlow = remember(db, personId) { db.promises().observeForPerson(personId).hiding(session) { it.matterId } }
+    val titlesFlow = remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }
     val matters by mattersFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val delegations by delegationsFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val promises by promisesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -486,7 +486,7 @@ private fun PersonLinks(db: MandatDb, session: Session, personId: Long) {
         }
     }
 
-    EventLinks(db, session, db.events().observeForPerson(personId), personId = personId)
+    EventLinks(db, session, db.events().observeForPerson(personId).hiding(session) { it.matterId }, personId = personId)
 
     LinkSection(stringResource(R.string.delegations))
     val openD = delegations.filter { TaskStatus.of(it.status) == TaskStatus.OPEN }

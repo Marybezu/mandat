@@ -810,7 +810,7 @@
     <string name="district_report_hint">Visits · matters done · promises kept · promises open</string>
     <string name="district_report_row">visits %1$d · done %2$d · kept %3$d · open %4$d</string>
     <string name="district_share">Share the report</string>
-    <string name="district_share_warning">Only the numbers by community leave Mandat\'s encrypted space, to the app you choose. Names of people and notes stay inside.</string>
+    <string name="district_share_warning">Only the community names and the numbers leave Mandat\'s encrypted space, to the app you choose. Names of people and notes stay inside.</string>
     <string name="district_switch">District section</string>
     <string name="district_switch_hint">For those elected in a district: communities, visits, report by community. Opens from the Matters tab.</string>
     <string name="district_visits">Receptions and visits</string>
@@ -825,4 +825,12 @@
     <string name="pin_only">PIN only</string>
     <string name="pin_only_hint">Unlock with the phone\'s PIN or password only, without a fingerprint: a finger can be forced onto the sensor, a PIN has to be said. Takes effect at the next unlock.</string>
     <string name="pin_only_failed">Could not save the choice.</string>
+    <string name="matter_sensitive">Sensitive</string>
+    <string name="matter_sensitive_hint">Hidden from every screen while trip mode is on.</string>
+    <string name="trip_mode">Trip mode</string>
+    <string name="trip_hint">Hides sensitive matters from the screens, for example before crossing a border.</string>
+    <string name="trip_on">On: hidden matters: %1$d</string>
+    <string name="trip_how">How it works</string>
+    <string name="trip_turn_on">Turn on</string>
+    <string name="trip_explain">What it does: matters marked as sensitive, and everything linked to them (delegations, promises, deadlines, events, media items, alliances, money), disappear from every screen, list, chart and search. The data stays encrypted on the phone; nothing is deleted.\n\nWhat it does not do: it does not protect against someone who makes you unlock Mandat and knows where to turn it off (one switch in Options). Backups still contain everything.\n\nFor crossing a border it is safer to also turn on \"PIN only\", make a backup with a password and remove the sensitive matters from the phone for the trip. GrapheneOS also has a duress PIN that wipes the phone.\n\nA matter is marked sensitive in its card.</string>
 </resources>

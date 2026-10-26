@@ -130,10 +130,10 @@ fun TeamCard(people: List<Person>, delegations: List<Delegation>, session: Sessi
 fun OneOnOneScreen(db: MandatDb, session: Session, personId: Long) {
     BackHandler { session.oneOnOne = null }
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val delegations by remember(db, personId) { db.delegations().observeForPerson(personId) }.collectAsStateWithLifecycle(emptyList())
-    val promises by remember(db, personId) { db.promises().observeForPerson(personId) }.collectAsStateWithLifecycle(emptyList())
-    val matters by remember(db, personId) { db.people().observeMattersOf(personId) }.collectAsStateWithLifecycle(emptyList())
-    val titles by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db, personId) { db.delegations().observeForPerson(personId).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db, personId) { db.promises().observeForPerson(personId).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val matters by remember(db, personId) { db.people().observeMattersOf(personId).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val titleOf = titles.associate { it.id to it.title }
     val p = people.firstOrNull { it.id == personId }
     val today = Dates.today()
@@ -225,8 +225,8 @@ private enum class Cell { RELY, PERSUADE, WATCH, INFORM }
 fun InfluenceMapScreen(db: MandatDb, session: Session, matterId: Long?) {
     BackHandler { session.influenceFor = null }
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val links by remember(db) { db.people().observeLinks() }.collectAsStateWithLifecycle(emptyList())
-    val titles by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
+    val links by remember(db) { db.people().observeLinks().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val today = Dates.today()
     val outside = people.filter { it.teamRole == null }
 

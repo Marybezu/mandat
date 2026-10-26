@@ -216,6 +216,12 @@ private fun Main(db: MandatDb, session: Session) {
     // The chosen mode (parliament or local council) follows the setting
     val modeSetting by remember(db) { db.settings().observe(ua.mandat.data.SETTING_MODE) }.collectAsStateWithLifecycle(null)
     androidx.compose.runtime.LaunchedEffect(modeSetting) { AppMode.council = modeSetting?.value == ua.mandat.data.MODE_COUNCIL }
+    // Trip mode follows its setting and the marks on matters, while Mandat is open
+    androidx.compose.runtime.LaunchedEffect(db) {
+        kotlinx.coroutines.flow.combine(db.settings().observe(SETTING_TRIP), db.matters().observeSensitiveIds()) { trip, ids ->
+            if (trip?.value == "1") ids.toSet() else emptySet()
+        }.collect { session.hiddenMatters.value = it }
+    }
 
     when {
         rolesAsked == null -> return
@@ -429,13 +435,13 @@ private fun Main(db: MandatDb, session: Session) {
 @Composable
 internal fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onToMatter: (InboxItem) -> Unit) {
     val items by remember(db) { db.inbox().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val focus by remember(db) { db.matters().observeFocus() }.collectAsStateWithLifecycle(emptyList())
+    val focus by remember(db) { db.matters().observeFocus().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val titles by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
-    val deadlines by remember(db) { db.deadlines().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val delegations by remember(db) { db.delegations().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val promises by remember(db) { db.promises().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
+    val deadlines by remember(db) { db.deadlines().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db) { db.delegations().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val roleNames = roles.associate { it.id to it.name }
     val nameOf = people.associate { it.id to it.name }
     val titleOf = titles.associate { it.id to it.title }
@@ -452,7 +458,7 @@ internal fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onT
     val soonDl = openDl.filter { it.day == today || it.day == tomorrow }
     val soonD = openD.filter { it.due == today || it.due == tomorrow }
     val soonP = openP.filter { it.due == today || it.due == tomorrow }
-    val active by remember(db) { db.matters().observeActive() }.collectAsStateWithLifecycle(emptyList())
+    val active by remember(db) { db.matters().observeActive().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val overdueCount = overdueDl.size + overdueD.size + overdueP.size
     val dated = openDl.size + openD.count { it.due != null } + openP.count { it.due != null }
     // Everything due today, and how much of it is already done
@@ -581,7 +587,7 @@ internal fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onT
 @Composable
 private fun AddDialog(db: MandatDb, session: Session) {
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val matters by remember(db) { db.matters().observeActiveTitles() }.collectAsStateWithLifecycle(emptyList())
+    val matters by remember(db) { db.matters().observeActiveTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val text = session.inboxDraft.orEmpty()
     // Smart input: what the note looks like (rules only); the owner decides
     val hint = remember(text, people, matters) { ua.mandat.data.suggest(text, people, matters, Dates.today()) }

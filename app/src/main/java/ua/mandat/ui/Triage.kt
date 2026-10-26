@@ -39,11 +39,11 @@ import ua.mandat.data.TaskStatus
 @Composable
 fun TriageScreen(db: MandatDb, session: Session) {
     BackHandler { session.showTriage = false }
-    val deadlines by remember(db) { db.deadlines().observeOpen() }.collectAsStateWithLifecycle(emptyList())
-    val delegations by remember(db) { db.delegations().observeOpen() }.collectAsStateWithLifecycle(emptyList())
-    val promises by remember(db) { db.promises().observeOpen() }.collectAsStateWithLifecycle(emptyList())
+    val deadlines by remember(db) { db.deadlines().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db) { db.delegations().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val titles by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
+    val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val nameOf = people.associate { it.id to it.name }
     val titleOf = titles.associate { it.id to it.title }
     val today = Dates.today()
@@ -141,7 +141,7 @@ enum class PeriodKind(val title: Int) {
 fun PeriodScreen(db: MandatDb, session: Session, kind: PeriodKind, span: Span) {
     BackHandler { session.periodView = null }
     val reviews by remember(db) { db.reviews().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val matters by remember(db) { db.matters().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val matters by remember(db) { db.matters().observeAll().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val roleNames = roles.associate { it.id to it.name }
     fun inSpan(ms: Long) = Dates.dayOf(ms) in span

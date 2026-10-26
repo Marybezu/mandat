@@ -132,9 +132,9 @@ fun DistrictScreen(db: MandatDb, session: Session) {
     BackHandler { session.showDistrict = false }
     val communities by remember(db) { db.communities().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val links by remember(db) { db.communities().observeLinks() }.collectAsStateWithLifecycle(emptyList())
-    val matters by remember(db) { db.matters().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val events by remember(db) { db.events().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val promises by remember(db) { db.promises().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val matters by remember(db) { db.matters().observeAll().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
+    val events by remember(db) { db.events().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val today = Dates.today()
     val all = stats(communities, links, matters, events, promises, today).sortedWith(compareBy({ it.lastVisit != null }, { it.lastVisit }))
     val coming = events.filter { isVisit(it) && it.lastDay >= today && it.day <= today + 30 }.sortedBy { it.day }
@@ -266,12 +266,17 @@ fun CommunityScreen(db: MandatDb, session: Session, id: Long) {
     BackHandler { session.communityOpen = null }
     val communities by remember(db) { db.communities().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val links by remember(db) { db.communities().observeLinks() }.collectAsStateWithLifecycle(emptyList())
-    val matters by remember(db) { db.matters().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val events by remember(db) { db.events().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val promises by remember(db) { db.promises().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val matters by remember(db) { db.matters().observeAll().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
+    val events by remember(db) { db.events().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val c = communities.firstOrNull { it.id == id } ?: return
+    val c = communities.firstOrNull { it.id == id }
+    // Deleted meanwhile (or not loaded yet): go back once the list is known
+    if (c == null) {
+        androidx.compose.runtime.LaunchedEffect(communities) { if (communities.isNotEmpty()) session.communityOpen = null }
+        return
+    }
     val today = Dates.today()
     val s = stats(listOf(c), links, matters, events, promises, today).first()
     val mine = links.filter { it.communityId == id }

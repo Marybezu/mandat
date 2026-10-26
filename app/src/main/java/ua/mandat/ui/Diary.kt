@@ -107,7 +107,7 @@ fun TodayFeel(db: MandatDb, session: Session) {
     val review by remember(db, today) { db.reviews().observeDay(today) }.collectAsStateWithLifecycle(null)
     val links by remember(db) { db.reviews().observeLinks() }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val titles by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
+    val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     var picking by remember { mutableStateOf<String?>(null) }
     val r = review
     FeelRow(stringResource(R.string.diary_energy), r?.energy) { v -> setFeel(session, today, energy = v, clearEnergy = v == null) }
@@ -166,7 +166,7 @@ fun DiaryScreen(db: MandatDb, session: Session) {
     val reviews by remember(db) { db.reviews().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val links by remember(db) { db.reviews().observeLinks() }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val titles by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
+    val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val nameOf = people.associate { it.id to it.name }
     val titleOf = titles.associate { it.id to it.title }
     val today = Dates.today()

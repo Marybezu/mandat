@@ -215,6 +215,7 @@ fun Options(session: Session, onBack: () -> Unit) {
             Text(stringResource(R.string.security_text), style = MaterialTheme.typography.bodyLarge)
             ScreenshotsSwitch(session)
             PinOnlySwitch()
+            (session.state as? LockState.Open)?.db?.let { TripSwitch(it, session) }
 
             Spacer(Modifier.height(8.dp))
             Section(stringResource(R.string.about_title))
@@ -643,5 +644,38 @@ private fun PinOnlySwitch() {
             failed = !Appearance.setPinOnly(context, v)
             on = Appearance.pinOnly(context)
         })
+    }
+}
+
+/**
+ * Trip mode: sensitive matters and everything linked to them leave the screens, lists, charts
+ * and search. Turning it on shows how it works and what it does not do.
+ */
+@Composable
+private fun TripSwitch(db: ua.mandat.data.MandatDb, session: Session) {
+    val trip by remember(db) { db.settings().observe(SETTING_TRIP) }.collectAsStateWithLifecycle(null)
+    val hidden by session.hiddenMatters.collectAsStateWithLifecycle()
+    var explain by remember { mutableStateOf(false) }
+    val on = trip?.value == "1"
+    fun set(v: Boolean) = session.write { it.settings().put(ua.mandat.data.Setting(SETTING_TRIP, if (v) "1" else "0")) }
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.trip_mode), style = MaterialTheme.typography.bodyLarge)
+            Text(if (on) stringResource(R.string.trip_on, hidden.size) else stringResource(R.string.trip_hint), style = MaterialTheme.typography.labelMedium, color = Muted)
+            TextButton(onClick = { explain = true }) { Text(stringResource(R.string.trip_how)) }
+        }
+        androidx.compose.material3.Switch(checked = on, onCheckedChange = { v -> if (v) explain = true else set(false) })
+    }
+    if (explain) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { explain = false },
+            title = { Text(stringResource(R.string.trip_mode)) },
+            text = { Text(stringResource(R.string.trip_explain), modifier = Modifier.verticalScroll(rememberScrollState())) },
+            confirmButton = {
+                if (!on) TextButton(onClick = { explain = false; set(true) }) { Text(stringResource(R.string.trip_turn_on)) }
+                else TextButton(onClick = { explain = false }) { Text(stringResource(R.string.ok)) }
+            },
+            dismissButton = { if (!on) TextButton(onClick = { explain = false }) { Text(stringResource(R.string.cancel)) } },
+        )
     }
 }

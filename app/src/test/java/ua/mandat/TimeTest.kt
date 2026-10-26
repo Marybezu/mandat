@@ -39,7 +39,7 @@ class TimeTest {
     }
 
     @Test fun searchIgnoresCaseAlsoForCyrillic() {
-        val rows = listOf(SearchRow("person", 1, "Вигадана Особа", "", "Вигадана Особа Установа"))
+        val rows = listOf(SearchRow("person", 1, "Вигадана Особа", "", "Вигадана Особа Установа", null))
         assertEquals(1, search(rows, "вигадана").size)
         assertEquals(1, search(rows, "УСТАНОВА").size)
         assertEquals(0, search(rows, "інше").size)

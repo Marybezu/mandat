@@ -86,10 +86,10 @@ private fun reachLabel(r: Int): Int = when (r) {
 @Composable
 fun InfoScreen(db: MandatDb, session: Session) {
     BackHandler { session.showInfo = false }
-    val items by remember(db) { db.info().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val messages by remember(db) { db.info().observeMessages() }.collectAsStateWithLifecycle(emptyList())
+    val items by remember(db) { db.info().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val messages by remember(db) { db.info().observeMessages().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val titles by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
+    val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val nameOf = people.associate { it.id to it.name }
     val titleOf = titles.associate { it.id to it.title }
     var kindPick by rememberSaveable { mutableStateOf<String?>(null) }
@@ -268,8 +268,8 @@ private fun MessageRow(m: KeyMessage, matterTitle: String?, session: Session) {
 @Composable
 fun InfoDialog(db: MandatDb, session: Session, d: InfoDraft) {
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val matters by remember(db) { db.matters().observeActiveTitles() }.collectAsStateWithLifecycle(emptyList())
-    val allMatters by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
+    val matters by remember(db) { db.matters().observeActiveTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
+    val allMatters by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     var confirmDelete by remember { mutableStateOf(false) }
     val none = stringResource(R.string.nobody)
 
@@ -371,8 +371,8 @@ private fun AttackDecision.hint(): Int = when (this) {
 
 @Composable
 fun MessageDialog(db: MandatDb, session: Session, d: MessageDraft) {
-    val matters by remember(db) { db.matters().observeActiveTitles() }.collectAsStateWithLifecycle(emptyList())
-    val allMatters by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
+    val matters by remember(db) { db.matters().observeActiveTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
+    val allMatters by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     var confirmDelete by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = { session.messageDraft = null },
@@ -408,9 +408,9 @@ fun MessageDialog(db: MandatDb, session: Session, d: MessageDraft) {
 @Composable
 fun AlliancesScreen(db: MandatDb, session: Session) {
     BackHandler { session.showAlliances = false }
-    val all by remember(db) { db.info().observeAlliances() }.collectAsStateWithLifecycle(emptyList())
+    val all by remember(db) { db.info().observeAlliances().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val titles by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
+    val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val nameOf = people.associate { it.id to it.name }
     val titleOf = titles.associate { it.id to it.title }
     val today = Dates.today()
@@ -498,8 +498,8 @@ fun AllianceRow(a: Alliance, personName: String?, matterTitle: String?, session:
 @Composable
 fun AllianceDialog(db: MandatDb, session: Session, d: AllianceDraft) {
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val matters by remember(db) { db.matters().observeActiveTitles() }.collectAsStateWithLifecycle(emptyList())
-    val allMatters by remember(db) { db.matters().observeAllTitles() }.collectAsStateWithLifecycle(emptyList())
+    val matters by remember(db) { db.matters().observeActiveTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
+    val allMatters by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     var confirmDelete by remember { mutableStateOf(false) }
     val none = stringResource(R.string.nobody)
     AlertDialog(
@@ -542,8 +542,8 @@ fun AllianceDialog(db: MandatDb, session: Session, d: AllianceDraft) {
 /** Media items and alliances of a matter, inside its card. */
 @Composable
 fun MatterInfoLinks(db: MandatDb, session: Session, matterId: Long) {
-    val items by remember(db, matterId) { db.info().observeForMatter(matterId) }.collectAsStateWithLifecycle(emptyList())
-    val alliances by remember(db, matterId) { db.info().observeAlliancesForMatter(matterId) }.collectAsStateWithLifecycle(emptyList())
+    val items by remember(db, matterId) { db.info().observeForMatter(matterId).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val alliances by remember(db, matterId) { db.info().observeAlliancesForMatter(matterId).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     LinkSection(stringResource(R.string.info_title) + if (items.isEmpty()) "" else " · ${items.size}")
     items.take(5).forEachIndexed { i, it -> if (i > 0) RowDivider(); InfoRow(it, null, null, session) }
     TextButton(onClick = { session.infoDraft = newInfo(matterId = matterId) }) { Text("+ " + stringResource(R.string.info_new)) }
