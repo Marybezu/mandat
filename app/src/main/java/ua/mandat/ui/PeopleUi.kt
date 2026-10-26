@@ -76,6 +76,7 @@ fun PeopleList(db: MandatDb, session: Session) {
     fun categoryKey(p: Person) = if (p.teamRole != null) "TEAM" else (p.category ?: "NONE")
     val notSet = stringResource(R.string.not_set)
     val teamLabel = stringResource(R.string.team)
+    val othersLabel = stringResource(R.string.others)
     val categorySlices = buildList {
         add(Slice("TEAM", teamLabel, people.count { it.teamRole != null }, ChartColors.blue))
         ua.mandat.data.PersonCategory.entries.forEachIndexed { i, c ->
@@ -177,8 +178,8 @@ fun PeopleList(db: MandatDb, session: Session) {
             }
         }
         listOf(
-            stringResource(R.string.team) to shown.filter { it.teamRole != null },
-            stringResource(R.string.others) to shown.filter { it.teamRole == null },
+            teamLabel to shown.filter { it.teamRole != null },
+            othersLabel to shown.filter { it.teamRole == null },
         ).forEach { (title, list) ->
             if (list.isNotEmpty()) item(key = "group_$title") {
                 SectionCard(Sym.group, title, count = list.size) {
