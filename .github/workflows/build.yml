@@ -59,6 +59,8 @@ jobs:
           find app/build/test-results -name "*.xml" -exec cp {} log/ \; 2>/dev/null || true
           # Room's exported database layout, to check migrations against it
           cp -r app/schemas log/schemas 2>/dev/null || true
+          # Pictures of the screens drawn with neutral test data, for review
+          cp -r app/build/screens log/screens 2>/dev/null || true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()

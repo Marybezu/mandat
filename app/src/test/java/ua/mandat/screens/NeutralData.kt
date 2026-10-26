@@ -1,0 +1,128 @@
+package ua.mandat.screens
+
+import ua.mandat.data.Attention
+import ua.mandat.data.Deadline
+import ua.mandat.data.DeadlineKind
+import ua.mandat.data.Delegation
+import ua.mandat.data.InboxItem
+import ua.mandat.data.MandatDb
+import ua.mandat.data.Matter
+import ua.mandat.data.MatterPerson
+import ua.mandat.data.MatterStatus
+import ua.mandat.data.MatterType
+import ua.mandat.data.Person
+import ua.mandat.data.PersonCategory
+import ua.mandat.data.Promise
+import ua.mandat.data.Review
+import ua.mandat.data.Role
+import ua.mandat.data.SETTING_ROLES_ASKED
+import ua.mandat.data.Setting
+import ua.mandat.data.TaskStatus
+import ua.mandat.data.TeamRole
+import java.time.LocalDate
+import java.time.ZoneId
+
+/**
+ * Neutral, made-up test data for the screen checks: plain names like "Справа 1" and
+ * "Людина А", nothing about any real person. Dates are counted from today.
+ */
+object NeutralData {
+    private val today = LocalDate.now().toEpochDay()
+    private fun ms(daysFromToday: Long) =
+        LocalDate.ofEpochDay(today + daysFromToday).atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+    suspend fun fill(db: MandatDb) {
+        db.settings().put(Setting(SETTING_ROLES_ASKED, "1"))
+        val roles = listOf("Комітет А — член комітету", "Підкомітет Б — голова", "Робоча група В — керівник", "Округ Г")
+            .mapIndexed { i, n -> db.roles().insert(Role(name = n, position = i + 1)) }
+
+        val types = MatterType.entries
+        val matters = (1..16).map { i ->
+            val type = types[i % types.size]
+            val attention = when {
+                i <= 5 -> Attention.FOCUS
+                i <= 13 -> Attention.BACKGROUND
+                else -> Attention.SLEEPING
+            }
+            db.matters().insert(
+                Matter(
+                    title = "Тестова справа $i",
+                    type = type.name,
+                    roleId = roles[i % roles.size],
+                    attention = attention.name,
+                    nextStep = if (i % 5 == 0) "" else "Наступний крок для справи $i",
+                    goal = "Мета справи $i",
+                    description = "",
+                    status = MatterStatus.ACTIVE.name,
+                    createdAt = ms(-200L + i * 7),
+                    updatedAt = ms(if (i % 4 == 0) -45L else -i.toLong()),
+                ),
+            )
+        }
+        db.matters().insert(
+            Matter(title = "Завершена справа", type = MatterType.BILL.name, roleId = roles[0], attention = Attention.BACKGROUND.name,
+                nextStep = "", goal = "", description = "", status = MatterStatus.DONE.name, createdAt = ms(-300), updatedAt = ms(-3)),
+        )
+
+        val letters = listOf("А", "Б", "В", "Г", "Ґ", "Д", "Е", "Є", "Ж", "З", "И", "І", "Ї", "Й", "К", "Л")
+        val team = listOf(TeamRole.OFFICE_HEAD, TeamRole.ASSISTANT, TeamRole.ASSISTANT, TeamRole.INTERN, TeamRole.LAWYER)
+        val people = letters.mapIndexed { i, l ->
+            val inTeam = i < team.size
+            db.people().insert(
+                Person(
+                    name = "Людина $l",
+                    organization = if (inTeam) "Офіс" else "Організація $l",
+                    jobTitle = if (inTeam) "" else "Посада $l",
+                    contact = "", notes = "",
+                    teamRole = if (inTeam) team[i].name else null,
+                    createdAt = ms(-100), updatedAt = ms(-100),
+                    category = if (inTeam) null else PersonCategory.entries[i % PersonCategory.entries.size].name,
+                ),
+            )
+        }
+        val stances = listOf("ALLY", "UNDECIDED", "OPPONENT", "NEUTRAL", null)
+        matters.take(8).forEachIndexed { i, m ->
+            people.drop(5).take(4).forEachIndexed { j, p ->
+                db.people().link(MatterPerson(m, p, stances[(i + j) % stances.size], ""))
+            }
+        }
+
+        (1..14).forEach { i ->
+            val done = i > 10
+            db.delegations().insert(
+                Delegation(
+                    what = "Тестове доручення $i", personId = people[i % 5], matterId = matters[i % matters.size],
+                    due = today + (i - 4), status = if (done) TaskStatus.DONE.name else TaskStatus.OPEN.name,
+                    createdAt = ms(-20L - i), closedAt = if (done) ms(-i.toLong()) else null,
+                ),
+            )
+        }
+        val promiseStates = listOf(TaskStatus.OPEN, TaskStatus.DONE, TaskStatus.DONE, TaskStatus.FAILED, TaskStatus.CANCELLED, TaskStatus.OPEN)
+        (1..18).forEach { i ->
+            val st = promiseStates[i % promiseStates.size]
+            db.promises().insert(
+                Promise(
+                    what = "Тестова обіцянка $i", personId = if (i % 3 == 0) people[6 + i % 8] else null,
+                    toWhom = if (i % 3 == 0) "" else "Мешканці громади $i", isPublic = i % 3 != 0,
+                    matterId = matters[i % matters.size], due = if (st == TaskStatus.OPEN) today + (i - 6) else null,
+                    status = st.name, createdAt = ms(-i * 90L), closedAt = if (st == TaskStatus.OPEN) null else ms(-i * 30L),
+                    source = "Тестове джерело", statusNote = if (st == TaskStatus.FAILED || st == TaskStatus.CANCELLED) "Тестове пояснення" else "",
+                ),
+            )
+        }
+        (1..10).forEach { i ->
+            val done = i > 7
+            db.deadlines().insert(
+                Deadline(
+                    title = "Тестовий строк $i", day = today + (i * 2 - 6) - (if (done) 10 else 0),
+                    kind = if (i % 3 == 0) DeadlineKind.HARD.name else DeadlineKind.SOFT.name,
+                    basis = if (i % 3 == 0) "Тестова підстава" else "", matterId = matters[i % matters.size], remindBefore = 1,
+                    status = if (done) TaskStatus.DONE.name else TaskStatus.OPEN.name, createdAt = ms(-30),
+                    closedAt = if (done) ms((i * 2 - 17).toLong()) else null,
+                ),
+            )
+        }
+        (1..12).forEach { i -> db.reviews().insert(Review(day = today - i, progress = "Тестовий запис вечора $i", createdAt = ms(-i.toLong()))) }
+        (1..3).forEach { i -> db.inbox().insert(InboxItem(text = "Тестовий запис у вхідних $i", createdAt = ms(-i.toLong()))) }
+    }
+}

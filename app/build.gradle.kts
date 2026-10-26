@@ -37,6 +37,13 @@ android {
         compose = true
     }
 
+    // Screen checks run on the computer (Robolectric) and need the app's resources
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
+
     packaging {
         jniLibs {
             useLegacyPackaging = true
@@ -82,4 +89,12 @@ dependencies {
     implementation("org.bouncycastle:bcprov-jdk18on:1.79")
 
     testImplementation("junit:junit:4.13.2")
+
+    // Screen checks only (never in the app): draw each screen with neutral test data,
+    // so a crash is caught before a release and the look can be reviewed
+    testImplementation(composeBom)
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("androidx.compose.ui:ui-test-manifest")
+    testImplementation("androidx.test.ext:junit:1.2.1")
+    testImplementation("org.robolectric:robolectric:4.16.1")
 }

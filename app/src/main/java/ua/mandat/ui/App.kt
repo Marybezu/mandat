@@ -358,7 +358,7 @@ private fun Main(db: MandatDb, session: Session) {
  * overdue, today and tomorrow, focus, and the Inbox.
  */
 @Composable
-private fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onToMatter: (InboxItem) -> Unit) {
+internal fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onToMatter: (InboxItem) -> Unit) {
     val items by remember(db) { db.inbox().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val focus by remember(db) { db.matters().observeFocus() }.collectAsStateWithLifecycle(emptyList())
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
