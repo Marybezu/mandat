@@ -187,13 +187,13 @@ fun PromisesScreen(db: MandatDb, session: Session) {
                     )
                 }
             }
-            val filters = listOfNotNull(
-                level?.let { stringResource(Publicity.of(it).label()) to { level = null } },
-                statusPick?.let { stringResource(TaskStatus.of(it).promiseLabel()) to { statusPick = null } },
-                originPick?.let { (PromiseOrigin.of(it)?.let { o -> stringResource(o.label()) } ?: stringResource(R.string.not_set)) to { originPick = null } },
-                year?.let { it.toString() to { year = null } },
-            )
-            if (filters.isNotEmpty()) item(key = "filters") {
+            if (level != null || statusPick != null || originPick != null || year != null) item(key = "filters") {
+                val filters = listOfNotNull(
+                    level?.let { stringResource(Publicity.of(it).label()) to { level = null } },
+                    statusPick?.let { stringResource(TaskStatus.of(it).promiseLabel()) to { statusPick = null } },
+                    originPick?.let { (PromiseOrigin.of(it)?.let { o -> stringResource(o.label()) } ?: stringResource(R.string.not_set)) to { originPick = null } },
+                    year?.let { it.toString() to { year = null } },
+                )
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     filters.forEach { (label, clear) -> FilterBadge(label, clear) }
                 }
