@@ -3,6 +3,12 @@ package ua.mandat.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -61,12 +67,11 @@ fun PeopleList(db: MandatDb, session: Session) {
     val openBy = open.groupBy { it.personId }
 
     if (people.isEmpty()) {
-        Text(stringResource(R.string.people_empty), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(16.dp))
+        Column(Modifier.padding(Space.screen)) { EmptyHint(Icons.Filled.Person, stringResource(R.string.people_empty)) }
         return
     }
     LazyColumn(
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(start = Space.screen, end = Space.screen, bottom = 96.dp),
     ) {
         item(key = "search") {
             OutlinedTextField(
@@ -94,30 +99,31 @@ fun PeopleList(db: MandatDb, session: Session) {
 
 @Composable
 private fun GroupTitle(text: String) {
-    Text(text, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+    SectionHeader(Icons.Filled.Person, text)
 }
 
-/** Plain facts only: what is open and what is overdue. No scores, no ranking. */
+/** Plain facts only: who it is and how much is open. No scores, no ranking. */
 @Composable
 private fun PersonCard(p: Person, openCount: Int, onOpen: () -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable(onClick = onOpen)) {
-        Column(Modifier.padding(16.dp)) {
-            Text(p.name, style = MaterialTheme.typography.titleMedium)
-            val role = TeamRole.of(p.teamRole)?.let { stringResource(it.label()) }
-            val meta = listOfNotNull(role, p.jobTitle.ifBlank { null }, p.organization.ifBlank { null }).joinToString(" · ")
-            if (meta.isNotEmpty()) Text(meta, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
-            // Only how much is open, in a calm colour: the list is a directory, not a scoreboard.
-            // Overdue items are shown on Today and in the person's page, one by one.
-            if (openCount > 0) {
-                Text(stringResource(R.string.open_count, openCount), style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.secondary)
+    MCard(Modifier.padding(bottom = Space.gap), onClick = onOpen) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Initials(p.name, team = p.teamRole != null)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(p.name, style = MaterialTheme.typography.titleMedium)
+                val role = TeamRole.of(p.teamRole)?.let { if (it == TeamRole.OTHER && p.teamCustom.isNotBlank()) p.teamCustom else stringResource(it.label()) }
+                val who = ua.mandat.data.PersonCategory.of(p.category)?.let {
+                    if (it == ua.mandat.data.PersonCategory.OTHER && p.categoryCustom.isNotBlank()) p.categoryCustom else stringResource(it.label())
+                }
+                val meta = listOfNotNull(role ?: who, p.jobTitle.ifBlank { null }, p.organization.ifBlank { null }).joinToString(" · ")
+                if (meta.isNotEmpty()) Text(meta, style = MaterialTheme.typography.labelMedium, color = Muted, maxLines = 2)
             }
+            if (openCount > 0) NeutralTag(stringResource(R.string.open_count, openCount))
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
     val onBack = { session.personDraft = null }
@@ -143,7 +149,8 @@ fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
         },
     ) { padding ->
         Column(
-            Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
+            Modifier.padding(padding).consumeWindowInsets(padding).imePadding().fillMaxSize().verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             OutlinedTextField(value = draft.name, onValueChange = { draft.name = it },
@@ -155,12 +162,27 @@ fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
             OutlinedTextField(value = draft.contact, onValueChange = { draft.contact = it },
                 label = { Text(stringResource(R.string.person_contact)) }, modifier = Modifier.fillMaxWidth())
             Picker(
+                label = stringResource(R.string.person_category),
+                current = draft.category?.let { stringResource(it.label()) } ?: stringResource(R.string.not_set),
+                options = listOf<Pair<ua.mandat.data.PersonCategory?, String>>(null to stringResource(R.string.not_set)) +
+                    ua.mandat.data.PersonCategory.entries.map { it to stringResource(it.label()) },
+                onPick = { draft.category = it },
+            )
+            if (draft.category == ua.mandat.data.PersonCategory.OTHER) {
+                OutlinedTextField(value = draft.categoryCustom, onValueChange = { draft.categoryCustom = it },
+                    label = { Text(stringResource(R.string.own_words)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            }
+            Picker(
                 label = stringResource(R.string.person_team),
                 current = draft.teamRole?.let { stringResource(it.label()) } ?: stringResource(R.string.not_team),
                 options = listOf<Pair<TeamRole?, String>>(null to stringResource(R.string.not_team)) +
                     TeamRole.entries.map { it to stringResource(it.label()) },
                 onPick = { draft.teamRole = it },
             )
+            if (draft.teamRole == TeamRole.OTHER) {
+                OutlinedTextField(value = draft.teamCustom, onValueChange = { draft.teamCustom = it },
+                    label = { Text(stringResource(R.string.own_words)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            }
             OutlinedTextField(value = draft.notes, onValueChange = { draft.notes = it },
                 label = { Text(stringResource(R.string.person_notes)) }, minLines = 3, modifier = Modifier.fillMaxWidth())
 
@@ -243,6 +265,5 @@ private fun PersonLinks(db: MandatDb, session: Session, personId: Long) {
 
 @Composable
 fun LinkSection(title: String) {
-    Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 12.dp))
+    Text(title, style = MaterialTheme.typography.labelLarge, color = Muted, modifier = Modifier.padding(top = 16.dp))
 }

@@ -23,6 +23,12 @@ data class Person(
     val teamRole: String?,
     val createdAt: Long,
     val updatedAt: Long,
+    /** Who this is: a key of [PersonCategory], or null. */
+    val category: String? = null,
+    /** The owner's own words when the category is OTHER. */
+    @ColumnInfo(defaultValue = "") val categoryCustom: String = "",
+    /** The owner's own words when the team role is OTHER. */
+    @ColumnInfo(defaultValue = "") val teamCustom: String = "",
 )
 
 /** Who takes part in a matter, and (optionally) where they stand on it. */
@@ -72,8 +78,18 @@ data class Promise(
     @ColumnInfo(defaultValue = "") val statusNote: String = "",
 )
 
+/** Roles in the owner's team. Keys are stored, so existing ones never change meaning. */
 enum class TeamRole {
-    ASSISTANT, INTERN, SECRETARIAT, LAWYER, ADVISOR, OTHER;
+    ASSISTANT, VOLUNTEER_ASSISTANT, OFFICE_HEAD, INTERN, SECRETARIAT, LAWYER, ADVISOR, COMMS, ANALYST, OTHER;
+
+    companion object {
+        fun of(key: String?) = key?.let { k -> entries.firstOrNull { it.name == k } }
+    }
+}
+
+/** Who a person is, for everyone (team or not). */
+enum class PersonCategory {
+    COLLEAGUE_MP, OFFICIAL, EXPERT, JOURNALIST, NGO, BUSINESS, INTERNATIONAL, VOTER, OTHER;
 
     companion object {
         fun of(key: String?) = key?.let { k -> entries.firstOrNull { it.name == k } }
@@ -244,6 +260,8 @@ fun cleanPerson(p: Person): Person? {
         jobTitle = p.jobTitle.trim().take(300),
         contact = p.contact.trim().take(1_000),
         notes = p.notes.trim().take(MAX_NOTE_LENGTH),
+        categoryCustom = if (PersonCategory.of(p.category) == PersonCategory.OTHER) p.categoryCustom.trim().take(100) else "",
+        teamCustom = if (TeamRole.of(p.teamRole) == TeamRole.OTHER) p.teamCustom.trim().take(100) else "",
     )
 }
 

@@ -1,6 +1,12 @@
 package ua.mandat.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material.icons.filled.MailOutline
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -85,7 +91,7 @@ fun App(session: Session, onUnlock: () -> Unit, onStartOver: () -> Unit) {
 @Composable
 private fun Centered(content: @Composable () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
+        modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) { content() }
@@ -217,23 +223,25 @@ private fun Main(db: MandatDb, session: Session) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(tab.title)) },
-                actions = {
+            Column(Modifier.statusBarsPadding()) {
+                ScreenHeader(
+                    title = stringResource(tab.title),
+                    subtitle = if (tab == Tab.Today) Dates.longToday() else null,
+                ) {
                     IconButton(onClick = { session.searching = true }) {
-                        Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
+                        Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search), tint = Muted)
                     }
                     IconButton(onClick = { options = true }) {
-                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.options))
+                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.options), tint = Muted)
                     }
                     IconButton(onClick = { session.lock() }) {
-                        Icon(Icons.Filled.Lock, contentDescription = stringResource(R.string.lock_now))
+                        Icon(Icons.Filled.Lock, contentDescription = stringResource(R.string.lock_now), tint = Muted)
                     }
-                },
-            )
+                }
+            }
         },
         bottomBar = {
-            NavigationBar {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
                 Tab.entries.forEach { t ->
                     NavigationBarItem(
                         selected = t == tab,
@@ -244,10 +252,10 @@ private fun Main(db: MandatDb, session: Session) {
                                     shape = CircleShape,
                                     color = MaterialTheme.colorScheme.primary,
                                     contentColor = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.size(48.dp),
+                                    modifier = Modifier.size(44.dp),
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
-                                        Icon(t.icon, contentDescription = null, modifier = Modifier.size(28.dp))
+                                        Icon(t.icon, contentDescription = null, modifier = Modifier.size(24.dp))
                                     }
                                 }
                             } else {
@@ -288,9 +296,6 @@ private fun Main(db: MandatDb, session: Session) {
                 Tab.People -> PeopleList(db, session)
                 Tab.Time -> TimeScreen(db, session)
                 Tab.Review -> ReviewScreen(db, session)
-                else -> Centered {
-                    Text(stringResource(R.string.coming_soon), style = MaterialTheme.typography.bodyLarge)
-                }
             }
         }
     }
@@ -342,67 +347,64 @@ private fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onTo
     val titles by titlesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val nameOf = people.associate { it.id to it.name }
     val titleOf = titles.associate { it.id to it.title }
+    val deadlinesFlow = remember(db) { db.deadlines().observeOpen() }
+    val deadlines by deadlinesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val today = Dates.today()
-    val dayAfterTomorrow = Dates.addDays(today, 2)
+    val tomorrow = Dates.addDays(today, 1)
+    val overdueDl = deadlines.filter { it.day < today }
     val overdueD = delegations.filter { it.due != null && it.due < today }
     val overdueP = promises.filter { it.due != null && it.due < today }
-    val soonD = delegations.filter { it.due != null && it.due >= today && it.due < dayAfterTomorrow }
-    val soonP = promises.filter { it.due != null && it.due >= today && it.due < dayAfterTomorrow }
+    val soonDl = deadlines.filter { it.day == today || it.day == tomorrow }
+    val soonD = delegations.filter { it.due == today || it.due == tomorrow }
+    val soonP = promises.filter { it.due == today || it.due == tomorrow }
+    val overdueCount = overdueDl.size + overdueD.size + overdueP.size
+    val todayCount = deadlines.count { it.day == today } + delegations.count { it.due == today } + promises.count { it.due == today }
 
-    LazyColumn(
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        if (overdueD.isNotEmpty() || overdueP.isNotEmpty()) {
-            item(key = "overdue_h") {
-                Text(stringResource(R.string.overdue_title), style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp))
+    LazyColumn(contentPadding = PaddingValues(start = Space.screen, end = Space.screen, bottom = 96.dp)) {
+        item(key = "stats") {
+            Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
+                StatTile(overdueCount, stringResource(R.string.stat_overdue), attention = true)
+                StatTile(todayCount, stringResource(R.string.stat_today))
+                StatTile(focus.size, stringResource(R.string.stat_focus))
             }
+        }
+        if (overdueCount > 0) {
+            item(key = "overdue_h") { SectionHeader(Icons.Filled.Warning, stringResource(R.string.overdue_title), attention = true) }
+            items(overdueDl, key = { "odl${it.id}" }) { DeadlineRow(it, it.matterId?.let(titleOf::get), session) }
             items(overdueD, key = { "od${it.id}" }) { DelegationRow(it, it.personId?.let(nameOf::get), it.matterId?.let(titleOf::get), session) }
             items(overdueP, key = { "op${it.id}" }) { PromiseRow(it, it.personId?.let(nameOf::get), it.matterId?.let(titleOf::get), session) }
         }
-        if (soonD.isNotEmpty() || soonP.isNotEmpty()) {
-            item(key = "soon_h") {
-                Text(stringResource(R.string.soon_title), style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(top = 12.dp))
-            }
+        if (soonDl.isNotEmpty() || soonD.isNotEmpty() || soonP.isNotEmpty()) {
+            item(key = "soon_h") { SectionHeader(Icons.Filled.DateRange, stringResource(R.string.soon_title)) }
+            items(soonDl, key = { "sdl${it.id}" }) { DeadlineRow(it, it.matterId?.let(titleOf::get), session) }
             items(soonD, key = { "sd${it.id}" }) { DelegationRow(it, it.personId?.let(nameOf::get), it.matterId?.let(titleOf::get), session) }
             items(soonP, key = { "sp${it.id}" }) { PromiseRow(it, it.personId?.let(nameOf::get), it.matterId?.let(titleOf::get), session) }
         }
-        item(key = "focus_h") {
-            Text(stringResource(R.string.focus_title), style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
-        }
+        item(key = "focus_h") { SectionHeader(Icons.Filled.Star, stringResource(R.string.focus_title)) }
         if (focus.isEmpty()) {
-            item(key = "focus_empty") {
-                Text(stringResource(R.string.focus_empty), style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.secondary)
-            }
+            item(key = "focus_empty") { EmptyHint(Icons.Filled.Star, stringResource(R.string.focus_empty)) }
         } else {
-            items(focus, key = { "m${it.id}" }) { m -> MatterCard(m, roleNames[m.roleId], onOpen) }
+            items(focus, key = { "m${it.id}" }) { m ->
+                MatterCard(m, roleNames[m.roleId], onOpen, Modifier.padding(bottom = Space.gap))
+            }
         }
         item(key = "inbox_h") {
-            Text(stringResource(R.string.inbox), style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 20.dp, bottom = 4.dp))
+            SectionHeader(Icons.Filled.MailOutline, stringResource(R.string.inbox) + if (items.isNotEmpty()) " · ${items.size}" else "")
         }
         if (items.isEmpty()) {
-            item(key = "inbox_empty") {
-                Text(stringResource(R.string.inbox_empty), style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.secondary)
-            }
+            item(key = "inbox_empty") { EmptyHint(Icons.Filled.MailOutline, stringResource(R.string.inbox_empty)) }
         } else {
             items(items, key = { "i${it.id}" }) { item ->
-                Card(Modifier.fillMaxWidth()) {
-                    Row(
-                        Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(item.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Column {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(item.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(vertical = 10.dp),
+                            maxLines = 3, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                         IconButton(onClick = { onToMatter(item) }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = stringResource(R.string.to_matter))
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = stringResource(R.string.to_matter), tint = Muted)
                         }
                         IconButton(onClick = { session.write { it.inbox().delete(item.id) } }) {
-                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
+                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete), tint = Muted)
                         }
                     }
                 }

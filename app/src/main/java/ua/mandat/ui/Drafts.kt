@@ -62,6 +62,9 @@ class PersonDraft(val person: ua.mandat.data.Person, val isNew: Boolean) {
     var contact by mutableStateOf(person.contact)
     var notes by mutableStateOf(person.notes)
     var teamRole by mutableStateOf(ua.mandat.data.TeamRole.of(person.teamRole))
+    var category by mutableStateOf(ua.mandat.data.PersonCategory.of(person.category))
+    var categoryCustom by mutableStateOf(person.categoryCustom)
+    var teamCustom by mutableStateOf(person.teamCustom)
 
     suspend fun persist(db: MandatDb) {
         val now = System.currentTimeMillis()
@@ -69,6 +72,7 @@ class PersonDraft(val person: ua.mandat.data.Person, val isNew: Boolean) {
             person.copy(
                 name = name, organization = organization, jobTitle = jobTitle, contact = contact,
                 notes = notes, teamRole = teamRole?.name, updatedAt = now,
+                category = category?.name, categoryCustom = categoryCustom, teamCustom = teamCustom,
             ),
         ) ?: return
         if (isNew) db.people().insert(edited.copy(id = 0, createdAt = now)) else db.people().update(edited)

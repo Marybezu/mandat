@@ -4,6 +4,12 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material.icons.filled.AccountBox
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -93,6 +99,7 @@ fun Options(session: Session, onBack: () -> Unit) {
         Column(
             Modifier
                 .padding(padding)
+                .imePadding()
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 8.dp),
@@ -224,7 +231,16 @@ fun Options(session: Session, onBack: () -> Unit) {
 
 @Composable
 private fun Section(title: String) {
-    Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+    SectionHeader(
+        when (title) {
+            stringResource(R.string.backup_title) -> Icons.Filled.Done
+            stringResource(R.string.roles_manage) -> Icons.Filled.AccountBox
+            stringResource(R.string.reminders_title) -> Icons.Filled.Notifications
+            stringResource(R.string.security_title) -> Icons.Filled.Lock
+            else -> Icons.Filled.Info
+        },
+        title,
+    )
 }
 
 @Composable

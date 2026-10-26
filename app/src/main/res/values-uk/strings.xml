@@ -164,12 +164,12 @@
 
     <string name="team">Команда</string>
     <string name="others">Інші</string>
-    <string name="team_ASSISTANT">Помічник</string>
+    <string name="team_ASSISTANT">Помічник-консультант (штатний)</string>
     <string name="team_INTERN">Стажер</string>
-    <string name="team_SECRETARIAT">Секретаріат</string>
+    <string name="team_SECRETARIAT">Секретаріат комітету чи комісії</string>
     <string name="team_LAWYER">Адвокат чи юрист</string>
     <string name="team_ADVISOR">Радник</string>
-    <string name="team_OTHER">Член команди</string>
+    <string name="team_OTHER">Інше</string>
     <string name="not_team">Не в команді</string>
     <string name="stance_ALLY">Союзник</string>
     <string name="stance_UNDECIDED">Вагається</string>
@@ -239,10 +239,10 @@
     <string name="time_later">Пізніше</string>
     <string name="time_empty">Поки нічого з датою. Натисніть +, щоб додати строк; доручення й обіцянки з датою теж з\'являться тут.</string>
     <string name="evening_title">Що просунулося сьогодні?</string>
-    <string name="evening_hint">Хвилина ввечері: що зрушило і що вивантажити з голови.</string>
+    <string name="evening_hint">Хвилина ввечері: що зрушило, і що записати, щоб не тримати в голові.</string>
     <string name="evening_progress">Просунулося</string>
-    <string name="evening_unload">Вивантажити з голови</string>
-    <string name="evening_to_inbox">Покласти у «Вхідні»</string>
+    <string name="evening_unload">Розвантажити пам\'ять</string>
+    <string name="evening_to_inbox">Записати у «Вхідні»</string>
     <string name="evening_earlier">Попередні дні</string>
     <string name="search_hint">Введіть щонайменше дві літери, щоб шукати у справах, людях, нотатках і строках.</string>
     <string name="search_nothing">Нічого не знайдено.</string>
@@ -264,4 +264,23 @@
     <string name="promise_source_hint">Інтерв\'ю, допис, зустріч; посилання чи дата</string>
     <string name="promise_status_note">Чому (коротко)</string>
     <string name="all_years">Усі роки</string>
+    <string name="team_VOLUNTEER_ASSISTANT">Помічник на громадських засадах</string>
+    <string name="team_OFFICE_HEAD">Керівник офісу</string>
+    <string name="team_COMMS">Комунікації й соцмережі</string>
+    <string name="team_ANALYST">Аналітик</string>
+    <string name="cat_COLLEAGUE_MP">Колега-депутат</string>
+    <string name="cat_OFFICIAL">Посадовець</string>
+    <string name="cat_EXPERT">Експерт</string>
+    <string name="cat_JOURNALIST">Журналіст</string>
+    <string name="cat_NGO">Громадська організація</string>
+    <string name="cat_BUSINESS">Бізнес</string>
+    <string name="cat_INTERNATIONAL">Міжнародний партнер</string>
+    <string name="cat_VOTER">Виборець</string>
+    <string name="cat_OTHER">Інше</string>
+    <string name="person_category">Хто це</string>
+    <string name="not_set">Не вказано</string>
+    <string name="own_words">Своїми словами</string>
+    <string name="stat_overdue">прострочено</string>
+    <string name="stat_today">на сьогодні</string>
+    <string name="stat_focus">у фокусі</string>
 </resources>

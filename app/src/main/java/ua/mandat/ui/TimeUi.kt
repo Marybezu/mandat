@@ -4,6 +4,10 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -174,16 +178,15 @@ fun TimeScreen(db: MandatDb, session: Session) {
         R.string.time_later to entries.filter { it.day > today + 7 },
     )
     if (entries.isEmpty()) {
-        Text(stringResource(R.string.time_empty), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(16.dp))
+        Column(Modifier.padding(Space.screen)) { EmptyHint(Icons.Filled.DateRange, stringResource(R.string.time_empty)) }
         return
     }
-    LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp)) {
+    LazyColumn(contentPadding = PaddingValues(start = Space.screen, end = Space.screen, bottom = 96.dp)) {
         groups.forEach { (title, list) ->
             if (list.isNotEmpty()) {
                 item(key = "h$title") {
-                    Text(stringResource(title), style = MaterialTheme.typography.titleMedium,
-                        color = if (title == R.string.overdue_title) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 14.dp, bottom = 4.dp))
+                    val overdue = title == R.string.overdue_title
+                    SectionHeader(if (overdue) Icons.Filled.Warning else Icons.Filled.DateRange, stringResource(title), attention = overdue)
                 }
                 items(list, key = { it.key }) { it.content() }
             }
@@ -205,8 +208,8 @@ fun ReviewScreen(db: MandatDb, session: Session) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(key = "evening") {
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            MCard {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(stringResource(R.string.evening_title), style = MaterialTheme.typography.titleMedium)
                     Text(stringResource(R.string.evening_hint), style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.secondary)
@@ -241,7 +244,7 @@ fun ReviewScreen(db: MandatDb, session: Session) {
         }
         val earlier = recent.filter { it.day != today }
         if (earlier.isNotEmpty()) {
-            item(key = "earlier_h") { Text(stringResource(R.string.evening_earlier), style = MaterialTheme.typography.titleMedium) }
+            item(key = "earlier_h") { SectionHeader(Icons.Filled.DateRange, stringResource(R.string.evening_earlier)) }
             items(earlier, key = { it.id }) { r ->
                 Column {
                     Text(Dates.format(r.day), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
@@ -285,7 +288,7 @@ fun SearchScreen(db: MandatDb, session: Session) {
                 color = MaterialTheme.colorScheme.secondary)
             return@Scaffold
         }
-        LazyColumn(Modifier.padding(padding).fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
+        LazyColumn(Modifier.padding(padding).imePadding().fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
             if (hits.isEmpty()) item { Text(stringResource(R.string.search_nothing)) }
             items(hits, key = { "${it.kind}${it.id}" }) { hit ->
                 Column(
@@ -364,7 +367,7 @@ fun PromisesScreen(db: MandatDb, session: Session) {
             )
         },
     ) { padding ->
-        LazyColumn(Modifier.padding(padding).fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
+        LazyColumn(Modifier.padding(padding).imePadding().fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
             item(key = "filters") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(selected = publicOnly == true, onClick = { publicOnly = true },
@@ -406,8 +409,7 @@ fun PromisesScreen(db: MandatDb, session: Session) {
                 val list = byStatus.getValue(status)
                 if (list.isNotEmpty()) {
                     item(key = "h$status") {
-                        Text(stringResource(status.promiseLabel()), style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp))
+                            SectionHeader(Icons.Filled.CheckCircle, stringResource(status.promiseLabel()))
                     }
                     items(list, key = { "p${it.id}" }) { p ->
                         Column {

@@ -4,6 +4,15 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -98,22 +107,17 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit) {
             }
         }
         if (active.isEmpty() && closed.isEmpty()) {
-            Text(
-                stringResource(R.string.matters_empty),
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(16.dp),
-            )
+            Column(Modifier.padding(Space.screen)) { EmptyHint(Icons.Filled.List, stringResource(R.string.matters_empty)) }
             return@Column
         }
         LazyColumn(
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(start = Space.screen, end = Space.screen, bottom = 96.dp),
         ) {
             Attention.entries.forEach { level ->
                 val group = active.filter { Attention.of(it.attention) == level && visible(it) }
                 if (group.isNotEmpty()) {
-                    item(key = "h_$level") { SectionHeader(level) }
-                    items(group, key = { "a${it.id}" }) { m -> MatterCard(m, roleNames[m.roleId], onOpen) }
+                    item(key = "h_$level") { AttentionHeader(level) }
+                    items(group, key = { "a${it.id}" }) { m -> MatterCard(m, roleNames[m.roleId], onOpen, Modifier.padding(bottom = Space.gap)) }
                 }
             }
             val closedVisible = closed.filter { visible(it) }
@@ -123,42 +127,53 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit) {
                         Text("${stringResource(R.string.matters_closed)} (${closedVisible.size})")
                     }
                 }
-                if (showClosed) items(closedVisible, key = { "c${it.id}" }) { m -> MatterCard(m, roleNames[m.roleId], onOpen) }
+                if (showClosed) items(closedVisible, key = { "c${it.id}" }) { m -> MatterCard(m, roleNames[m.roleId], onOpen, Modifier.padding(bottom = Space.gap)) }
             }
         }
     }
 }
 
 @Composable
-private fun SectionHeader(level: Attention) {
-    Column(Modifier.padding(top = 12.dp, bottom = 4.dp)) {
-        Text(stringResource(level.label()), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-        Text(stringResource(level.hint()), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
+private fun AttentionHeader(level: Attention) {
+    val icon = when (level) {
+        Attention.FOCUS -> Icons.Filled.Star
+        Attention.BACKGROUND -> Icons.Filled.List
+        Attention.SLEEPING -> Icons.Filled.Refresh
+    }
+    Column {
+        SectionHeader(icon, stringResource(level.label()))
+        Text(stringResource(level.hint()), style = MaterialTheme.typography.labelMedium, color = Muted,
+            modifier = Modifier.padding(bottom = Space.gap).offset(y = (-4).dp))
     }
 }
 
+/** A matter as a card: type and role as small tags, the title, and the next step. */
 @Composable
-fun MatterCard(m: Matter, roleName: String?, onOpen: (Matter) -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable { onOpen(m) }) {
-        Column(Modifier.padding(16.dp)) {
-            Text(m.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            val meta = listOfNotNull(stringResource(MatterType.of(m.type).label()), roleName).joinToString(" · ")
-            Text(meta, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
-            Spacer(Modifier.height(6.dp))
-            if (m.nextStep.isNotBlank()) {
-                Text("→ ${m.nextStep}", style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            } else {
-                Text(
-                    stringResource(R.string.matter_no_next_step),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.secondary,
-                )
-            }
+fun MatterCard(m: Matter, roleName: String?, onOpen: (Matter) -> Unit, modifier: Modifier = Modifier) {
+    val type = MatterType.of(m.type)
+    MCard(modifier, onClick = { onOpen(m) }) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Tag(stringResource(type.label()), type.tint())
+            if (roleName != null) NeutralTag(roleName)
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(m.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Muted, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(
+                m.nextStep.ifBlank { stringResource(R.string.matter_no_next_step) },
+                style = MaterialTheme.typography.bodyMedium,
+                color = Muted,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
     val request = draft.request
@@ -191,7 +206,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
         },
     ) { padding ->
         Column(
-            Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState())
+            Modifier.padding(padding).consumeWindowInsets(padding).imePadding().fillMaxSize().verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

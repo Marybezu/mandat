@@ -26,6 +26,10 @@ object Dates {
 
     fun addDays(day: Long, days: Long): Long = day + days
 
+    /** "Monday, 26 October" in the phone's language. */
+    fun longToday(): String =
+        java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("EEEE, d MMMM"))
+
     /** The local calendar day of a moment (epoch milliseconds). */
     fun dayOf(millis: Long): Long =
         java.time.Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate().toEpochDay()

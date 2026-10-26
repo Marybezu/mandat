@@ -65,11 +65,27 @@ val ROLE_BODIES = listOf(
 
 fun ua.mandat.data.TeamRole.label(): Int = when (this) {
     ua.mandat.data.TeamRole.ASSISTANT -> R.string.team_ASSISTANT
+    ua.mandat.data.TeamRole.VOLUNTEER_ASSISTANT -> R.string.team_VOLUNTEER_ASSISTANT
+    ua.mandat.data.TeamRole.OFFICE_HEAD -> R.string.team_OFFICE_HEAD
     ua.mandat.data.TeamRole.INTERN -> R.string.team_INTERN
     ua.mandat.data.TeamRole.SECRETARIAT -> R.string.team_SECRETARIAT
     ua.mandat.data.TeamRole.LAWYER -> R.string.team_LAWYER
     ua.mandat.data.TeamRole.ADVISOR -> R.string.team_ADVISOR
+    ua.mandat.data.TeamRole.COMMS -> R.string.team_COMMS
+    ua.mandat.data.TeamRole.ANALYST -> R.string.team_ANALYST
     ua.mandat.data.TeamRole.OTHER -> R.string.team_OTHER
+}
+
+fun ua.mandat.data.PersonCategory.label(): Int = when (this) {
+    ua.mandat.data.PersonCategory.COLLEAGUE_MP -> R.string.cat_COLLEAGUE_MP
+    ua.mandat.data.PersonCategory.OFFICIAL -> R.string.cat_OFFICIAL
+    ua.mandat.data.PersonCategory.EXPERT -> R.string.cat_EXPERT
+    ua.mandat.data.PersonCategory.JOURNALIST -> R.string.cat_JOURNALIST
+    ua.mandat.data.PersonCategory.NGO -> R.string.cat_NGO
+    ua.mandat.data.PersonCategory.BUSINESS -> R.string.cat_BUSINESS
+    ua.mandat.data.PersonCategory.INTERNATIONAL -> R.string.cat_INTERNATIONAL
+    ua.mandat.data.PersonCategory.VOTER -> R.string.cat_VOTER
+    ua.mandat.data.PersonCategory.OTHER -> R.string.cat_OTHER
 }
 
 fun ua.mandat.data.Stance.label(): Int = when (this) {

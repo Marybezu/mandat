@@ -1,0 +1,129 @@
+package ua.mandat.ui
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+
+/** A quiet card: white surface, hairline border, rounded corners. */
+@Composable
+fun MCard(modifier: Modifier = Modifier, onClick: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+    val shape = RoundedCornerShape(12.dp)
+    Surface(
+        modifier = modifier.fillMaxWidth().clip(shape).let { if (onClick != null) it.clickable(onClick = onClick) else it },
+        shape = shape,
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(Modifier.padding(Space.card), content = content)
+    }
+}
+
+/** A section title with an icon; amber for things that need attention. */
+@Composable
+fun SectionHeader(icon: ImageVector, text: String, attention: Boolean = false, modifier: Modifier = Modifier) {
+    val color = if (attention) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        modifier.fillMaxWidth().padding(top = Space.section, bottom = Space.gap),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(text, style = MaterialTheme.typography.labelLarge, color = color)
+    }
+}
+
+/** A small coloured label, for example a matter's type. */
+@Composable
+fun Tag(text: String, tint: Tint) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelMedium,
+        color = tint.fg,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(tint.bg).padding(horizontal = 8.dp, vertical = 2.dp),
+    )
+}
+
+/** A neutral label, for example a role. */
+@Composable
+fun NeutralTag(text: String) = Tag(text, Tint(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant))
+
+/** A number with a short label, for the summary at the top of Today. */
+@Composable
+fun RowScope.StatTile(value: Int, label: String, attention: Boolean = false, onClick: (() -> Unit)? = null) {
+    val bg = if (attention && value > 0) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant
+    val fg = if (attention && value > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface
+    Column(
+        Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(bg)
+            .let { if (onClick != null) it.clickable(onClick = onClick) else it }
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Text(value.toString(), style = MaterialTheme.typography.titleLarge, color = fg)
+        Text(label, style = MaterialTheme.typography.labelMedium, color = if (attention && value > 0) fg else MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** A round badge with a person's initials. */
+@Composable
+fun Initials(name: String, team: Boolean) {
+    val initials = name.split(" ", "-").filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercase() }
+    val bg = if (team) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+    val fg = if (team) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    Box(Modifier.size(40.dp).clip(CircleShape).background(bg), contentAlignment = Alignment.Center) {
+        Text(initials, style = MaterialTheme.typography.labelLarge, color = fg)
+    }
+}
+
+/** An empty section: one calm line with an icon, inviting the next step. */
+@Composable
+fun EmptyHint(icon: ImageVector, text: String) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.Top) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp).padding(top = 2.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary)
+    }
+}
+
+/** Top of a main screen: a small line above (for example the date) and the title, with actions. */
+@Composable
+fun ScreenHeader(title: String, subtitle: String? = null, actions: @Composable RowScope.() -> Unit = {}) {
+    Row(
+        Modifier.fillMaxWidth().padding(start = Space.screen, end = 4.dp, top = 12.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(title, style = MaterialTheme.typography.titleLarge)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(0.dp), content = actions)
+    }
+}
+
+/** Plain colour helper for text that is not important. */
+val Muted: Color @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant

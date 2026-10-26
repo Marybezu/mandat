@@ -162,12 +162,12 @@
 
     <string name="team">Team</string>
     <string name="others">Others</string>
-    <string name="team_ASSISTANT">Assistant</string>
+    <string name="team_ASSISTANT">Assistant-consultant (staff)</string>
     <string name="team_INTERN">Intern</string>
-    <string name="team_SECRETARIAT">Secretariat</string>
+    <string name="team_SECRETARIAT">Secretariat of a committee or commission</string>
     <string name="team_LAWYER">Lawyer</string>
     <string name="team_ADVISOR">Adviser</string>
-    <string name="team_OTHER">Team member</string>
+    <string name="team_OTHER">Other</string>
     <string name="not_team">Not in the team</string>
     <string name="stance_ALLY">Ally</string>
     <string name="stance_UNDECIDED">Undecided</string>
@@ -237,10 +237,10 @@
     <string name="time_later">Later</string>
     <string name="time_empty">Nothing with a date yet. Tap + to add a deadline; delegations and promises with a date appear here too.</string>
     <string name="evening_title">What moved forward today?</string>
-    <string name="evening_hint">A minute in the evening: what progressed, and what to get out of your head.</string>
+    <string name="evening_hint">A minute in the evening: what progressed, and what to write down so you do not have to keep it in mind.</string>
     <string name="evening_progress">Moved forward</string>
-    <string name="evening_unload">To get out of my head</string>
-    <string name="evening_to_inbox">Put into Inbox</string>
+    <string name="evening_unload">Clear your mind</string>
+    <string name="evening_to_inbox">Save to Inbox</string>
     <string name="evening_earlier">Earlier days</string>
     <string name="search_hint">Type at least two letters to search matters, people, notes and deadlines.</string>
     <string name="search_nothing">Nothing found.</string>
@@ -262,4 +262,23 @@
     <string name="promise_source_hint">An interview, a post, a meeting; a link or a date</string>
     <string name="promise_status_note">Why (briefly)</string>
     <string name="all_years">All years</string>
+    <string name="team_VOLUNTEER_ASSISTANT">Assistant (volunteer)</string>
+    <string name="team_OFFICE_HEAD">Head of office</string>
+    <string name="team_COMMS">Communications and social media</string>
+    <string name="team_ANALYST">Analyst</string>
+    <string name="cat_COLLEAGUE_MP">Fellow MP</string>
+    <string name="cat_OFFICIAL">Official</string>
+    <string name="cat_EXPERT">Expert</string>
+    <string name="cat_JOURNALIST">Journalist</string>
+    <string name="cat_NGO">Civil society</string>
+    <string name="cat_BUSINESS">Business</string>
+    <string name="cat_INTERNATIONAL">International partner</string>
+    <string name="cat_VOTER">Voter</string>
+    <string name="cat_OTHER">Other</string>
+    <string name="person_category">Who this is</string>
+    <string name="not_set">Not set</string>
+    <string name="own_words">In your own words</string>
+    <string name="stat_overdue">overdue</string>
+    <string name="stat_today">for today</string>
+    <string name="stat_focus">in focus</string>
 </resources>
