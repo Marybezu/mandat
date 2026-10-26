@@ -382,4 +382,26 @@
     <string name="no_matter_group">Без справи</string>
     <string name="chip_public">публічна</string>
     <string name="other_matters">Інші справи</string>
+    <string name="looks_delegation">Схоже на доручення</string>
+    <string name="looks_promise">Схоже на обіцянку</string>
+    <string name="looks_deadline">Схоже на строк</string>
+    <string name="looks_matter">Схоже на нову справу</string>
+    <string name="looks_tap">Торкніться, щоб створити; перед збереженням усе можна перевірити й змінити.</string>
+    <string name="save_to_inbox">У вхідні</string>
+    <string name="topics">Теми</string>
+    <string name="topics_hint">Тема збирає все, де трапляються її слова: справи, доручення, обіцянки, строки, вхідні й вечори.</string>
+    <string name="topic_matters">Справи</string>
+    <string name="topic_evenings">Вечори</string>
+    <string name="topic_nothing">поки нічого</string>
+    <string name="topics_suggested">Можливі теми</string>
+    <string name="topics_suggested_hint">Слова, які часто трапляються у ваших записах. Торкніться, щоб зробити темою.</string>
+    <string name="topic_add">Додати тему</string>
+    <string name="topic_edit">Змінити</string>
+    <string name="topic_name">Назва</string>
+    <string name="topic_keys">Слова для пошуку</string>
+    <string name="topic_keys_hint">Через кому, у будь-якій формі: тепло, котельня, тариф</string>
+    <string name="topic_items">записів</string>
+    <string name="by_topic">За темою</string>
+    <string name="topics_manage">Керувати темами</string>
+    <string name="topics_empty">Тем ще немає. Додайте їх у «Керувати темами» або в пошуку.</string>
 </resources>

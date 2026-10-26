@@ -354,6 +354,9 @@ fun SearchScreen(db: MandatDb, session: Session) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
+                actions = {
+                    TextButton(onClick = { session.searching = false; session.showTopics = true }) { Text(stringResource(R.string.topics)) }
+                },
             )
         },
     ) { padding ->

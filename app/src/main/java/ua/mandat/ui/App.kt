@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.rememberCoroutineScope
@@ -225,6 +226,10 @@ private fun Main(db: MandatDb, session: Session) {
         PersonEditor(db, session, draft)
         return
     }
+    if (session.showTopics) {
+        TopicsScreen(db, session)
+        return
+    }
     session.smartList?.let {
         SmartListScreen(db, session, it)
         return
@@ -318,7 +323,7 @@ private fun Main(db: MandatDb, session: Session) {
                         )
                     },
                 )
-                Tab.Matters -> MattersList(db, onOpen = { session.draft = MatterDraft(EditRequest(it, isNew = false)) })
+                Tab.Matters -> MattersList(db, onOpen = { session.draft = MatterDraft(EditRequest(it, isNew = false)) }, onTopics = { session.showTopics = true })
                 Tab.People -> PeopleList(db, session)
                 Tab.Time -> TimeScreen(db, session)
                 Tab.Review -> ReviewScreen(db, session)
@@ -326,7 +331,7 @@ private fun Main(db: MandatDb, session: Session) {
         }
     }
 
-    if (session.inboxDraft != null) AddDialog(session)
+    if (session.inboxDraft != null) AddDialog(db, session)
 
     if (session.inboxDraft == null) session.sharedText?.let { shared ->
         AlertDialog(
@@ -487,22 +492,73 @@ internal fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onT
 }
 
 @Composable
-private fun AddDialog(session: Session) {
+private fun AddDialog(db: MandatDb, session: Session) {
+    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val matters by remember(db) { db.matters().observeActiveTitles() }.collectAsStateWithLifecycle(emptyList())
+    val text = session.inboxDraft.orEmpty()
+    // Smart input: what the note looks like (rules only); the owner decides
+    val hint = remember(text, people, matters) { ua.mandat.data.suggest(text, people, matters, Dates.today()) }
+
+    fun take() {
+        val clean = text.trim().take(2_000)
+        session.inboxDraft = null
+        when (hint.kind) {
+            ua.mandat.data.NoteKind.DELEGATION -> session.delegationDraft = newDelegation(hint.personId, hint.matterId).also { it.what = clean; it.due = hint.due }
+            ua.mandat.data.NoteKind.PROMISE -> session.promiseDraft = newPromise(hint.personId, hint.matterId).also { it.what = clean; it.due = hint.due }
+            ua.mandat.data.NoteKind.DEADLINE -> session.deadlineDraft = newDeadline(hint.matterId).also { d -> d.title = clean; hint.due?.let { d.day = it } }
+            ua.mandat.data.NoteKind.MATTER -> {
+                val m = matterFromNote(clean, System.currentTimeMillis())
+                session.draft = MatterDraft(EditRequest(m.copy(type = (hint.matterType ?: ua.mandat.data.MatterType.OTHER).name), isNew = true))
+            }
+            ua.mandat.data.NoteKind.NOTE -> {}
+        }
+    }
+
     // The text lives in the Session: it survives turning the phone and is saved on lock
     AlertDialog(
         onDismissRequest = { session.inboxDraft = null },
         title = { Text(stringResource(R.string.inbox)) },
         text = {
-            OutlinedTextField(
-                value = session.inboxDraft.orEmpty(),
-                onValueChange = { session.inboxDraft = it },
-                placeholder = { Text(stringResource(R.string.add_hint)) },
-                minLines = 3,
-                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { session.inboxDraft = it },
+                    placeholder = { Text(stringResource(R.string.add_hint)) },
+                    minLines = 3,
+                    keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (hint.kind != ua.mandat.data.NoteKind.NOTE && text.isNotBlank()) {
+                    val kindLabel = stringResource(
+                        when (hint.kind) {
+                            ua.mandat.data.NoteKind.DELEGATION -> R.string.looks_delegation
+                            ua.mandat.data.NoteKind.PROMISE -> R.string.looks_promise
+                            ua.mandat.data.NoteKind.DEADLINE -> R.string.looks_deadline
+                            else -> R.string.looks_matter
+                        },
+                    )
+                    val parts = listOfNotNull(
+                        hint.personId?.let { id -> people.firstOrNull { it.id == id }?.name },
+                        hint.due?.let { Dates.format(it) },
+                        hint.matterId?.let { id -> matters.firstOrNull { it.id == id }?.title },
+                        hint.matterType?.let { stringResource(it.label()) },
+                    )
+                    Column(
+                        Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer).clickable { take() }.padding(12.dp),
+                    ) {
+                        Text(kindLabel, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        if (parts.isNotEmpty()) {
+                            Text(parts.joinToString(" · "), style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.padding(top = 2.dp))
+                        }
+                        Text(stringResource(R.string.looks_tap), style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.padding(top = 4.dp))
+                    }
+                }
+            }
         },
-        confirmButton = { TextButton(onClick = { session.saveInboxDraft() }) { Text(stringResource(R.string.save)) } },
+        confirmButton = { TextButton(onClick = { session.saveInboxDraft() }) { Text(stringResource(R.string.save_to_inbox)) } },
         dismissButton = { TextButton(onClick = { session.inboxDraft = null }) { Text(stringResource(R.string.cancel)) } },
     )
 }

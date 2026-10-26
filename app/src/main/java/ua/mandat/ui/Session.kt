@@ -67,6 +67,9 @@ class Session(app: Application) : AndroidViewModel(app) {
     var showPromises by mutableStateOf(false)
     /** The smart list open on its own screen, if any. */
     var smartList by mutableStateOf<SmartList?>(null)
+    /** The topics screen, and the topic open in it. */
+    var showTopics by mutableStateOf(false)
+    var topicOpen by mutableStateOf<String?>(null)
 
     /** The search screen is open. */
     var searching by mutableStateOf(false)

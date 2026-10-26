@@ -78,11 +78,15 @@ data class EditRequest(val matter: Matter, val isNew: Boolean, val fromInboxId: 
  * both tappable to filter, then the matters grouped by attention.
  */
 @Composable
-fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit) {
+fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {}) {
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val active by remember(db) { db.matters().observeActive() }.collectAsStateWithLifecycle(emptyList())
     val closed by remember(db) { db.matters().observeClosed() }.collectAsStateWithLifecycle(emptyList())
-    var byRole by rememberSaveable { mutableStateOf(false) }
+    // 0 = by type, 1 = by role, 2 = by topic
+    var mode by rememberSaveable { mutableStateOf(0) }
+    val byRole = mode == 1
+    val topics = rememberTopics(db)
+    fun text(m: Matter) = "${m.title} ${m.goal} ${m.nextStep} ${m.description}"
     var pick by rememberSaveable { mutableStateOf<String?>(null) }
     var level by rememberSaveable { mutableStateOf<String?>(null) }
     var showClosed by rememberSaveable { mutableStateOf(false) }
@@ -92,7 +96,11 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit) {
     val noRole = stringResource(R.string.dash_no_role)
     fun roleKey(m: Matter) = m.roleId?.toString() ?: "none"
     fun visible(m: Matter): Boolean {
-        val slice = pick == null || (if (byRole) roleKey(m) else m.type) == pick
+        val slice = pick == null || when (mode) {
+            1 -> roleKey(m) == pick
+            2 -> topics.firstOrNull { it.name == pick }?.let { ua.mandat.data.matches(text(m), it) } ?: true
+            else -> m.type == pick
+        }
         val lv = when (level) {
             null -> true
             "STALE" -> ua.mandat.data.isStale(m, today)
@@ -122,14 +130,23 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit) {
             item(key = "chart") {
                 MCard {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
-                        FilterChip(selected = !byRole, onClick = { byRole = false; pick = null }, label = { Text(stringResource(R.string.by_type)) })
-                        FilterChip(selected = byRole, onClick = { byRole = true; pick = null }, label = { Text(stringResource(R.string.by_role)) })
+                        FilterChip(selected = mode == 0, onClick = { mode = 0; pick = null }, label = { Text(stringResource(R.string.by_type)) })
+                        FilterChip(selected = mode == 1, onClick = { mode = 1; pick = null }, label = { Text(stringResource(R.string.by_role)) })
+                        FilterChip(selected = mode == 2, onClick = { mode = 2; pick = null }, label = { Text(stringResource(R.string.by_topic)) })
                     }
-                    DonutChart(
-                        slices = if (byRole) roleSlices else typeSlices,
+                    if (mode == 2 && topics.isEmpty()) {
+                        EmptyHint(Sym.layers, stringResource(R.string.topics_empty))
+                    } else DonutChart(
+                        slices = when (mode) {
+                            1 -> roleSlices
+                            2 -> topics.mapIndexed { i, t -> Slice(t.name, t.name, active.count { ua.mandat.data.matches(text(it), t) }, SeriesColors[i % SeriesColors.size]) }
+                                .sortedByDescending { it.value }
+                            else -> typeSlices
+                        },
                         center = active.size.toString(), centerLabel = stringResource(R.string.strip_active),
                         selected = pick, onPick = { pick = it },
                     )
+                    if (mode == 2) TextButton(onClick = onTopics) { Text(stringResource(R.string.topics_manage)) }
                 }
             }
             item(key = "attention") {
@@ -159,7 +176,11 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit) {
             item(key = "filters") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     pick?.let { k ->
-                        val label = if (byRole) (k.toLongOrNull()?.let(roleNames::get) ?: noRole) else stringResource(MatterType.of(k).label())
+                        val label = when (mode) {
+                            1 -> k.toLongOrNull()?.let(roleNames::get) ?: noRole
+                            2 -> k
+                            else -> stringResource(MatterType.of(k).label())
+                        }
                         FilterBadge(label) { pick = null }
                     }
                     level?.let { l ->

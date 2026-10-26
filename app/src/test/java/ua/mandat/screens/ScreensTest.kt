@@ -103,5 +103,6 @@ class ScreensTest {
     @Test fun dashboard() = shot("05-dashboard") { Dashboard(db, session) }
     @Test fun promises() = shot("06-promises") { PromisesScreen(db, session) }
     @Test fun waiting() = shot("07-smart-waiting") { SmartListScreen(db, session, SmartList.WAITING) }
+    @Test fun topics() = shot("08-topics") { ua.mandat.ui.TopicsScreen(db, session) }
     @Test fun next() = shot("07-smart-next") { SmartListScreen(db, session, SmartList.NEXT) }
 }

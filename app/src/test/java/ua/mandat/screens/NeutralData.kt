@@ -33,6 +33,10 @@ object NeutralData {
 
     suspend fun fill(db: MandatDb) {
         db.settings().put(Setting(SETTING_ROLES_ASKED, "1"))
+        db.settings().put(Setting(ua.mandat.data.SETTING_TOPICS, ua.mandat.data.encodeTopics(listOf(
+            ua.mandat.data.Topic("Мета", ua.mandat.data.keysFor("мета")),
+            ua.mandat.data.Topic("Громада", ua.mandat.data.keysFor("громада")),
+        ))))
         val roles = listOf("Комітет А — член комітету", "Підкомітет Б — голова", "Робоча група В — керівник", "Округ Г")
             .mapIndexed { i, n -> db.roles().insert(Role(name = n, position = i + 1)) }
 

@@ -380,4 +380,26 @@
     <string name="no_matter_group">Without a matter</string>
     <string name="chip_public">public</string>
     <string name="other_matters">Other matters</string>
+    <string name="looks_delegation">Looks like a delegation</string>
+    <string name="looks_promise">Looks like a promise</string>
+    <string name="looks_deadline">Looks like a deadline</string>
+    <string name="looks_matter">Looks like a new matter</string>
+    <string name="looks_tap">Tap to create it; you can check and change everything before saving.</string>
+    <string name="save_to_inbox">To Inbox</string>
+    <string name="topics">Topics</string>
+    <string name="topics_hint">A topic gathers everything that mentions its words: matters, delegations, promises, deadlines, notes and evenings.</string>
+    <string name="topic_matters">Matters</string>
+    <string name="topic_evenings">Evenings</string>
+    <string name="topic_nothing">nothing yet</string>
+    <string name="topics_suggested">Possible topics</string>
+    <string name="topics_suggested_hint">Words that often come up in your records. Tap to make one a topic.</string>
+    <string name="topic_add">Add a topic</string>
+    <string name="topic_edit">Edit</string>
+    <string name="topic_name">Name</string>
+    <string name="topic_keys">Words to look for</string>
+    <string name="topic_keys_hint">Comma separated, in any form: heating, boiler house, tariff</string>
+    <string name="topic_items">records</string>
+    <string name="by_topic">By topic</string>
+    <string name="topics_manage">Manage topics</string>
+    <string name="topics_empty">No topics yet. Add them under “Manage topics” or in Search.</string>
 </resources>
