@@ -184,8 +184,16 @@ private fun Main(db: MandatDb, session: Session) {
             return
         }
     }
+    // Task dialogs can open over any screen, including the editors
+    session.delegationDraft?.let { DelegationDialog(db, session, it) }
+    session.promiseDraft?.let { PromiseDialog(db, session, it) }
+
     session.draft?.let { draft ->
         MatterEditor(db, session, draft)
+        return
+    }
+    session.personDraft?.let { draft ->
+        PersonEditor(db, session, draft)
         return
     }
     if (options) {
@@ -240,7 +248,13 @@ private fun Main(db: MandatDb, session: Session) {
         },
         floatingActionButton = {
             // On Matters "+" starts a matter; everywhere else it notes something into the Inbox
-            FloatingActionButton(onClick = { if (tab == Tab.Matters) newMatter() else session.inboxDraft = "" }) {
+            FloatingActionButton(onClick = {
+                when (tab) {
+                    Tab.Matters -> newMatter()
+                    Tab.People -> session.personDraft = newPerson()
+                    else -> session.inboxDraft = ""
+                }
+            }) {
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add))
             }
         },
@@ -257,6 +271,7 @@ private fun Main(db: MandatDb, session: Session) {
                     },
                 )
                 Tab.Matters -> MattersList(db, onOpen = { session.draft = MatterDraft(EditRequest(it, isNew = false)) })
+                Tab.People -> PeopleList(db, session)
                 else -> Centered {
                     Text(stringResource(R.string.coming_soon), style = MaterialTheme.typography.bodyLarge)
                 }
@@ -301,11 +316,43 @@ private fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onTo
     val focus by focusFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val roles by rolesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val roleNames = roles.associate { it.id to it.name }
+    val delegationsFlow = remember(db) { db.delegations().observeOpen() }
+    val promisesFlow = remember(db) { db.promises().observeOpen() }
+    val peopleFlow = remember(db) { db.people().observeAll() }
+    val titlesFlow = remember(db) { db.matters().observeActiveTitles() }
+    val delegations by delegationsFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val promises by promisesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val people by peopleFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val titles by titlesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val nameOf = people.associate { it.id to it.name }
+    val titleOf = titles.associate { it.id to it.title }
+    val today = Dates.today()
+    val dayAfterTomorrow = Dates.addDays(today, 2)
+    val overdueD = delegations.filter { it.due != null && it.due < today }
+    val overdueP = promises.filter { it.due != null && it.due < today }
+    val soonD = delegations.filter { it.due != null && it.due >= today && it.due < dayAfterTomorrow }
+    val soonP = promises.filter { it.due != null && it.due >= today && it.due < dayAfterTomorrow }
 
     LazyColumn(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        if (overdueD.isNotEmpty() || overdueP.isNotEmpty()) {
+            item(key = "overdue_h") {
+                Text(stringResource(R.string.overdue_title), style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp))
+            }
+            items(overdueD, key = { "od${it.id}" }) { DelegationRow(it, it.personId?.let(nameOf::get), it.matterId?.let(titleOf::get), session) }
+            items(overdueP, key = { "op${it.id}" }) { PromiseRow(it, it.personId?.let(nameOf::get), it.matterId?.let(titleOf::get), session) }
+        }
+        if (soonD.isNotEmpty() || soonP.isNotEmpty()) {
+            item(key = "soon_h") {
+                Text(stringResource(R.string.soon_title), style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 12.dp))
+            }
+            items(soonD, key = { "sd${it.id}" }) { DelegationRow(it, it.personId?.let(nameOf::get), it.matterId?.let(titleOf::get), session) }
+            items(soonP, key = { "sp${it.id}" }) { PromiseRow(it, it.personId?.let(nameOf::get), it.matterId?.let(titleOf::get), session) }
+        }
         item(key = "focus_h") {
             Text(stringResource(R.string.focus_title), style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))

@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
@@ -48,6 +49,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.room.withTransaction
 import ua.mandat.R
 import ua.mandat.data.Attention
 import ua.mandat.data.FOCUS_LIMIT
@@ -245,6 +247,12 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                 minLines = 4,
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (request.isNew) {
+                Text(stringResource(R.string.save_matter_first), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.secondary)
+            } else {
+                MatterLinks(db, session, request.matter.id)
+            }
             if (!request.isNew) {
                 Picker(
                     label = stringResource(R.string.matter_status),
@@ -268,7 +276,15 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                     confirmDelete = false
                     val id = request.matter.id
                     session.draft = null
-                    session.write { it.matters().delete(id) }
+                    session.write { db ->
+                        // Deleting a matter keeps its delegations and promises, just without the matter
+                        db.withTransaction {
+                            db.people().unlinkMatter(id)
+                            db.delegations().clearMatter(id)
+                            db.promises().clearMatter(id)
+                            db.matters().delete(id)
+                        }
+                    }
                 }) { Text(stringResource(R.string.delete)) }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
@@ -298,5 +314,77 @@ fun <T> Picker(label: String, current: String, options: List<Pair<T, String>>, o
                 }
             }
         }
+    }
+}
+
+/** People in a matter (with their position on it), and its delegations and promises. */
+@Composable
+private fun MatterLinks(db: MandatDb, session: Session, matterId: Long) {
+    val linkedFlow = remember(db, matterId) { db.people().observeForMatter(matterId) }
+    val peopleFlow = remember(db) { db.people().observeAll() }
+    val delegationsFlow = remember(db, matterId) { db.delegations().observeForMatter(matterId) }
+    val promisesFlow = remember(db, matterId) { db.promises().observeForMatter(matterId) }
+    val linked by linkedFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val people by peopleFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val delegations by delegationsFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val promises by promisesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val nameOf = people.associate { it.id to it.name }
+    var adding by remember { mutableStateOf(false) }
+    var stanceFor by remember { mutableStateOf<ua.mandat.data.MatterPersonRow?>(null) }
+
+    LinkSection(stringResource(R.string.people_in_matter))
+    linked.forEach { row ->
+        Row(Modifier.fillMaxWidth().clickable { stanceFor = row }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(row.name, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    ua.mandat.data.Stance.of(row.stance)?.let { stringResource(it.label()) } ?: stringResource(R.string.stance_none),
+                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary,
+                )
+            }
+            IconButton(onClick = { session.write { it.people().unlink(matterId, row.personId) } }) {
+                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.delete))
+            }
+        }
+    }
+    TextButton(onClick = { adding = true }) { Text("+ " + stringResource(R.string.add_person)) }
+
+    LinkSection(stringResource(R.string.delegations))
+    delegations.forEach { DelegationRow(it, it.personId?.let(nameOf::get), null, session) }
+    TextButton(onClick = { session.delegationDraft = newDelegation(matterId = matterId) }) { Text("+ " + stringResource(R.string.add_delegation)) }
+
+    LinkSection(stringResource(R.string.promises))
+    promises.forEach { PromiseRow(it, it.personId?.let(nameOf::get), null, session) }
+    TextButton(onClick = { session.promiseDraft = newPromise(matterId = matterId) }) { Text("+ " + stringResource(R.string.add_promise)) }
+
+    if (adding) {
+        val already = linked.map { it.personId }.toSet()
+        PersonSearchDialog(
+            people = people.filter { it.id !in already },
+            onPick = { p ->
+                adding = false
+                session.write { it.people().link(ua.mandat.data.MatterPerson(matterId, p.id, stance = null, note = "")) }
+            },
+            onCancel = { adding = false },
+        )
+    }
+    stanceFor?.let { row ->
+        AlertDialog(
+            onDismissRequest = { stanceFor = null },
+            title = { Text(row.name) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.stance), style = MaterialTheme.typography.labelLarge)
+                    (listOf<ua.mandat.data.Stance?>(null) + ua.mandat.data.Stance.entries).forEach { st ->
+                        TextButton(onClick = {
+                            stanceFor = null
+                            session.write { it.people().link(ua.mandat.data.MatterPerson(matterId, row.personId, st?.name, row.note)) }
+                        }) { Text(st?.let { stringResource(it.label()) } ?: stringResource(R.string.stance_none)) }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { stanceFor = null }) { Text(stringResource(R.string.cancel)) } },
+        )
     }
 }

@@ -45,6 +45,47 @@ class Session(app: Application) : AndroidViewModel(app) {
     /** The matter open in the editor, if any (memory only; survives turning the phone). */
     var draft by mutableStateOf<MatterDraft?>(null)
 
+    /** The person open in the editor, if any. */
+    var personDraft by mutableStateOf<PersonDraft?>(null)
+
+    /** A delegation or promise open in its dialog, if any. */
+    var delegationDraft by mutableStateOf<DelegationDraft?>(null)
+    var promiseDraft by mutableStateOf<PromiseDraft?>(null)
+
+    fun savePersonDraft() {
+        val d = personDraft ?: return
+        personDraft = null
+        write { d.persist(it) }
+    }
+
+    fun saveDelegationDraft() {
+        val d = delegationDraft ?: return
+        delegationDraft = null
+        write { d.persist(it) }
+    }
+
+    fun savePromiseDraft() {
+        val d = promiseDraft ?: return
+        promiseDraft = null
+        write { d.persist(it) }
+    }
+
+    /** Opens a matter by id in the editor (read under the write lock, shown on the main thread). */
+    fun openMatter(id: Long) {
+        background.launch {
+            val m = withOpenDb { db -> db.matters().get(id) }
+            if (m != null) withContext(Dispatchers.Main) { draft = MatterDraft(EditRequest(m, isNew = false)) }
+        }
+    }
+
+    /** Opens a person by id in the editor. */
+    fun openPerson(id: Long) {
+        background.launch {
+            val p = withOpenDb { db -> db.people().get(id) }
+            if (p != null) withContext(Dispatchers.Main) { personDraft = PersonDraft(p, isNew = false) }
+        }
+    }
+
     /** The text of an open "add to Inbox" dialog; null when the dialog is closed. */
     var inboxDraft by mutableStateOf<String?>(null)
 
@@ -182,7 +223,7 @@ class Session(app: Application) : AndroidViewModel(app) {
     }
 
     /** Runs [block] with the open database, never at the same time as a write or a lock. */
-    suspend fun <T> withOpenDb(block: (MandatDb) -> T): T? = writes.withLock {
+    suspend fun <T> withOpenDb(block: suspend (MandatDb) -> T): T? = writes.withLock {
         val db = (state as? LockState.Open)?.db
         if (db == null || !db.isOpen) null else block(db)
     }
@@ -214,8 +255,14 @@ class Session(app: Application) : AndroidViewModel(app) {
         // so leaving the app for a moment never loses it
         val openDraft = draft
         val openInbox = inboxDraft
+        val openPerson = personDraft
+        val openDelegation = delegationDraft
+        val openPromise = promiseDraft
         draft = null
         inboxDraft = null
+        personDraft = null
+        delegationDraft = null
+        promiseDraft = null
         if (current is LockState.Open) {
             val oldKey = key
             key = null
@@ -225,6 +272,9 @@ class Session(app: Application) : AndroidViewModel(app) {
                         if (current.db.isOpen) {
                             openDraft?.persist(current.db)
                             persistInboxDraft(current.db, openInbox)
+                            openPerson?.persist(current.db)
+                            openDelegation?.persist(current.db)
+                            openPromise?.persist(current.db)
                         }
                     } catch (e: Exception) {
                         // Not saved; nothing about the content is logged

@@ -35,7 +35,10 @@ interface InboxDao {
 }
 
 @Database(
-    entities = [InboxItem::class, Role::class, Matter::class, Setting::class],
+    entities = [
+        InboxItem::class, Role::class, Matter::class, Setting::class,
+        Person::class, MatterPerson::class, Delegation::class, Promise::class,
+    ],
     version = DB_VERSION,
     exportSchema = true,
 )
@@ -44,6 +47,9 @@ abstract class MandatDb : RoomDatabase() {
     abstract fun roles(): RoleDao
     abstract fun matters(): MatterDao
     abstract fun settings(): SettingDao
+    abstract fun people(): PersonDao
+    abstract fun delegations(): DelegationDao
+    abstract fun promises(): PromiseDao
 
     companion object {
         const val FILE_NAME = "mandat.db"
@@ -102,7 +108,33 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
-val MIGRATIONS = arrayOf(MIGRATION_1_2)
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `people` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`name` TEXT NOT NULL, `organization` TEXT NOT NULL, `jobTitle` TEXT NOT NULL, " +
+                "`contact` TEXT NOT NULL, `notes` TEXT NOT NULL, `teamRole` TEXT, " +
+                "`createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `matter_people` (`matterId` INTEGER NOT NULL, `personId` INTEGER NOT NULL, " +
+                "`stance` TEXT, `note` TEXT NOT NULL, PRIMARY KEY(`matterId`, `personId`))",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `delegations` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`what` TEXT NOT NULL, `personId` INTEGER, `matterId` INTEGER, `due` INTEGER, " +
+                "`status` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `closedAt` INTEGER)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `promises` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`what` TEXT NOT NULL, `personId` INTEGER, `toWhom` TEXT NOT NULL, `isPublic` INTEGER NOT NULL, " +
+                "`matterId` INTEGER, `due` INTEGER, `status` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, " +
+                "`closedAt` INTEGER)",
+        )
+    }
+}
+
+val MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
 
 /** The current database layout version; raise it together with a new migration. */
-const val DB_VERSION = 2
+const val DB_VERSION = 3

@@ -62,3 +62,31 @@ val ROLE_BODIES = listOf(
     RoleBody(R.string.body_region, listOf()),
     RoleBody(R.string.body_other_body, listOf(R.string.pos_representative, R.string.pos_member)),
 )
+
+fun ua.mandat.data.TeamRole.label(): Int = when (this) {
+    ua.mandat.data.TeamRole.ASSISTANT -> R.string.team_ASSISTANT
+    ua.mandat.data.TeamRole.INTERN -> R.string.team_INTERN
+    ua.mandat.data.TeamRole.SECRETARIAT -> R.string.team_SECRETARIAT
+    ua.mandat.data.TeamRole.LAWYER -> R.string.team_LAWYER
+    ua.mandat.data.TeamRole.ADVISOR -> R.string.team_ADVISOR
+    ua.mandat.data.TeamRole.OTHER -> R.string.team_OTHER
+}
+
+fun ua.mandat.data.Stance.label(): Int = when (this) {
+    ua.mandat.data.Stance.ALLY -> R.string.stance_ALLY
+    ua.mandat.data.Stance.UNDECIDED -> R.string.stance_UNDECIDED
+    ua.mandat.data.Stance.OPPONENT -> R.string.stance_OPPONENT
+    ua.mandat.data.Stance.NEUTRAL -> R.string.stance_NEUTRAL
+}
+
+fun ua.mandat.data.TaskStatus.delegationLabel(): Int = when (this) {
+    ua.mandat.data.TaskStatus.OPEN -> R.string.d_OPEN
+    ua.mandat.data.TaskStatus.DONE -> R.string.d_DONE
+    ua.mandat.data.TaskStatus.CANCELLED -> R.string.d_CANCELLED
+}
+
+fun ua.mandat.data.TaskStatus.promiseLabel(): Int = when (this) {
+    ua.mandat.data.TaskStatus.OPEN -> R.string.p_OPEN
+    ua.mandat.data.TaskStatus.DONE -> R.string.p_DONE
+    ua.mandat.data.TaskStatus.CANCELLED -> R.string.p_CANCELLED
+}

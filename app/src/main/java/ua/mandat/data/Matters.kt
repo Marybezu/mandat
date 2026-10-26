@@ -69,6 +69,9 @@ const val FOCUS_LIMIT = 5
 
 const val SETTING_ROLES_ASKED = "roles_asked"
 
+/** Just enough of a matter to pick it from a list. */
+data class MatterTitle(val id: Long, val title: String)
+
 @Dao
 interface RoleDao {
     @Query("SELECT * FROM roles ORDER BY position, name")
@@ -97,6 +100,12 @@ interface MatterDao {
 
     @Query("SELECT * FROM matters WHERE status = 'ACTIVE' AND attention = 'FOCUS' ORDER BY updatedAt DESC")
     fun observeFocus(): Flow<List<Matter>>
+
+    @Query("SELECT * FROM matters WHERE id = :id")
+    suspend fun get(id: Long): Matter?
+
+    @Query("SELECT id, title FROM matters WHERE status = 'ACTIVE' ORDER BY title COLLATE NOCASE")
+    fun observeActiveTitles(): Flow<List<MatterTitle>>
 
     @Insert
     suspend fun insert(matter: Matter): Long
