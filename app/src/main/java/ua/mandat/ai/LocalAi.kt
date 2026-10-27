@@ -252,8 +252,10 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
                 .getOrElse { Regex("\\{[^{}]*\"kind\"[^{}]*\\}").findAll(text).mapNotNull { m -> runCatching { JSONObject(m.value) }.getOrNull() }.toList() }
             val seen = HashSet<Int>()
             return objects.mapNotNull { o ->
-                val i = o.optInt("i", -1).takeIf { it in 0 until count && seen.add(it) } ?: return@mapNotNull null
+                val i = o.optInt("i", -1).takeIf { it in 0 until count && it !in seen } ?: return@mapNotNull null
+                // A note is taken by its first usable answer; an unusable one does not use it up
                 val f = parseFound(JSONObject().put("items", org.json.JSONArray().put(o)).toString()).firstOrNull() ?: return@mapNotNull null
+                seen.add(i)
                 i to f
             }
         }
