@@ -97,7 +97,7 @@ fun TimeBlock(db: MandatDb, session: Session, span: Span, roles: List<Role>) {
                 }
                 Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
                     if (minutes > 0) Box(Modifier.fillMaxWidth(minutes.toFloat() / max).height(8.dp).clip(RoundedCornerShape(4.dp))
-                        .background(SeriesColors[i % SeriesColors.size]))
+                        .background(if (id == 0L) ChartColors.grayLight else ChartColors.blue))
                 }
             }
         }
