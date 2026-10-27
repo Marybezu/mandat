@@ -1101,4 +1101,5 @@
     <string name="ai_no_date_inbox">no date — to the inbox</string>
     <string name="ai_tick_all">Tick all</string>
     <string name="ai_text_too_long">The text is too long for the AI to read whole: shorten or split it.</string>
+    <string name="notice_from_newer">This backup was made by a newer version of Mandat. Update the app first, then restore it. Nothing was changed.</string>
 </resources>

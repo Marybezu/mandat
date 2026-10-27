@@ -1103,4 +1103,5 @@
     <string name="ai_no_date_inbox">без дати — у «Вхідні»</string>
     <string name="ai_tick_all">Позначити все</string>
     <string name="ai_text_too_long">Текст задовгий, щоб ШІ прочитав його повністю: скоротіть або поділіть його.</string>
+    <string name="notice_from_newer">Цю копію зроблено новішою версією Мандата. Спершу оновіть застосунок, тоді відновіть її. Нічого не змінено.</string>
 </resources>

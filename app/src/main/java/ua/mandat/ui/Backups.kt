@@ -25,6 +25,8 @@ sealed interface BackupNotice {
     data object Incompatible : BackupNotice
     /** The file is an export (.mandatx), not a backup. */
     data object IsExport : BackupNotice
+    /** The backup was made by a newer Mandat: update the app first. */
+    data object FromNewer : BackupNotice
     data class Restored(val rows: Int) : BackupNotice
     data object RestoreFailed : BackupNotice
     data object AutoOn : BackupNotice
@@ -171,6 +173,11 @@ class Backups(private val context: Context, private val session: Session) {
             } catch (e: Exception) {
                 json.fill(0)
                 return@run BackupNotice.Incompatible
+            }
+            // Said before asking to replace anything: a newer copy needs a newer Mandat
+            if (summary.schema > ua.mandat.data.DB_VERSION) {
+                json.fill(0)
+                return@run BackupNotice.FromNewer
             }
             withContext(Dispatchers.Main) {
                 // Locked meanwhile: drop the decrypted data instead of keeping it in memory
