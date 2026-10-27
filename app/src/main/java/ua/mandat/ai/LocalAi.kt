@@ -151,7 +151,7 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
             append("Today is ").append(today).append(".\n")
             if (people.isNotEmpty()) append("Known people: ").append(people.take(200).joinToString("; ")).append("\n")
             append("Notes:\n")
-            notes.take(40).forEachIndexed { i, n -> append(i).append(". ").append(n.replace('\n', ' ').take(300)).append("\n") }
+            notes.take(40).forEachIndexed { i, n -> append(i).append(". ").append(n.replace('\n', ' ').take(NOTE_CHARS)).append("\n") }
         }
         val raw = withEngine { e ->
             runCatching { ask(e, SYSTEM_SORT, prompt.take(MAX_INPUT), 1500, 0.2, SORT_SCHEMA) }.getOrElse { ask(e, SYSTEM_SORT, prompt.take(MAX_INPUT), 1500, 0.2) }
@@ -181,6 +181,8 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
         private const val KEY_GPU_BAD = "gpu_bad"
         private const val KEY_GPU_TRYING = "gpu_trying"
         const val MAX_INPUT = 6000
+        /** How much of one Inbox note the model reads when sorting. */
+        const val NOTE_CHARS = 300
 
         private const val UK = "Відповідай лише українською мовою, без жодного російського слова. Не вигадуй фактів, імен, дат, цифр чи правових норм: використовуй лише те, що дано."
 
@@ -196,7 +198,7 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
 
         private const val SYSTEM_SORT = "You help a public official sort quick notes. For each numbered note give: i (its number), " +
             "kind (matter, delegation, promise, deadline or note), text (a short line in the note's own language), person (a name or empty), " +
-            "due (YYYY-MM-DD if given or clearly implied, else empty). Do not invent anything. Answer with ONLY JSON: {\"items\":[{\"i\":0,\"kind\":\"note\",\"text\":\"…\",\"person\":\"\",\"due\":\"\"}]}"
+            "due (YYYY-MM-DD if given or clearly implied, else empty). If a note holds several things, give one item for each, with the same i. Do not invent anything. Answer with ONLY JSON: {\"items\":[{\"i\":0,\"kind\":\"note\",\"text\":\"…\",\"person\":\"\",\"due\":\"\"}]}"
 
         private const val SORT_SCHEMA = """{"type":"object","properties":{"items":{"type":"array","items":{"type":"object",
 "properties":{"i":{"type":"integer"},"kind":{"type":"string","enum":["matter","delegation","promise","deadline","note"]},"text":{"type":"string"},"person":{"type":"string"},"due":{"type":"string"}},
@@ -250,12 +252,12 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
                 JSONObject(text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1)).getJSONArray("items")
             }.map { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) } }
                 .getOrElse { Regex("\\{[^{}]*\"kind\"[^{}]*\\}").findAll(text).mapNotNull { m -> runCatching { JSONObject(m.value) }.getOrNull() }.toList() }
-            val seen = HashSet<Int>()
+            val seen = HashSet<String>()
             return objects.mapNotNull { o ->
-                val i = o.optInt("i", -1).takeIf { it in 0 until count && it !in seen } ?: return@mapNotNull null
-                // A note is taken by its first usable answer; an unusable one does not use it up
+                // A note may hold several things (a call and a deadline): each becomes its own suggestion
+                val i = o.optInt("i", -1).takeIf { it in 0 until count } ?: return@mapNotNull null
                 val f = parseFound(JSONObject().put("items", org.json.JSONArray().put(o)).toString()).firstOrNull() ?: return@mapNotNull null
-                seen.add(i)
+                if (!seen.add(i.toString() + "|" + f.kind + "|" + f.text)) return@mapNotNull null
                 i to f
             }
         }

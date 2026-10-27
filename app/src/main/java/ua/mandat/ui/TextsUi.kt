@@ -180,6 +180,8 @@ fun TextEditor(db: MandatDb, session: Session, draft: TextDraft) {
     val sensitive by remember(db) { db.matters().observeSensitiveIds() }.collectAsStateWithLifecycle(emptyList())
     val words = wordCount(value.text)
     val fields = FIELD.findAll(value.text).toList()
+    // An AI answer belongs to the text it was made from; while the AI reads it, the text is not edited
+    val run = rememberAiRun(session, value.text)
     fun nextField() {
         val from = value.selection.max
         val next = fields.firstOrNull { it.range.first >= from } ?: fields.firstOrNull() ?: return
@@ -212,7 +214,7 @@ fun TextEditor(db: MandatDb, session: Session, draft: TextDraft) {
                     if (v.text.length > max) info = R.string.text_limit
                     draft.body = value.text
                 },
-                label = { Text(stringResource(R.string.text_body)) }, minLines = 14,
+                label = { Text(stringResource(R.string.text_body)) }, minLines = 14, readOnly = run.busy,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 280.dp),
             )
             Text(stringResource(R.string.text_marks_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
@@ -223,7 +225,6 @@ fun TextEditor(db: MandatDb, session: Session, draft: TextDraft) {
             // Only a text the model can read whole: otherwise "replace" would lose its end
             val fits = value.text.length <= ua.mandat.ai.LocalAi.MAX_INPUT - 200
             val aiReady by session.ai.models.ready.collectAsStateWithLifecycle()
-            val run = rememberAiRun(session, value.text)
             val scope = rememberCoroutineScope()
             var menu by remember { mutableStateOf(false) }
             LaunchedEffect(session.aiTextHelp) { if (session.aiTextHelp) { menu = aiReady; session.aiTextHelp = false } }
@@ -241,8 +242,9 @@ fun TextEditor(db: MandatDb, session: Session, draft: TextDraft) {
                         val simpler = stringResource(R.string.ai_simpler)
                         val fill = stringResource(R.string.ai_fill)
                         val language = stringResource(R.string.ai_language)
-                        DropdownMenuItem(text = { Text(shorten) }, onClick = {
-                            ask(ua.mandat.ai.LocalAi.Task.SHORTEN, shorten, "Скороти приблизно до " + (words * 2 / 3).coerceIn(60, 360) + " слів.\n\n" + value.text)
+                        // Only a text long enough to shorten: about two thirds, at most three minutes aloud
+                        if (words > 120) DropdownMenuItem(text = { Text(shorten) }, onClick = {
+                            ask(ua.mandat.ai.LocalAi.Task.SHORTEN, shorten, "Скороти приблизно до " + minOf(words * 2 / 3, 360) + " слів.\n\n" + value.text)
                         })
                         DropdownMenuItem(text = { Text(formal) }, onClick = { ask(ua.mandat.ai.LocalAi.Task.FORMAL, formal, value.text) })
                         DropdownMenuItem(text = { Text(simpler) }, onClick = { ask(ua.mandat.ai.LocalAi.Task.SIMPLER, simpler, value.text) })

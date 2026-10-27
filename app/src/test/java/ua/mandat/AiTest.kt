@@ -23,10 +23,11 @@ class AiTest {
 
     @Test fun sortedNotesKeepTheirNumbers() {
         val raw = """{"items":[{"i":1,"kind":"deadline","text":"Звіт","due":"2026-12-01"},{"i":7,"kind":"note","text":"поза межами"},
-{"i":1,"kind":"note","text":"повтор"},{"i":0,"kind":"weather","text":"дощ"},{"i":0,"kind":"promise","text":"Відповісти"}]}"""
+{"i":1,"kind":"note","text":"повтор"},{"i":1,"kind":"note","text":"повтор"},{"i":0,"kind":"weather","text":"дощ"},{"i":0,"kind":"promise","text":"Відповісти"}]}"""
         val sorted = LocalAi.parseSorted(raw, 3)
-        assertEquals(listOf(1, 0), sorted.map { it.first })
-        assertEquals(listOf("deadline", "promise"), sorted.map { it.second.kind })
+        // Several things from one note are kept; numbers outside the list and unknown kinds are dropped
+        assertEquals(listOf(1, 1, 0), sorted.map { it.first })
+        assertEquals(listOf("deadline", "note", "promise"), sorted.map { it.second.kind })
     }
 
     @Test fun citesOnlyRecordsThatWereGiven() {

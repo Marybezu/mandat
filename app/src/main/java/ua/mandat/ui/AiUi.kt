@@ -177,15 +177,36 @@ class AiRun {
 @Composable
 fun rememberAiRun(session: Session, key: Any? = null): AiRun {
     val hidden by session.hiddenMatters.collectAsStateWithLifecycle()
-    return remember(hidden, key) { AiRun() }
+    val run = remember(hidden, key) { AiRun() }
+    // A request whose answer can no longer be shown is stopped, so the model is free for the next one
+    androidx.compose.runtime.DisposableEffect(run) { onDispose { run.job?.cancel() } }
+    return run
 }
 
 /** Puts text on the clipboard, marked as sensitive so the system does not show it in a preview. */
 fun copyToClipboard(context: Context, text: String) {
     val cm = context.getSystemService(ClipboardManager::class.java) ?: return
-    val clip = ClipData.newPlainText("", text)
+    val clip = ClipData.newPlainText(AiClipboard.LABEL, text)
     if (Build.VERSION.SDK_INT >= 33) clip.description.extras = PersistableBundle().apply { putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true) }
     cm.setPrimaryClip(clip)
+    AiClipboard.copied = true
+}
+
+/** What Mandat put on the clipboard is taken off it again on lock. */
+object AiClipboard {
+    const val LABEL = "mandat"
+    @Volatile var copied = false
+
+    /** Clears the clipboard if it still holds Mandat's copy (or if that cannot be checked from the background). */
+    fun clearIfOurs(context: Context) {
+        if (!copied) return
+        copied = false
+        runCatching {
+            val cm = context.getSystemService(ClipboardManager::class.java) ?: return
+            val label = runCatching { cm.primaryClipDescription?.label?.toString() }.getOrNull()
+            if (label == null || label == LABEL) cm.clearPrimaryClip()
+        }
+    }
 }
 
 /** While the AI thinks: a small violet spinner and a line. */
@@ -209,6 +230,7 @@ fun AiCard(text: String, title: String? = null, onApply: ((String) -> Unit)? = n
     Surface(shape = shape, color = AiViolet.copy(alpha = 0.06f), border = BorderStroke(1.dp, AiViolet.copy(alpha = 0.35f)), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(Space.card), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("$AI_MARK " + (title ?: stringResource(R.string.ai_suggestion)), style = MaterialTheme.typography.labelLarge, color = AiViolet)
+            Text(stringResource(R.string.ai_check), style = MaterialTheme.typography.labelSmall, color = Muted)
             SelectionContainer { Text(text, style = MaterialTheme.typography.bodyMedium) }
             extra()
             FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -373,10 +395,16 @@ fun AiSplitSheet(db: ua.mandat.data.MandatDb, session: Session, onClose: () -> U
     val matcher = Matcher(people, Dates.today())
     EditSheet(
         title = "$AI_MARK " + stringResource(R.string.ai_split_title),
-        onDismiss = onClose,
+        // Closed without saving: the text is kept in the Inbox, so nothing typed is lost
+        onDismiss = {
+            ua.mandat.data.cleanInboxText(session.aiSplitText)?.let { t -> session.write { d -> d.inbox().insert(ua.mandat.data.InboxItem(text = t, createdAt = System.currentTimeMillis())) } }
+            session.aiSplitText = ""
+            onClose()
+        },
         onSave = if (picks.any { it.on }) ({
             val chosen = picks.filter { it.on }.map { it.found }
             session.write { d -> d.withTransaction { saveFound(d, chosen, { matcher.person(it)?.id }, matcher::date) } }
+            session.aiSplitText = ""
             onClose()
         }) else null,
         saveText = stringResource(R.string.ai_split_save, picks.count { it.on }),
@@ -419,12 +447,21 @@ fun InboxSortSheet(db: ua.mandat.data.MandatDb, session: Session, onClose: () ->
         title = "$AI_MARK " + stringResource(R.string.ai_sort_inbox),
         onDismiss = onClose,
         onSave = if (picks.any { it.on }) ({
-            val chosen = picks.filter { it.on }
+            // Read on the main thread: what is ticked, and the notes as they were sorted
+            fun isRecord(f: Found) = f.kind != "note" && !(f.kind == "deadline" && matcher.date(f.due) == null)
+            val all = picks.map { Triple(it.note, it.found, it.on) }
+            val noteText = notes.toMap()
+            // A note or an undated deadline stays as the original note itself, not as a copy of the model's line
+            val toSave = all.filter { it.third && isRecord(it.second) }.map { it.second }
+            // A note leaves the Inbox only when all that was made from it is saved, it was read whole,
+            // and each part became a record of its own; otherwise the original stays as it was
+            val toDelete = all.filter { it.first != null }.groupBy { it.first!! }.filter { (note, from) ->
+                (noteText[note]?.length ?: Int.MAX_VALUE) <= LocalAi.NOTE_CHARS && from.all { it.third && isRecord(it.second) }
+            }.keys
             session.write { d ->
                 d.withTransaction {
-                    saveFound(d, chosen.map { it.found }, { matcher.person(it)?.id }, matcher::date)
-                    // A note is removed only once something made from it is saved
-                    chosen.mapNotNull { it.note }.distinct().forEach { d.inbox().delete(it) }
+                    saveFound(d, toSave, { matcher.person(it)?.id }, matcher::date)
+                    toDelete.forEach { d.inbox().delete(it) }
                 }
             }
             onClose()

@@ -1076,7 +1076,7 @@
     <string name="ai_wrong_file">This is not the right model file, or it is damaged. Download %1$s with Download the model and choose it again.</string>
     <string name="ai_thinking">The AI is thinking… The first time can take up to a minute.</string>
     <string name="ai_split_title">Split a text</string>
-    <string name="ai_split_hint">Paste a letter, meeting notes or messages. The AI finds matters, delegations, promises and deadlines; only what is ticked is saved.</string>
+    <string name="ai_split_hint">Paste a letter, meeting notes or messages. The AI finds matters, delegations, promises and deadlines; only what is ticked is saved. Closed without saving, the text goes to the Inbox.</string>
     <string name="ai_split_text">Text</string>
     <string name="ai_split_go">Split</string>
     <string name="ai_split_found">Found</string>
@@ -1120,7 +1120,7 @@
     <string name="ai_split_short">A letter, meeting notes or whatever is on your mind — into matters, delegations, deadlines</string>
     <string name="ai_sort_inbox">Sort the Inbox</string>
     <string name="ai_sort_short">What each note becomes: a matter, a delegation, a deadline</string>
-    <string name="ai_sort_hint">Notes in the Inbox: %1$d. The AI suggests what each becomes; a note leaves the Inbox only when what was made from it is saved.</string>
+    <string name="ai_sort_hint">Notes in the Inbox: %1$d. The AI sorts the first 40 and suggests what each becomes. A note leaves the Inbox only when everything made from it is saved; long notes stay as they are.</string>
     <string name="ai_sort_go">Sort</string>
     <string name="ai_next_step">What next</string>
     <string name="ai_next_hint">One next step for a matter</string>
@@ -1153,4 +1153,5 @@
     <string name="ai_language">Check the language</string>
     <string name="ai_help">Help</string>
     <string name="ai_suggest">Suggest</string>
+    <string name="ai_check">Check before using</string>
 </resources>

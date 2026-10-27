@@ -108,10 +108,9 @@ fun AiCenter(db: MandatDb, session: Session) {
 
     fun runAct(act: AiAct, id: Long?) {
         when (act) {
-            AiAct.SPLIT -> { close(); session.showAiSplit = true }
+            AiAct.SPLIT -> { close(); session.aiSplitText = ""; session.showAiSplit = true }
             AiAct.SORT -> { close(); session.showInboxSort = true }
-            AiAct.TEXT_HELP -> scope.launch {
-                val t = id?.let { session.withOpenDb { d -> d.texts().get(it) } } ?: return@launch
+            AiAct.TEXT_HELP -> if (id != null) session.readThenShow({ d -> d.texts().get(id) }) { t ->
                 session.textDraft = TextDraft(t, isNew = false)
                 session.aiTextHelp = true
                 close()
@@ -161,9 +160,10 @@ fun AiCenter(db: MandatDb, session: Session) {
                     run,
                     onApply = when (act) {
                         AiAct.EVENING -> { a ->
-                            // Added to what is already written tonight; saved only by the owner
-                            scope.launch {
-                                val before = session.reviewDraft ?: session.withOpenDb { d -> d.reviews().forDay(Dates.today())?.progress }.orEmpty()
+                            // Added under what is already written tonight, in the field; saved like typing
+                            val typed = session.reviewDraft
+                            if (typed != null) { session.reviewDraft = listOf(typed, a).filter { it.isNotBlank() }.joinToString("\n\n"); session.tabRequest = "Review"; close() }
+                            else session.readThenShow({ d -> d.reviews().forDay(Dates.today())?.progress.orEmpty() }) { before ->
                                 session.reviewDraft = listOf(before, a).filter { it.isNotBlank() }.joinToString("\n\n")
                                 session.tabRequest = "Review"
                                 close()

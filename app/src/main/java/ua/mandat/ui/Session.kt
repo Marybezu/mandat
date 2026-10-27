@@ -374,6 +374,15 @@ class Session(app: Application) : AndroidViewModel(app) {
         write { d.persist(it) }
     }
 
+    /** Reads under the write lock and shows the result on the main thread, unless Mandat was locked meanwhile. */
+    fun <T : Any> readThenShow(read: suspend (MandatDb) -> T?, show: (T) -> Unit) {
+        val startedAt = generation
+        background.launch {
+            val v = withOpenDb(read)
+            withContext(Dispatchers.Main) { if (v != null && startedAt == generation && state is LockState.Open) show(v) }
+        }
+    }
+
     /** Opens a matter by id in the editor (read under the write lock, shown on the main thread). */
     fun openMatter(id: Long, nextStep: String? = null) {
         // Following a link from another editor: what was typed there is saved first
@@ -384,7 +393,7 @@ class Session(app: Application) : AndroidViewModel(app) {
             withContext(Dispatchers.Main) {
                 // Locked meanwhile: do not bring decrypted data back into memory
                 if (m != null && startedAt == generation && state is LockState.Open) draft = MatterDraft(EditRequest(m, isNew = false)).also { d ->
-                    // A suggested next step is put in the field; it is kept only if the owner saves
+                    // A suggested next step is put in the field, like typing: it is saved with the matter (also on lock)
                     if (!nextStep.isNullOrBlank()) d.nextStep = nextStep
                 }
             }
@@ -679,6 +688,7 @@ class Session(app: Application) : AndroidViewModel(app) {
         aiCenter = null
         showInboxSort = false
         aiTextHelp = false
+        AiClipboard.clearIfOurs(getApplication())
         val current = state
         val wasInUse = current is LockState.Open || current == LockState.Opening
         if (wasInUse) state = LockState.Locked

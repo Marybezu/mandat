@@ -16,16 +16,29 @@ private fun MandatDb.hiddenOk(session: Session): (Long?) -> Boolean {
     return { id -> id == null || id !in hidden }
 }
 
+/**
+ * For free text not tied to a matter (the diary, the Inbox, notes on people): true when it names a
+ * hidden matter, so it is left out too while something is hidden.
+ */
+private suspend fun MandatDb.namesHidden(session: Session): (String) -> Boolean {
+    val hidden = session.hiddenMatters.value
+    if (hidden.isEmpty()) return { false }
+    val titles = matters().observeAll().first().filter { it.id in hidden }.map { it.title.trim().lowercase() }.filter { it.length >= 3 }
+    return { text -> val t = text.lowercase(); titles.any { t.contains(it) } }
+}
+
 /** What today holds: dated items due, focus matters, today's meetings and what was promised to those people. */
 suspend fun todayFacts(db: MandatDb, session: Session): String {
-    val ok = db.hiddenOk(session)
+    val okId = db.hiddenOk(session)
+    val named = db.namesHidden(session)
+    val ok = { id: Long?, text: String -> okId(id) && !(id == null && named(text)) }
     val today = Dates.today()
     val names = db.people().all().associate { it.id to it.name }
-    val dl = db.deadlines().observeOpen().first().filter { ok(it.matterId) && it.day <= today + 1 }
-    val dg = db.delegations().observeOpen().first().filter { ok(it.matterId) && it.due != null && it.due <= today + 1 }
-    val pr = db.promises().observeOpen().first().filter { ok(it.matterId) }
-    val focus = db.matters().observeAll().first().filter { ok(it.id) && it.attention == "FOCUS" && MatterStatus.of(it.status) == MatterStatus.ACTIVE }
-    val events = db.events().observeRange(today, today).first().filter { ok(it.matterId) }.sortedBy { it.startMin ?: -1 }
+    val dl = db.deadlines().observeOpen().first().filter { ok(it.matterId, it.title) && it.day <= today + 1 }
+    val dg = db.delegations().observeOpen().first().filter { ok(it.matterId, it.what) && it.due != null && it.due <= today + 1 }
+    val pr = db.promises().observeOpen().first().filter { ok(it.matterId, it.what + " " + it.toWhom) }
+    val focus = db.matters().observeAll().first().filter { okId(it.id) && it.attention == "FOCUS" && MatterStatus.of(it.status) == MatterStatus.ACTIVE }
+    val events = db.events().observeRange(today, today).first().filter { ok(it.matterId, it.title + " " + it.notes) }.sortedBy { it.startMin ?: -1 }
     return buildString {
         append("Сьогодні ").append(Dates.format(today)).append(".\n")
         if (events.isNotEmpty()) {
@@ -51,14 +64,16 @@ suspend fun todayFacts(db: MandatDb, session: Session): String {
 
 /** What happened today, for a diary draft. */
 suspend fun eveningFacts(db: MandatDb, session: Session): String {
-    val ok = db.hiddenOk(session)
+    val okId = db.hiddenOk(session)
+    val named = db.namesHidden(session)
+    val ok = { id: Long?, text: String -> okId(id) && !(id == null && named(text)) }
     val today = Dates.today()
     fun closedToday(ms: Long?) = ms != null && Dates.dayOf(ms) == today
-    val events = db.events().observeRange(today, today).first().filter { ok(it.matterId) }
-    val dl = db.deadlines().observeAll().first().filter { ok(it.matterId) && TaskStatus.of(it.status) == TaskStatus.DONE && closedToday(it.closedAt) }
-    val dg = db.delegations().observeAll().first().filter { ok(it.matterId) && (closedToday(it.closedAt) || closedToday(it.createdAt)) }
-    val pr = db.promises().observeAll().first().filter { ok(it.matterId) && (closedToday(it.closedAt) || closedToday(it.createdAt)) }
-    val moved = db.matters().observeAll().first().filter { ok(it.id) && Dates.dayOf(it.updatedAt) == today }
+    val events = db.events().observeRange(today, today).first().filter { ok(it.matterId, it.title + " " + it.outcome) }
+    val dl = db.deadlines().observeAll().first().filter { ok(it.matterId, it.title) && TaskStatus.of(it.status) == TaskStatus.DONE && closedToday(it.closedAt) }
+    val dg = db.delegations().observeAll().first().filter { ok(it.matterId, it.what) && (closedToday(it.closedAt) || closedToday(it.createdAt)) }
+    val pr = db.promises().observeAll().first().filter { ok(it.matterId, it.what + " " + it.toWhom) && (closedToday(it.closedAt) || closedToday(it.createdAt)) }
+    val moved = db.matters().observeAll().first().filter { okId(it.id) && Dates.dayOf(it.updatedAt) == today }
     return buildString {
         append("День ").append(Dates.format(today)).append(".\n")
         if (events.isNotEmpty()) append("Події: ").append(events.joinToString("; ") { it.title + (it.outcome.takeIf { o -> o.isNotBlank() }?.let { o -> " — $o" } ?: "") }).append("\n")
@@ -130,7 +145,8 @@ suspend fun askFacts(db: MandatDb, session: Session, question: String): Pair<Str
     val stems = Regex("[\\p{L}\\p{N}'’ʼ]{3,}").findAll(question.lowercase()).map { it.value.take(5) }
         .filter { it !in STOP }.distinct().toList()
     if (stems.isEmpty()) return "" to emptyList()
-    val rows = db.search().everything().first().filter { ok(it.matterId) }
+    val named = db.namesHidden(session)
+    val rows = db.search().everything().first().filter { ok(it.matterId) && !(it.matterId == null && named(it.haystack)) }
     val ranked = rows.map { r -> r to stems.count { r.haystack.lowercase().contains(it) } }.filter { it.second > 0 }
         .sortedByDescending { it.second }.take(25).map { it.first }
     val facts = buildString {

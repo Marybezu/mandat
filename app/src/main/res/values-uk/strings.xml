@@ -1078,7 +1078,7 @@
     <string name="ai_wrong_file">Це не той файл моделі або він пошкоджений. Завантажте %1$s кнопкою «Завантажити модель» і оберіть його ще раз.</string>
     <string name="ai_thinking">ШІ думає… Перший раз може тривати до хвилини.</string>
     <string name="ai_split_title">Розкласти текст</string>
-    <string name="ai_split_hint">Вставте лист, нотатки наради чи переписку. ШІ знайде справи, доручення, обіцянки й строки; збережеться лише позначене.</string>
+    <string name="ai_split_hint">Вставте лист, нотатки наради чи переписку. ШІ знайде справи, доручення, обіцянки й строки; збережеться лише позначене. Якщо закрити без збереження, текст ляже у «Вхідні».</string>
     <string name="ai_split_text">Текст</string>
     <string name="ai_split_go">Розкласти</string>
     <string name="ai_split_found">Знайдено</string>
@@ -1122,7 +1122,7 @@
     <string name="ai_split_short">Лист, нотатки наради чи все, що в голові, — на справи, доручення, строки</string>
     <string name="ai_sort_inbox">Розібрати «Вхідні»</string>
     <string name="ai_sort_short">Чим стане кожна нотатка: справою, дорученням, строком</string>
-    <string name="ai_sort_hint">Нотаток у «Вхідних»: %1$d. ШІ запропонує, чим стане кожна; нотатка зникне з «Вхідних», лише коли збережете створене з неї.</string>
+    <string name="ai_sort_hint">Нотаток у «Вхідних»: %1$d. ШІ розбере перші 40 і запропонує, чим стане кожна. Нотатка зникне з «Вхідних», лише коли все створене з неї збережено; довгі нотатки лишаються як є.</string>
     <string name="ai_sort_go">Розібрати</string>
     <string name="ai_next_step">Що далі</string>
     <string name="ai_next_hint">Один наступний крок для справи</string>
@@ -1143,7 +1143,7 @@
     <string name="ai_apply">Застосувати</string>
     <string name="ai_copy">Копіювати</string>
     <string name="ai_to_diary">У щоденник</string>
-    <string name="ai_to_matter">Вставити в справу</string>
+    <string name="ai_to_matter">Вставити у справу</string>
     <string name="ai_pick_matter">Яка справа?</string>
     <string name="ai_pick_person">Яка людина?</string>
     <string name="ai_pick_text">Який текст?</string>
@@ -1155,4 +1155,5 @@
     <string name="ai_language">Перевірити мову</string>
     <string name="ai_help">Допомога</string>
     <string name="ai_suggest">Запропонувати</string>
+    <string name="ai_check">Перевірте перед використанням</string>
 </resources>
