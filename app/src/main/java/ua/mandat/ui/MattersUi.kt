@@ -92,7 +92,8 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {
     fun text(m: Matter) = "${m.title} ${m.goal} ${m.nextStep} ${m.description}"
     var pick by rememberSaveable { mutableStateOf<String?>(null) }
     var level by rememberSaveable { mutableStateOf<String?>(null) }
-    var showClosed by rememberSaveable { mutableStateOf(false) }
+    // Which matters: 0 active, 1 completed, 2 closed without completing
+    var statusView by rememberSaveable { mutableStateOf(0) }
     val today = Dates.today()
     // Opened from another screen with a filter (for example a role from the dashboard)
     androidx.compose.runtime.LaunchedEffect(session.mattersRequest) {
@@ -130,10 +131,38 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {
         Column(Modifier.padding(Space.screen)) { EmptyHint(Sym.folder, stringResource(R.string.matters_empty)) }
         return
     }
+    val done = closed.filter { MatterStatus.of(it.status) == MatterStatus.DONE }
+    val dropped = closed.filter { MatterStatus.of(it.status) == MatterStatus.DROPPED }
     LazyColumn(
         contentPadding = PaddingValues(start = Space.screen, end = Space.screen, top = 8.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(Space.gap),
     ) {
+        // Every matter is reachable: active ones, the completed and those closed without completing
+        item(key = "status") {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                QuickChip(stringResource(R.string.matters_active_n, active.size), statusView == 0) { statusView = 0 }
+                QuickChip(stringResource(R.string.matters_done_n, done.size), statusView == 1) { statusView = 1 }
+                QuickChip(stringResource(R.string.matters_dropped_n, dropped.size), statusView == 2) { statusView = 2 }
+            }
+        }
+        if (statusView != 0) {
+            val list = (if (statusView == 1) done else dropped).sortedByDescending { it.updatedAt }
+            item(key = "closed_list") {
+                SectionCard(Sym.checkCircle, stringResource(if (statusView == 1) R.string.matters_done else R.string.matters_dropped), count = list.size) {
+                    if (list.isEmpty()) EmptyHint(Sym.checkCircle, stringResource(R.string.smart_empty))
+                    Paged(list) { m ->
+                        Column {
+                            MatterLine(m, roleNames[m.roleId]) { onOpen(m) }
+                            // When it ended and how long it took
+                            Text(stringResource(R.string.matter_closed_line, Dates.format(Dates.dayOf(m.updatedAt)),
+                                (Dates.dayOf(m.updatedAt) - Dates.dayOf(m.createdAt)).coerceAtLeast(0).toInt()),
+                                style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(start = 12.dp, bottom = 4.dp))
+                        }
+                    }
+                }
+            }
+            return@LazyColumn
+        }
         if (active.isNotEmpty()) {
             item(key = "district") { DistrictEntry(db, session) }
             item(key = "chart") {
@@ -205,19 +234,6 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {
                     Text(stringResource(lv.hint()), style = MaterialTheme.typography.labelMedium, color = Muted,
                         modifier = Modifier.padding(bottom = 6.dp))
                     Paged(group) { m -> MatterLine(m, roleNames[m.roleId]) { onOpen(m) } }
-                }
-            }
-        }
-        val closedVisible = if (level != null) emptyList() else closed.filter { visible(it) }
-        if (closedVisible.isNotEmpty()) {
-            item(key = "closed") {
-                TextButton(onClick = { showClosed = !showClosed }) {
-                    Text("${stringResource(R.string.matters_closed)} (${closedVisible.size})")
-                }
-            }
-            if (showClosed) item(key = "closed_list") {
-                SectionCard(Sym.checkCircle, stringResource(R.string.matters_closed), count = closedVisible.size) {
-                    Paged(closedVisible) { m -> MatterLine(m, roleNames[m.roleId]) { onOpen(m) } }
                 }
             }
         }
@@ -447,6 +463,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                             db.reviews().unlinkRef("matter", id)
                             db.communities().unlinkRef("matter", id)
                             db.time().clearMatter(id)
+                            db.history().deleteFor(id)
                             db.matters().delete(id)
                         }
                     }
@@ -625,7 +642,7 @@ private fun MatterStrip(db: MandatDb, matter: Matter, session: Session) {
                 val key = mapOf("a" to "ALLY", "u" to "UNDECIDED", "o" to "OPPONENT", "n" to "NEUTRAL")[k]
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.padding(top = 6.dp)) {
-                    withStance.filter { it.stance == key }.forEach { r -> MiniChip(r.name + " →", onClick = { session.saveDraft(); session.oneOnOne = r.personId }) }
+                    withStance.filter { it.stance == key }.forEach { r -> MiniChip(r.name, onClick = { session.saveDraft(); session.oneOnOne = r.personId }) }
                 }
             }
         }
@@ -694,7 +711,7 @@ private fun VoteCounter(linked: List<ua.mandat.data.MatterPersonRow>, draft: Mat
                 Text("$title · ${rows.size}", style = MaterialTheme.typography.labelLarge)
             }
             androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                rows.forEach { r -> MiniChip(r.name + " →", onClick = { session.saveDraft(); session.oneOnOne = r.personId }) }
+                rows.forEach { r -> MiniChip(r.name, onClick = { session.saveDraft(); session.oneOnOne = r.personId }) }
             }
         }
         Group(stringResource(R.string.strip_allies), forThem, ChartColors.teal)

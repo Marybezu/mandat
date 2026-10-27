@@ -313,6 +313,13 @@ private fun Main(db: MandatDb, session: Session) {
         TriageScreen(db, session)
         return
     }
+    if (session.showRetro) {
+        // Lists opened from the retrospective come over it
+        session.roleTime?.let { (role, span) -> RoleTimeScreen(db, session, role, span); return }
+        session.periodView?.let { (kind, span) -> PeriodScreen(db, session, kind, span); return }
+        RetroScreen(db, session)
+        return
+    }
     session.roleTime?.let { (role, span) ->
         RoleTimeScreen(db, session, role, span)
         return

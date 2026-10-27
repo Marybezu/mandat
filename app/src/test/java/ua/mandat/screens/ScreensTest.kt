@@ -128,6 +128,7 @@ class ScreensTest {
             ua.mandat.ui.EventDialog(db, session, ua.mandat.ui.EventDraft(e, isNew = false, people))
         }
     }
+    @Test fun retro() = shot("25-retro") { ua.mandat.ui.RetroScreen(db, session) }
     @Test fun calendar() = shot("14-calendar") { ua.mandat.ui.CalendarScreen(db, session) }
     @Config(qualifiers = "+night")
     @Test fun calendarDark() = shot("14-calendar-dark") { ua.mandat.ui.CalendarScreen(db, session) }

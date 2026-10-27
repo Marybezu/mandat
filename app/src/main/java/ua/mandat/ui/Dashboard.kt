@@ -121,6 +121,16 @@ fun Dashboard(db: MandatDb, session: Session) {
             }
         }
 
+        // Looking back over months: directions, past priorities and how things moved
+        MCard(onClick = { session.showRetro = true }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.retro_title), style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.retro_card_hint), style = MaterialTheme.typography.labelMedium, color = Muted)
+                }
+                Text("→", color = MaterialTheme.colorScheme.primary)
+            }
+        }
         if (o.isEmpty) {
             EmptyHint(Sym.explore, stringResource(R.string.dash_empty))
         } else {

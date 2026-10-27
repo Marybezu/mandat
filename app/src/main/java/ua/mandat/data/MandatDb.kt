@@ -40,7 +40,7 @@ interface InboxDao {
         Person::class, MatterPerson::class, Delegation::class, Promise::class,
         Deadline::class, Review::class, Event::class, EventPerson::class, Contact::class,
         InfoItem::class, KeyMessage::class, Alliance::class, MoneyEntry::class, AidRecord::class, ReviewLink::class,
-        Community::class, CommunityLink::class, TimeEntry::class,
+        Community::class, CommunityLink::class, TimeEntry::class, MatterChange::class,
     ],
     version = DB_VERSION,
     exportSchema = true,
@@ -59,6 +59,7 @@ abstract class MandatDb : RoomDatabase() {
     abstract fun events(): EventDao
     abstract fun contacts(): ContactDao
     abstract fun time(): TimeDao
+    abstract fun history(): HistoryDao
     abstract fun info(): InfoDao
     abstract fun money(): MoneyDao
     abstract fun communities(): CommunityDao
@@ -315,10 +316,21 @@ val MIGRATION_12_13 = object : Migration(12, 13) {
     }
 }
 
+val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // A journal of attention, status and role changes, for looking back
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `matter_history` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `matterId` INTEGER NOT NULL, " +
+                "`day` INTEGER NOT NULL, `at` INTEGER NOT NULL, `field` TEXT NOT NULL, `oldValue` TEXT, `newValue` TEXT)",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_matter_history_matterId` ON `matter_history` (`matterId`)")
+    }
+}
+
 val MIGRATIONS = arrayOf(
     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
-    MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
+    MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
 )
 
 /** The current database layout version; raise it together with a new migration. */
-const val DB_VERSION = 13
+const val DB_VERSION = 14

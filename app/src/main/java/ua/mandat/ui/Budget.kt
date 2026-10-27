@@ -307,7 +307,7 @@ private fun androidx.compose.foundation.layout.RowScope.MoneyTile(minor: Long, l
 }
 
 @Composable
-private fun LegendDot(color: Color, label: String) {
+fun LegendDot(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.width(8.dp).height(8.dp).clip(RoundedCornerShape(4.dp)).background(color))
         Spacer(Modifier.width(4.dp))

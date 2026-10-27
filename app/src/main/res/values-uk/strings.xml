@@ -110,7 +110,6 @@
     </plurals>
     <string name="matters_empty">Справ поки немає. Натисніть +, щоб додати, або перетворіть запис із «Вхідних» на справу.</string>
     <string name="matters_all_roles">Усі</string>
-    <string name="matters_closed">Закриті</string>
     <string name="focus_title">У фокусі</string>
     <string name="focus_empty">У фокусі нічого немає. Оберіть до п\'яти справ, якими живете цього тижня.</string>
     <string name="to_matter">Зробити справою</string>
@@ -967,4 +966,34 @@
     <string name="delete_question">Видалити? Цю дію не можна скасувати.</string>
     <string name="pick_one">Оберіть</string>
     <string name="matter_group_work">Робота</string>
+    <string name="retro_title">Ретроспектива</string>
+    <string name="retro_card_hint">Напрямки, пріоритети минулого, динаміка за місяцями</string>
+    <string name="retro_quarter">Квартал</string>
+    <string name="retro_half">Півроку</string>
+    <string name="retro_year">Рік</string>
+    <string name="retro_cadence">Каденція</string>
+    <string name="retro_approx">≈ — наближено: журнал змін веде Мандат з цієї версії, раніші місяці відновлено з дат створення й завершення.</string>
+    <string name="retro_started">нових справ</string>
+    <string name="retro_finished">завершено</string>
+    <string name="retro_avg_days">днів у середньому до завершення</string>
+    <string name="retro_on_time_pct">%% строків вчасно</string>
+    <string name="retro_directions">Напрямки: час за місяцями</string>
+    <string name="retro_directions_hint">Скільки годин ішло на кожну роль: події календаря через справу й додане в справах.</string>
+    <string name="retro_focus">Пріоритети минулого</string>
+    <string name="retro_focus_hint">Що було у фокусі щомісяця і чим скінчилося.</string>
+    <string name="retro_focus_legend">✓ завершено · ▶ ще в роботі · ‖ призупинено чи закрито</string>
+    <string name="retro_flow">Динаміка</string>
+    <string name="retro_on_time_months">Строки вчасно за місяцями</string>
+    <string name="retro_longest">Найдовші завершені</string>
+    <string name="retro_days">%1$d дн.</string>
+    <string name="retro_old_open">ще відкриті з минулого</string>
+    <string name="retro_people">Люди</string>
+    <string name="retro_met_most">Найчастіше зустрічалися</string>
+    <string name="votes_moved_period">Змінили позицію за цей час</string>
+    <string name="matters_active_n">Активні · %1$d</string>
+    <string name="matters_done_n">Завершені · %1$d</string>
+    <string name="matters_dropped_n">Закриті без результату · %1$d</string>
+    <string name="matters_done">Завершені</string>
+    <string name="matters_dropped">Закриті без результату</string>
+    <string name="matter_closed_line">закрито %1$s · тривала %2$d дн.</string>
 </resources>

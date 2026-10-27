@@ -39,12 +39,17 @@ class MatterDraft(val request: EditRequest) {
             ),
         ) ?: return
         val fromInbox = request.fromInboxId
+        val today = Dates.today()
         db.withTransaction {
             if (request.isNew) {
-                db.matters().insert(edited.copy(id = 0, createdAt = now))
+                val id = db.matters().insert(edited.copy(id = 0, createdAt = now))
+                db.history().insertAll(ua.mandat.data.changesOf(null, edited, id, now, today))
                 if (fromInbox != null) db.inbox().delete(fromInbox)
             } else {
+                // The saved version, not the one the editor opened with: another save may have come between
+                val before = db.matters().get(edited.id)
                 db.matters().update(edited)
+                db.history().insertAll(ua.mandat.data.changesOf(before, edited, edited.id, now, today))
             }
         }
     }

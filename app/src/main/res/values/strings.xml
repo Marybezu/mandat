@@ -108,7 +108,6 @@
     </plurals>
     <string name="matters_empty">No matters yet. Tap + to add one, or turn an Inbox note into a matter.</string>
     <string name="matters_all_roles">All</string>
-    <string name="matters_closed">Closed</string>
     <string name="focus_title">In focus</string>
     <string name="focus_empty">Nothing in focus. Choose up to five matters you live with this week.</string>
     <string name="to_matter">Make a matter</string>
@@ -965,4 +964,34 @@
     <string name="delete_question">Delete? This cannot be undone.</string>
     <string name="pick_one">Choose</string>
     <string name="matter_group_work">Work</string>
+    <string name="retro_title">Retrospective</string>
+    <string name="retro_card_hint">Directions, past priorities, month-by-month movement</string>
+    <string name="retro_quarter">Quarter</string>
+    <string name="retro_half">Half a year</string>
+    <string name="retro_year">Year</string>
+    <string name="retro_cadence">Term</string>
+    <string name="retro_approx">≈ means approximate: Mandat keeps a journal of changes from this version on; earlier months are rebuilt from creation and completion dates.</string>
+    <string name="retro_started">new matters</string>
+    <string name="retro_finished">completed</string>
+    <string name="retro_avg_days">days on average to completion</string>
+    <string name="retro_on_time_pct">%% of deadlines on time</string>
+    <string name="retro_directions">Directions: time by month</string>
+    <string name="retro_directions_hint">Hours given to each role: calendar events through their matter plus time added in matters.</string>
+    <string name="retro_focus">Past priorities</string>
+    <string name="retro_focus_hint">What was in focus each month, and how it ended.</string>
+    <string name="retro_focus_legend">✓ completed · ▶ still in work · ‖ paused or closed</string>
+    <string name="retro_flow">Movement</string>
+    <string name="retro_on_time_months">Deadlines on time by month</string>
+    <string name="retro_longest">Longest completed</string>
+    <string name="retro_days">%1$d d</string>
+    <string name="retro_old_open">still open from before</string>
+    <string name="retro_people">People</string>
+    <string name="retro_met_most">Met most often</string>
+    <string name="votes_moved_period">Changed their stance in this time</string>
+    <string name="matters_active_n">Active · %1$d</string>
+    <string name="matters_done_n">Completed · %1$d</string>
+    <string name="matters_dropped_n">Closed without result · %1$d</string>
+    <string name="matters_done">Completed</string>
+    <string name="matters_dropped">Closed without result</string>
+    <string name="matter_closed_line">closed %1$s · took %2$d days</string>
 </resources>

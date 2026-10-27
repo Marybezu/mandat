@@ -458,7 +458,7 @@ fun EventDialog(db: MandatDb, session: Session, draft: EventDraft) {
             val briefable = if (draft.isNew) emptyList() else draft.people.mapNotNull { id -> people.firstOrNull { it.id == id } }
             if (briefable.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(stringResource(R.string.brief_title) + ":", style = MaterialTheme.typography.labelMedium, color = Muted)
-                briefable.forEach { p -> MiniChip(p.name + " →", onClick = { session.saveEventDraft(); session.oneOnOne = p.id }) }
+                briefable.forEach { p -> MiniChip(p.name, onClick = { session.saveEventDraft(); session.oneOnOne = p.id }) }
             }
             MatterPicker(matters, allMatters, draft.matterId) { draft.matterId = it }
         }
