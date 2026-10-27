@@ -13,11 +13,16 @@
 - 📊 **Наочність.** Зведення за тиждень, місяць, рік; кожне число відкриває записи, з яких воно складається. Кольори завжди з підписом чи відсотком.
 - 🧳 **Режим поїздки й лінза.** Позначені справи й усе пов'язане з ними зникають з екранів, пошуку й експорту одним перемикачем.
 - 📤 **Експорт і імпорт.** .vcf, .ics, CSV, Markdown, PDF; за замовчуванням із паролем.
+- 🔭 **Ретроспектива.** Напрямки, пріоритети минулого й динаміка за місяцями з журналу змін.
+- ✍️ **Тексти.** Листи, виступи, колонки, записки з шаблонами, версіями й експортом у Word і PDF.
 - 📓 **Щоденник, бюджет, вхідні.**
+- 🤖 **Локальний ШІ (Gemma), за бажанням:** розкладає вставлений текст на справи й доручення, пише бриф і підсумок, скорочує виступ. Усе на телефоні, лише пропозиції.
 
 ## Встановлення
 
 Завантажте `.apk` з [Releases](../../releases/latest). Для автооновлень — [Obtainium](https://obtainium.imranr.dev/). Перед оновленням радимо зробити резервну копію.
+
+ШІ (необов'язково): Налаштування → «ШІ на телефоні» → «Завантажити модель» (≈2,6 ГБ) → «Обрати файл моделі». Файл перевіряється за контрольною сумою.
 
 ## Прозорість
 
@@ -27,7 +32,7 @@
 - **Межі:** не призначено для відомостей з грифом — для них потрібні спеціально захищені системи, а не застосунок на особистому телефоні. Режим поїздки не захищає від того, хто змусить відкрити Мандат; резервні копії містять усе.
 - **Як створено:** код написано за допомогою ШІ (Claude, Anthropic) під керівництвом і з тестуванням автора.
 
-Kotlin · Jetpack Compose · Room · SQLCipher. Сторонні матеріали — [NOTICE.md](NOTICE.md). Ліцензія GPL-3.0.
+Kotlin · Jetpack Compose · Room · SQLCipher · [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM). Сторонні матеріали — [NOTICE.md](NOTICE.md). Ліцензія GPL-3.0.
 
 ---
 
@@ -46,11 +51,16 @@ A private, offline organiser for Android: matters, people, calendar, delegations
 - 📊 **At a glance.** Week, month and year overviews; every number opens the records it counts. Colours always come with a label or a percentage.
 - 🧳 **Trip mode and lens.** Marked matters and everything linked to them disappear from screens, search and export with one switch.
 - 📤 **Export and import.** .vcf, .ics, CSV, Markdown, PDF; with a password by default.
+- 🔭 **Retrospective.** Directions, past priorities and month-by-month movement from a journal of changes.
+- ✍️ **Texts.** Letters, speeches, columns, notes with templates, versions and export to Word and PDF.
 - 📓 **Diary, budget, inbox.**
+- 🤖 **On-device AI (Gemma), optional:** splits pasted text into matters and delegations, writes a brief and a summary, shortens a speech. Everything stays on the phone; only suggestions.
 
 ## Install
 
 Download the `.apk` from [Releases](../../releases/latest). For updates, use [Obtainium](https://obtainium.imranr.dev/). Make a backup before updating.
+
+AI (optional): Settings → On-device AI → Download the model (≈2.6 GB) → Choose the model file. The file is checked by its checksum.
 
 ## Transparency
 
@@ -60,4 +70,4 @@ Download the `.apk` from [Releases](../../releases/latest). For updates, use [Ob
 - **Limits:** not for classified information, which needs specially protected systems rather than an app on a personal phone. Trip mode does not protect against someone who forces you to open Mandat; backups contain everything.
 - **How it was made:** written with AI assistance (Claude, Anthropic), directed and tested by the author.
 
-Kotlin · Jetpack Compose · Room · SQLCipher. Third-party material: [NOTICE.md](NOTICE.md). GPL-3.0 licence.
+Kotlin · Jetpack Compose · Room · SQLCipher · [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM). Third-party material: [NOTICE.md](NOTICE.md). GPL-3.0 licence.

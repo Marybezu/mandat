@@ -6,5 +6,6 @@
 - `app/src/main/res/drawable/sym_*.xml` — Material Symbols by Google
   (https://github.com/google/material-design-icons), Apache License 2.0, outlined style, unchanged
   except for removing the theme tint attribute.
-- Bouncy Castle (Argon2id), SQLCipher for Android, AndroidX and Kotlin libraries are used as
-  dependencies under their own licences.
+- Bouncy Castle (Argon2id), SQLCipher for Android, zip4j, LiteRT-LM (Google AI Edge, Apache 2.0),
+  AndroidX and Kotlin libraries are used as dependencies under their own licences. The optional
+  Gemma model is not included; the owner downloads it under its own terms.
