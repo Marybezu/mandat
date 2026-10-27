@@ -222,7 +222,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
                 if (ownOnly) Text(stringResource(R.string.export_mandat_only), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(start = 12.dp, top = 6.dp))
                 else {
                 Text(stringResource(R.string.export_tables), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 6.dp))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     TABLES.forEach { t ->
                         FilterChip(selected = t in plan.tables, onClick = { plan.tables = if (t in plan.tables) plan.tables - t else plan.tables + t },
                             label = { Text(stringResource(tableLabel(t))) })

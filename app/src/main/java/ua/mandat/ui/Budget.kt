@@ -401,14 +401,14 @@ fun MoneyDialog(db: MandatDb, session: Session, d: MoneyDraft) {
         title = { Text(stringResource(if (income) R.string.money_income else R.string.money_expense)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     FilterChip(selected = !income, onClick = { d.kind = MoneyKind.EXPENSE.name; d.category = ExpenseCategory.HOME.name }, label = { Text(stringResource(R.string.money_expense)) })
                     FilterChip(selected = income, onClick = { d.kind = MoneyKind.INCOME.name; d.category = IncomeCategory.SALARY.name }, label = { Text(stringResource(R.string.money_income)) })
                 }
                 OutlinedTextField(d.amountText, { d.amountText = it.take(20) }, label = { Text(stringResource(R.string.money_amount)) }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), isError = d.amountText.isNotBlank() && d.amount() == null,
                     modifier = Modifier.fillMaxWidth())
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("UAH", "USD", "EUR").forEach { c ->
                         FilterChip(selected = d.currency == c && !otherCurrency, onClick = { d.currency = c; otherCurrency = false }, label = { Text(c) })
                     }
@@ -425,11 +425,11 @@ fun MoneyDialog(db: MandatDb, session: Session, d: MoneyDraft) {
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
                 }
                 Text(stringResource(R.string.money_category), style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     categories.forEach { c -> FilterChip(selected = d.category == c, onClick = { d.category = c }, label = { Text(categoryName(c)) }) }
                 }
                 if (!income && d.category == ExpenseCategory.CHARITY.name) {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         CharityKind.entries.forEach { k ->
                             FilterChip(selected = d.charityKind == k, onClick = { d.charityKind = if (d.charityKind == k) null else k }, label = { Text(stringResource(k.label())) })
                         }
@@ -511,13 +511,13 @@ private fun CategoriesDialog(session: Session, settings: Map<String, String>, on
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.money_income), style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) { income.forEach { c -> FilterBadge(c) { income = income - c } } }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { income.forEach { c -> FilterBadge(c) { income = income - c } } }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(newIn, { newIn = it.take(40) }, singleLine = true, modifier = Modifier.weight(1f), label = { Text(stringResource(R.string.money_new_category)) })
                     TextButton(onClick = { if (newIn.isNotBlank()) { income = (income + newIn.trim()).distinct(); newIn = "" } }) { Text("+") }
                 }
                 Text(stringResource(R.string.money_expense), style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) { expense.forEach { c -> FilterBadge(c) { expense = expense - c } } }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { expense.forEach { c -> FilterBadge(c) { expense = expense - c } } }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(newOut, { newOut = it.take(40) }, singleLine = true, modifier = Modifier.weight(1f), label = { Text(stringResource(R.string.money_new_category)) })
                     TextButton(onClick = { if (newOut.isNotBlank()) { expense = (expense + newOut.trim()).distinct(); newOut = "" } }) { Text("+") }

@@ -350,7 +350,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                 onPick = { draft.roleId = it?.id },
             )
             Text(stringResource(R.string.matter_attention), style = MaterialTheme.typography.labelLarge)
-            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Attention.entries.forEach { level ->
                     FilterChip(
                         selected = draft.attention == level,
@@ -459,7 +459,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
 @Composable
 fun <T> Picker(label: String, current: String, options: List<Pair<T, String>>, onPick: (T) -> Unit) {
     // A few options: all in view as buttons. Many: one field that opens a list with search.
-    if (options.size <= 6 && options.all { it.second.length <= 28 }) {
+    if (options.size <= 8 && options.all { it.second.length <= 24 }) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(label, style = MaterialTheme.typography.labelLarge)
             androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

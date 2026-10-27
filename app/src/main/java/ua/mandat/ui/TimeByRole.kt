@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -73,31 +74,41 @@ fun TimeBlock(db: MandatDb, session: Session, span: Span, roles: List<Role>) {
     val names = roles.associate { it.id to it.name }
     if (total == 0 && planned.isEmpty()) return
     SectionCard(Sym.schedule, stringResource(R.string.time_by_role), foldKey = "dash:time") {
-        Text(stringResource(R.string.time_total, hoursText(total)), style = MaterialTheme.typography.titleSmall)
         Text(stringResource(R.string.time_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
-        val rows = (roles.map { it.id } + 0L).filter { (byRole[it] ?: 0) > 0 || (planned[it] ?: 0) > 0 }
-            .sortedByDescending { byRole[it] ?: 0 }
-        val max = rows.maxOfOrNull { byRole[it] ?: 0 }?.coerceAtLeast(1) ?: 1
-        rows.forEachIndexed { i, id ->
-            val minutes = byRole[id] ?: 0
-            val share = if (total == 0) 0 else minutes * 100 / total
-            val plan = planned[id]
-            Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { session.roleTime = id to span }.padding(vertical = 4.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(names[id] ?: stringResource(R.string.time_no_role), style = MaterialTheme.typography.labelLarge,
+        // The whole as a ring: the four largest roles, the rest together; a part opens what the time went to
+        val ranked = (roles.map { it.id } + 0L).filter { (byRole[it] ?: 0) > 0 }.sortedByDescending { byRole[it] ?: 0 }
+        val top = if (ranked.size > 5) ranked.take(4) else ranked
+        val restIds = ranked.drop(top.size)
+        val colors = listOf(ChartColors.blue, ChartColors.teal, ChartColors.amber, ChartColors.purple, ChartColors.coral)
+        fun pct(m: Int) = if (total == 0) 0 else Math.round(m * 100f / total)
+        val slices = top.mapIndexed { i, id ->
+            val m = byRole[id] ?: 0
+            Slice(id.toString(), names[id]?.let(::shortRole) ?: stringResource(R.string.time_no_role), m,
+                if (id == 0L) ChartColors.grayLight else colors[i % colors.size], display = hoursText(m) + " · " + pct(m) + " %")
+        } + (if (restIds.isEmpty()) emptyList() else {
+            val m = restIds.sumOf { byRole[it] ?: 0 }
+            listOf(Slice("rest", stringResource(R.string.others_n, restIds.size), m, ChartColors.grayLight, display = hoursText(m) + " · " + pct(m) + " %"))
+        })
+        if (total > 0) {
+            Spacer(Modifier.height(6.dp))
+            DonutChart(slices, hoursText(total), "", selected = null, onPick = { k ->
+                k?.toLongOrNull()?.let { session.roleTime = it to span }
+            })
+        }
+        // As planned and as it went, only for roles with a plan
+        val withPlan = (roles.map { it.id } + 0L).filter { (planned[it] ?: 0) > 0 }
+        if (withPlan.isNotEmpty()) {
+            Text(stringResource(R.string.time_plan_vs), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
+            withPlan.forEach { id ->
+                val share = pct(byRole[id] ?: 0)
+                val plan = planned[id] ?: 0
+                val far = kotlin.math.abs(share - plan) * 3 >= plan
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { session.roleTime = id to span }.padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text(names[id]?.let(::shortRole) ?: stringResource(R.string.time_no_role), style = MaterialTheme.typography.labelMedium,
                         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    Text(
-                        hoursText(minutes) + " · $share %" + (plan?.let { " " + stringResource(R.string.time_plan, it) } ?: "") + " →",
-                        style = MaterialTheme.typography.labelMedium,
-                        // Far from the plan (by a third of it or more) is marked, in words as well as colour
-                        color = if (plan != null && plan > 0 && kotlin.math.abs(share - plan) * 3 >= plan) ChartColors.coral else Muted,
-                    )
-                }
-                Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-                    if (minutes > 0) Box(Modifier.fillMaxWidth(minutes.toFloat() / max).height(8.dp).clip(RoundedCornerShape(4.dp))
-                        .background(if (id == 0L) ChartColors.grayLight else ChartColors.blue))
+                    Text(stringResource(if (far) R.string.time_plan_far else R.string.time_plan_line, plan, share) + " →",
+                        style = MaterialTheme.typography.labelMedium, color = if (far) ChartColors.coral else Muted)
                 }
             }
         }

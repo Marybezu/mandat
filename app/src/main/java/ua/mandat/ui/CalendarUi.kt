@@ -62,6 +62,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.room.withTransaction
+import androidx.compose.material.icons.outlined.Call
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Place
+import androidx.compose.material.icons.outlined.Share
 import ua.mandat.R
 import ua.mandat.data.DeadlineKind
 import ua.mandat.data.Event
@@ -103,7 +107,7 @@ fun EventKind.label(): Int = when (this) {
 @Composable
 fun EventKind.icon(): androidx.compose.ui.graphics.vector.ImageVector = when (this) {
     EventKind.MEETING -> Sym.group
-    EventKind.SESSION -> androidx.compose.ui.res.vectorResource(R.drawable.sym_gavel)
+    EventKind.SESSION -> sym(R.drawable.sym_gavel)
     EventKind.COMMITTEE -> Sym.badge
     EventKind.TRIP -> androidx.compose.material.icons.Icons.Outlined.Place
     EventKind.RECEPTION -> Sym.home
@@ -753,17 +757,28 @@ fun DayStrip(db: MandatDb, session: Session) {
     val nowMin = java.time.LocalTime.now().let { it.hour * 60 + it.minute }
     val sorted = events.sortedWith(compareBy({ it.startMin != null }, { it.startMin }))
     SectionCard(Sym.calendar, stringResource(R.string.day_strip), count = events.size) {
+        val timed = sorted.filter { it.startMin != null }
+        val running = timed.firstOrNull { it.startMin!! <= nowMin && (it.endMin ?: (it.startMin + 60)) > nowMin }
+        val next = timed.firstOrNull { it.startMin!! > nowMin }
+        // One plain line on where the day stands, instead of a line that could pass for a time
+        val status = when {
+            running != null -> stringResource(R.string.now_running, timeText(running.endMin ?: (running.startMin!! + 60)))
+            next != null -> stringResource(R.string.now_next, timeText(nowMin), timeText(next.startMin!!), hoursText(next.startMin - nowMin))
+            timed.isNotEmpty() -> stringResource(R.string.now_done, timeText(nowMin))
+            else -> null
+        }
+        status?.let { Text(it, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(bottom = 6.dp)) }
         var nowShown = false
+        val anyPast = timed.any { (it.endMin ?: (it.startMin!! + 60)) <= nowMin }
         sorted.forEachIndexed { i, e ->
             val past = e.startMin != null && (e.endMin ?: (e.startMin + 60)) <= nowMin
-            if (!nowShown && e.startMin != null && !past) {
+            // The "now" line only between what is over and what is ahead
+            if (!nowShown && anyPast && running == null && e == next) {
                 nowShown = true
                 NowLine(nowMin)
-            }
-            if (i > 0) RowDivider()
+            } else if (i > 0) RowDivider()
             Box(Modifier.let { if (past) it.alpha(0.5f) else it }) { EventRow(e, emptyList(), e.matterId?.let { null }, today, session) }
         }
-        if (!nowShown && sorted.any { it.startMin != null }) NowLine(nowMin)
         TextButton(onClick = { session.tabRequest = "Time" }) { Text(stringResource(R.string.day_strip_open)) }
     }
 }

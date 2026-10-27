@@ -234,11 +234,14 @@ fun PromiseRow(p: Promise, personName: String?, matterTitle: String?, session: S
 @Composable
 fun PersonPicker(people: List<Person>, current: Long?, onPick: (Long?) -> Unit) {
     val none = stringResource(R.string.nobody)
-    Picker(
-        label = stringResource(R.string.to_whom),
-        current = people.firstOrNull { it.id == current }?.name ?: none,
-        options = listOf<Pair<Long?, String>>(null to none) + people.map { it.id to it.name },
-        onPick = onPick,
+    val chosen = people.firstOrNull { it.id == current }
+    var open by remember { mutableStateOf(false) }
+    FieldTile(stringResource(R.string.to_whom), chosen?.name ?: none, placeholder = chosen == null,
+        onClear = if (chosen != null) ({ onPick(null) }) else null) { open = true }
+    if (open) PickSheet(
+        stringResource(R.string.to_whom),
+        listOf(PickItem<Long?>(null, none)) + people.map { p -> PickItem<Long?>(p.id, p.name, listOf(p.jobTitle, p.organization).filter { it.isNotBlank() }.joinToString(" · ")) },
+        onPick = { open = false; onPick(it) }, onDismiss = { open = false }, current = current,
     )
 }
 
@@ -300,9 +303,9 @@ fun DayPickerDialog(initial: Long?, onPick: (Long?) -> Unit) {
 @Composable
 private fun StatusChips(current: TaskStatus, options: List<TaskStatus>, label: (TaskStatus) -> Int, onPick: (TaskStatus) -> Unit) {
     Text(stringResource(R.string.status), style = MaterialTheme.typography.labelLarge)
-    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         options.forEach { s ->
-            FilterChip(selected = current == s, onClick = { onPick(s) }, label = { Text(stringResource(label(s))) })
+            QuickChip(stringResource(label(s)), current == s) { onPick(s) }
         }
     }
 }
@@ -318,18 +321,21 @@ fun DelegationDialog(db: MandatDb, session: Session, draft: DelegationDraft) {
     val matters by mattersFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     var confirmDelete by remember { mutableStateOf(false) }
 
-    AlertDialog(
-        onDismissRequest = { session.delegationDraft = null },
-        // A tap outside must not throw away what was typed
-        properties = DialogProperties(dismissOnClickOutside = false),
-        title = { Text(stringResource(R.string.delegation_new)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    EditSheet(
+        title = stringResource(R.string.delegation_new),
+        onDismiss = { session.delegationDraft = null },
+        onSave = { session.saveDelegationDraft() },
+        saveEnabled = draft.what.isNotBlank(),
+    ) {
+        SheetGroup {
+
                 OutlinedTextField(
                     value = draft.what, onValueChange = { draft.what = it },
                     label = { Text(stringResource(R.string.what)) }, minLines = 2, modifier = Modifier.fillMaxWidth(),
                 )
                 PersonPicker(people, draft.personId) { draft.personId = it }
+        }
+        SheetGroup(stringResource(R.string.delegation_group_how)) {
                 // The intent and what "done" means: the person can act sensibly when things change
                 OutlinedTextField(
                     value = draft.purpose, onValueChange = { draft.purpose = it },
@@ -340,6 +346,8 @@ fun DelegationDialog(db: MandatDb, session: Session, draft: DelegationDraft) {
                     label = { Text(stringResource(R.string.delegation_done_means)) }, modifier = Modifier.fillMaxWidth(),
                 )
                 FreedomPicker(draft.freedom) { draft.freedom = it }
+        }
+        SheetGroup(stringResource(R.string.delegation_group_when)) {
                 MatterPicker(matters, allMatters, draft.matterId) { draft.matterId = it }
                 DueField(draft.due) { draft.due = it }
                 DueField(draft.checkIn, label = R.string.delegation_check_in) { draft.checkIn = it }
@@ -350,19 +358,12 @@ fun DelegationDialog(db: MandatDb, session: Session, draft: DelegationDraft) {
                     }
                     androidx.compose.material3.Switch(checked = draft.returned, onCheckedChange = { draft.returned = it })
                 }
-                if (!draft.isNew) {
-                    StatusChips(draft.status, TASK_STATUSES, { it.delegationLabel() }) { draft.status = it }
-                    TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { session.saveDelegationDraft() }, enabled = draft.what.isNotBlank()) {
-                Text(stringResource(R.string.save))
-            }
-        },
-        dismissButton = { TextButton(onClick = { session.delegationDraft = null }) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+        if (!draft.isNew) SheetGroup {
+            StatusChips(draft.status, TASK_STATUSES, { it.delegationLabel() }) { draft.status = it }
+        }
+        if (!draft.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
+    }
     if (confirmDelete) {
         ConfirmDelete(onConfirm = {
             val id = draft.delegation.id
@@ -378,9 +379,9 @@ fun DelegationDialog(db: MandatDb, session: Session, draft: DelegationDraft) {
 fun FreedomPicker(current: ua.mandat.data.Freedom?, onPick: (ua.mandat.data.Freedom?) -> Unit) {
     Column {
         Text(stringResource(R.string.delegation_freedom), style = MaterialTheme.typography.labelLarge)
-        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             ua.mandat.data.Freedom.entries.forEach { f ->
-                FilterChip(selected = current == f, onClick = { onPick(if (current == f) null else f) }, label = { Text(stringResource(f.label())) })
+                QuickChip(stringResource(f.label()), current == f) { onPick(if (current == f) null else f) }
             }
         }
         current?.let { Text(stringResource(it.hint()), style = MaterialTheme.typography.labelSmall, color = Muted) }
@@ -399,12 +400,14 @@ fun PromiseDialog(db: MandatDb, session: Session, draft: PromiseDraft) {
     val matters by mattersFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     var confirmDelete by remember { mutableStateOf(false) }
 
-    AlertDialog(
-        onDismissRequest = { session.promiseDraft = null },
-        properties = DialogProperties(dismissOnClickOutside = false),
-        title = { Text(stringResource(R.string.promise_new)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    EditSheet(
+        title = stringResource(R.string.promise_new),
+        onDismiss = { session.promiseDraft = null },
+        onSave = { session.savePromiseDraft() },
+        saveEnabled = draft.what.isNotBlank(),
+    ) {
+        SheetGroup {
+
                 OutlinedTextField(
                     value = draft.what, onValueChange = { draft.what = it },
                     label = { Text(stringResource(R.string.what)) }, minLines = 2, modifier = Modifier.fillMaxWidth(),
@@ -417,6 +420,8 @@ fun PromiseDialog(db: MandatDb, session: Session, draft: PromiseDraft) {
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+        }
+        SheetGroup(stringResource(R.string.promise_group_kind)) {
                 PromiseDimensions(draft)
                 OutlinedTextField(
                     value = draft.source, onValueChange = { draft.source = it },
@@ -424,10 +429,13 @@ fun PromiseDialog(db: MandatDb, session: Session, draft: PromiseDraft) {
                     supportingText = { Text(stringResource(R.string.promise_source_hint)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
+        }
+        SheetGroup(stringResource(R.string.delegation_group_when)) {
                 DueField(draft.madeOn, allowClear = false, label = R.string.promise_made_on) { d -> d?.let { draft.madeOn = minOf(it, Dates.today()) } }
                 MatterPicker(matters, allMatters, draft.matterId) { draft.matterId = it }
                 DueField(draft.due) { draft.due = it }
-                if (!draft.isNew) {
+        }
+        if (!draft.isNew) SheetGroup {
                     StatusChips(draft.status, TaskStatus.entries, { it.promiseLabel() }) { draft.status = it }
                     if (draft.status == TaskStatus.FAILED || draft.status == TaskStatus.CANCELLED) {
                         OutlinedTextField(
@@ -436,17 +444,9 @@ fun PromiseDialog(db: MandatDb, session: Session, draft: PromiseDraft) {
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
-                    TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { session.savePromiseDraft() }, enabled = draft.what.isNotBlank()) {
-                Text(stringResource(R.string.save))
-            }
-        },
-        dismissButton = { TextButton(onClick = { session.promiseDraft = null }) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+        if (!draft.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
+    }
     if (confirmDelete) {
         ConfirmDelete(onConfirm = {
             val id = draft.promise.id
@@ -461,64 +461,40 @@ fun PromiseDialog(db: MandatDb, session: Session, draft: PromiseDraft) {
 @Composable
 fun PromiseDimensions(draft: PromiseDraft) {
     Text(stringResource(R.string.publicity), style = MaterialTheme.typography.labelLarge)
-    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         ua.mandat.data.Publicity.entries.forEach { p ->
-            FilterChip(selected = draft.publicity == p, onClick = { draft.publicity = p }, label = { Text(stringResource(p.label())) })
+            QuickChip(stringResource(p.label()), draft.publicity == p) { draft.publicity = p }
         }
     }
     Text(stringResource(R.string.origin), style = MaterialTheme.typography.labelLarge)
-    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         ua.mandat.data.PromiseOrigin.entries.forEach { o ->
-            FilterChip(selected = draft.origin == o, onClick = { draft.origin = if (draft.origin == o) null else o }, label = { Text(stringResource(o.label())) })
+            QuickChip(stringResource(o.label()), draft.origin == o) { draft.origin = if (draft.origin == o) null else o }
         }
     }
     draft.origin?.let { Text(stringResource(it.hint()), style = MaterialTheme.typography.labelSmall, color = Muted) }
     Text(stringResource(R.string.risk), style = MaterialTheme.typography.labelLarge)
-    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         listOf(1, 2, 3).forEach { r ->
-            FilterChip(selected = draft.risk == r, onClick = { draft.risk = if (draft.risk == r) null else r }, label = { Text(stringResource(riskLabel(r))) })
+            QuickChip(stringResource(riskLabel(r)), draft.risk == r) { draft.risk = if (draft.risk == r) null else r }
         }
     }
 }
 
 @Composable
-fun ConfirmDelete(onConfirm: () -> Unit, onCancel: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onCancel,
-        text = { Text(stringResource(R.string.delete) + "?") },
-        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.delete)) } },
-        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) } },
-    )
-}
+fun ConfirmDelete(onConfirm: () -> Unit, onCancel: () -> Unit) =
+    ConfirmDialog(null, stringResource(R.string.delete_question), stringResource(R.string.delete), danger = true, onConfirm = onConfirm, onCancel = onCancel)
 
 /** Pick a person to add to a matter, with a search box (useful with many people). */
 @Composable
 fun PersonSearchDialog(people: List<Person>, onPick: (Person) -> Unit, onCancel: () -> Unit) {
-    var query by remember { mutableStateOf("") }
-    val shown = people.filter { query.isBlank() || it.name.contains(query.trim(), ignoreCase = true) || it.organization.contains(query.trim(), ignoreCase = true) }
-    AlertDialog(
-        onDismissRequest = onCancel,
-        title = { Text(stringResource(R.string.pick_person)) },
-        text = {
-            Column {
-                if (people.isEmpty()) {
-                    Text(stringResource(R.string.no_people_to_pick))
-                } else {
-                    OutlinedTextField(value = query, onValueChange = { query = it }, singleLine = true,
-                        label = { Text(stringResource(R.string.search)) }, modifier = Modifier.fillMaxWidth())
-                    LazyColumn(Modifier.heightIn(max = 360.dp)) {
-                        items(shown, key = { it.id }) { p ->
-                            Column(Modifier.fillMaxWidth().clickable { onPick(p) }.padding(vertical = 10.dp)) {
-                                Text(p.name, style = MaterialTheme.typography.bodyLarge)
-                                val meta = listOf(p.jobTitle, p.organization).filter { it.isNotBlank() }.joinToString(" · ")
-                                if (meta.isNotEmpty()) Text(meta, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) } },
+    if (people.isEmpty()) {
+        ConfirmDialog(stringResource(R.string.pick_person), stringResource(R.string.no_people_to_pick), stringResource(R.string.ok), onConfirm = onCancel, onCancel = onCancel)
+        return
+    }
+    PickSheet(
+        stringResource(R.string.pick_person),
+        people.map { p -> PickItem(p.id, p.name, listOf(p.jobTitle, p.organization).filter { it.isNotBlank() }.joinToString(" · ")) },
+        onPick = { id -> people.firstOrNull { it.id == id }?.let(onPick) }, onDismiss = onCancel,
     )
 }

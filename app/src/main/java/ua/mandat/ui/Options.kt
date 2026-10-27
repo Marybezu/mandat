@@ -598,7 +598,7 @@ private fun LookSection(session: Session) {
     val context = LocalContext.current
     var mode by remember { mutableStateOf(Appearance.mode(context)) }
     Text(stringResource(R.string.look_theme), style = MaterialTheme.typography.labelLarge)
-    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         listOf(Appearance.AUTO to R.string.look_auto, Appearance.LIGHT to R.string.look_light, Appearance.DARK to R.string.look_dark)
             .forEach { (value, label) ->
                 androidx.compose.material3.FilterChip(

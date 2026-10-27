@@ -80,7 +80,7 @@ fun ReachButtons(phones: List<String>, emails: List<String>) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         phones.forEach { phone ->
             Text(phone, style = MaterialTheme.typography.labelLarge)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 AssistChip(onClick = { Reach.dial(context, phone) }, label = { Text(stringResource(R.string.reach_call)) })
                 AssistChip(onClick = { Reach.sms(context, phone) }, label = { Text(stringResource(R.string.reach_sms)) })
                 // Messengers need the international form (+…)

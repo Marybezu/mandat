@@ -134,7 +134,7 @@ fun InfoScreen(db: MandatDb, session: Session) {
                 }
             }
             item(key = "add") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     InfoKind.entries.forEach { k ->
                         OutlinedButton(onClick = { session.infoDraft = newInfo(k) }) { Text("+ " + stringResource(k.label())) }
                     }
@@ -284,7 +284,7 @@ fun InfoDialog(db: MandatDb, session: Session, d: InfoDraft) {
         title = { Text(stringResource(d.kind.label())) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     InfoKind.entries.forEach { k -> FilterChip(selected = d.kind == k, onClick = { d.kind = k }, label = { Text(stringResource(k.label())) }) }
                 }
                 Text(stringResource(d.kind.hint()), style = MaterialTheme.typography.labelSmall, color = Muted)
@@ -299,7 +299,7 @@ fun InfoDialog(db: MandatDb, session: Session, d: InfoDraft) {
                 )
                 MatterPicker(matters, allMatters, d.matterId) { d.matterId = it }
                 Text(stringResource(R.string.info_reach), style = MaterialTheme.typography.labelLarge)
-                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(1, 2, 3).forEach { r ->
                         FilterChip(selected = d.reach == r, onClick = { d.reach = if (d.reach == r) null else r }, label = { Text(stringResource(reachLabel(r))) })
                     }
@@ -307,11 +307,11 @@ fun InfoDialog(db: MandatDb, session: Session, d: InfoDraft) {
                 when (d.kind) {
                     InfoKind.ATTACK -> {
                         Text(stringResource(R.string.info_stage), style = MaterialTheme.typography.labelLarge)
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             AttackStage.entries.forEach { s -> FilterChip(selected = d.stage == s, onClick = { d.stage = s }, label = { Text(stringResource(s.label())) }) }
                         }
                         Text(stringResource(R.string.info_decision), style = MaterialTheme.typography.labelLarge)
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             AttackDecision.entries.forEach { a ->
                                 FilterChip(selected = d.decision == a, onClick = { d.decision = if (d.decision == a) null else a }, label = { Text(stringResource(a.label())) })
                             }
@@ -525,7 +525,7 @@ fun AllianceDialog(db: MandatDb, session: Session, d: AllianceDraft) {
                 DueField(d.untilDay, label = R.string.alliance_until) { d.untilDay = it }
                 OutlinedTextField(d.gives, { d.gives = it }, label = { Text(stringResource(R.string.alliance_gives)) }, minLines = 1, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(d.gets, { d.gets = it }, label = { Text(stringResource(R.string.alliance_gets)) }, minLines = 1, modifier = Modifier.fillMaxWidth())
-                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     AllianceStatus.entries.forEach { s -> FilterChip(selected = d.status == s, onClick = { d.status = s }, label = { Text(stringResource(s.label())) }) }
                 }
                 OutlinedTextField(d.notes, { d.notes = it }, label = { Text(stringResource(R.string.person_notes)) }, minLines = 2, modifier = Modifier.fillMaxWidth())

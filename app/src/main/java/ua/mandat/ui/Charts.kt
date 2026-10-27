@@ -44,7 +44,8 @@ import kotlin.math.atan2
 import kotlin.math.hypot
 
 /** One part of a ring or a bar: how many, its colour, its name, and a key for filtering. */
-data class Slice(val key: String, val label: String, val value: Int, val color: Color, val suffix: String = "")
+/** [display] replaces the plain number in the legend (for example "3 год · 40 %"). */
+data class Slice(val key: String, val label: String, val value: Int, val color: Color, val suffix: String = "", val display: String? = null)
 
 /** Calm colours with meaning, readable in light and dark themes. */
 object ChartColors {
@@ -215,7 +216,7 @@ fun Legend(parts: List<Slice>, selected: String?, onPick: (String?) -> Unit, mod
                 Spacer(Modifier.width(8.dp))
                 Text(p.label, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f))
-                Text(groupDigits(p.value), style = MaterialTheme.typography.labelLarge)
+                Text(p.display ?: groupDigits(p.value), style = MaterialTheme.typography.labelLarge)
             }
         }
     }

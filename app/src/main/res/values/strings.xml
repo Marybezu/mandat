@@ -937,10 +937,8 @@
     <string name="minutes_short">%1$d min</string>
     <string name="time_matter">Time in 30 days: %1$s</string>
     <string name="time_by_role">Time by role</string>
-    <string name="time_total">In total: %1$s</string>
     <string name="time_hint">Calendar events through their matter, plus time added in a matter (+15, +30, +60). Whole-day events are not counted.</string>
     <string name="time_no_role">No role</string>
-    <string name="time_plan">(wanted %1$d %%)</string>
     <string name="time_set_plan">Desired share of time</string>
     <string name="time_plan_hint">What percentage of your time you want to give each role. Next to the facts you will see how it actually went.</string>
     <string name="time_plan_sum">Total: %1$d %%</string>
@@ -954,4 +952,15 @@
     <string name="event_from">Start</string>
     <string name="event_to">End</string>
     <string name="event_notes_group">Notes and outcome</string>
+    <string name="now_running">On now, until %1$s</string>
+    <string name="now_next">Now %1$s · next at %2$s, in %3$s</string>
+    <string name="now_done">Now %1$s · nothing more today</string>
+    <string name="lens_all">All roles</string>
+    <string name="time_plan_vs">As planned → as it went</string>
+    <string name="time_plan_line">%1$d %% → %2$d %%</string>
+    <string name="time_plan_far">%1$d %% → %2$d %%, noticeably off</string>
+    <string name="delegation_group_how">How to do it</string>
+    <string name="delegation_group_when">Matter and dates</string>
+    <string name="promise_group_kind">What kind of promise</string>
+    <string name="delete_question">Delete? This cannot be undone.</string>
 </resources>

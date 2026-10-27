@@ -95,21 +95,21 @@ fun DeadlineDialog(db: MandatDb, session: Session, draft: DeadlineDraft) {
     val allMatters by allFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     var confirmDelete by remember { mutableStateOf(false) }
 
-    AlertDialog(
-        onDismissRequest = { session.deadlineDraft = null },
-        properties = DialogProperties(dismissOnClickOutside = false),
-        title = { Text(stringResource(R.string.deadline)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    EditSheet(
+        title = stringResource(R.string.deadline),
+        onDismiss = { session.deadlineDraft = null },
+        onSave = { session.saveDeadlineDraft() },
+        saveEnabled = draft.valid(),
+    ) {
+        SheetGroup {
+
                 OutlinedTextField(
                     value = draft.title, onValueChange = { draft.title = it },
                     label = { Text(stringResource(R.string.what)) }, minLines = 2, modifier = Modifier.fillMaxWidth(),
                 )
-                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = draft.kind == DeadlineKind.SOFT, onClick = { draft.kind = DeadlineKind.SOFT },
-                        label = { Text(stringResource(R.string.deadline_soft)) })
-                    FilterChip(selected = draft.kind == DeadlineKind.HARD, onClick = { draft.kind = DeadlineKind.HARD },
-                        label = { Text(stringResource(R.string.deadline_hard)) })
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    QuickChip(stringResource(R.string.deadline_soft), draft.kind == DeadlineKind.SOFT) { draft.kind = DeadlineKind.SOFT }
+                    QuickChip(stringResource(R.string.deadline_hard), draft.kind == DeadlineKind.HARD) { draft.kind = DeadlineKind.HARD }
                 }
                 if (draft.kind == DeadlineKind.HARD) {
                     OutlinedTextField(
@@ -119,6 +119,8 @@ fun DeadlineDialog(db: MandatDb, session: Session, draft: DeadlineDraft) {
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+        }
+        SheetGroup(stringResource(R.string.delegation_group_when)) {
                 DueField(draft.day, allowClear = false) { if (it != null) draft.day = it }
                 Picker(
                     label = stringResource(R.string.remind_before),
@@ -127,23 +129,17 @@ fun DeadlineDialog(db: MandatDb, session: Session, draft: DeadlineDraft) {
                     onPick = { draft.remindBefore = it },
                 )
                 MatterPicker(matters, allMatters, draft.matterId) { draft.matterId = it }
-                if (!draft.isNew) {
+        }
+        if (!draft.isNew) SheetGroup {
                     Text(stringResource(R.string.status), style = MaterialTheme.typography.labelLarge)
-                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         TASK_STATUSES.forEach { s ->
-                            FilterChip(selected = draft.status == s, onClick = { draft.status = s },
-                                label = { Text(stringResource(s.delegationLabel())) })
+                            QuickChip(stringResource(s.delegationLabel()), draft.status == s) { draft.status = s }
                         }
                     }
-                    TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { session.saveDeadlineDraft() }, enabled = draft.valid()) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = { session.deadlineDraft = null }) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+        if (!draft.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
+    }
     if (confirmDelete) {
         ConfirmDelete(onConfirm = {
             val id = draft.deadline.id

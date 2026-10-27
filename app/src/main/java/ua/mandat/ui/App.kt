@@ -345,7 +345,6 @@ private fun Main(db: MandatDb, session: Session) {
     Scaffold(
         topBar = {
             Column(Modifier.statusBarsPadding()) {
-                LensBar(db, session)
                 ScreenHeader(
                     title = stringResource(tab.title),
                     subtitle = if (tab == Tab.Today) Dates.longToday() else null,
@@ -360,6 +359,7 @@ private fun Main(db: MandatDb, session: Session) {
                         Icon(Sym.lock, contentDescription = stringResource(R.string.lock_now), tint = Muted)
                     }
                 }
+                LensBar(db, session, full = tab == Tab.Today || tab == Tab.Matters || tab == Tab.Review)
             }
         },
         bottomBar = {

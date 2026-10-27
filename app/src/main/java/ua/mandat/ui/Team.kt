@@ -194,7 +194,7 @@ fun OneOnOneScreen(db: MandatDb, session: Session, personId: Long) {
                     TextButton(onClick = { session.write { it.people().setLastContact(p.id, today) } }) {
                         Text(stringResource(R.string.talked_today))
                     }
-                    if (!team && p.allCategories.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (!team && p.allCategories.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         p.allCategories.forEach { MiniChip(categoryLabel(it)) }
                     }
                     if (p.notes.isNotBlank()) Text(p.notes, style = MaterialTheme.typography.bodyMedium, color = Muted, maxLines = 4)

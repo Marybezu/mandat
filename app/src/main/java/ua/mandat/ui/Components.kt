@@ -229,4 +229,4 @@ object Sym {
 }
 
 @Composable
-private fun sym(id: Int): ImageVector = ImageVector.vectorResource(id)
+fun sym(id: Int): ImageVector = ImageVector.vectorResource(id)

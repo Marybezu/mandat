@@ -453,7 +453,7 @@ fun CommunityDialog(session: Session, d: CommunityDraft) {
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(d.name, { d.name = it }, label = { Text(stringResource(R.string.community_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     CommunityKind.entries.forEach { k -> FilterChip(selected = d.kind == k, onClick = { d.kind = k }, label = { Text(stringResource(k.label())) }) }
                 }
                 OutlinedTextField(d.population, { d.population = it.filter { ch -> ch.isDigit() }.take(9) }, label = { Text(stringResource(R.string.community_population)) },

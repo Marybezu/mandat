@@ -216,7 +216,7 @@ fun RolesManager(db: MandatDb, session: Session) {
 @Composable
 fun ModePicker(session: Session) {
     Text(stringResource(R.string.mode_title), style = MaterialTheme.typography.titleMedium)
-    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         listOf(false to R.string.mode_rada, true to R.string.mode_council).forEach { (council, label) ->
             androidx.compose.material3.FilterChip(
                 selected = AppMode.council == council,
