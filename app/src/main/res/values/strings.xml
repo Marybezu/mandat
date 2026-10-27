@@ -994,4 +994,5 @@
     <string name="matters_done">Completed</string>
     <string name="matters_dropped">Closed without result</string>
     <string name="matter_closed_line">closed %1$s · took %2$d days</string>
+    <string name="matters_closed">Closed</string>
 </resources>

@@ -996,4 +996,5 @@
     <string name="matters_done">Завершені</string>
     <string name="matters_dropped">Закриті без результату</string>
     <string name="matter_closed_line">закрито %1$s · тривала %2$d дн.</string>
+    <string name="matters_closed">Закриті</string>
 </resources>
