@@ -248,25 +248,30 @@ fun MatterPicker(active: List<MatterTitle>, all: List<MatterTitle>, current: Lon
     val none = stringResource(R.string.no_matter)
     val currentTitle = all.firstOrNull { it.id == current }
     val choices = if (currentTitle != null && active.none { it.id == current }) active + currentTitle else active
-    Picker(
-        label = stringResource(R.string.matter_link),
-        current = currentTitle?.title ?: none,
-        options = listOf<Pair<Long?, String>>(null to none) + choices.map { it.id to it.title },
-        onPick = onPick,
+    var open by remember { mutableStateOf(false) }
+    FieldTile(stringResource(R.string.matter_link), currentTitle?.title ?: none, placeholder = currentTitle == null,
+        onClear = if (currentTitle != null) ({ onPick(null) }) else null) { open = true }
+    if (open) PickSheet(
+        stringResource(R.string.matter_link),
+        listOf(PickItem<Long?>(null, none)) + choices.map { PickItem<Long?>(it.id, it.title) },
+        onPick = { open = false; onPick(it) }, onDismiss = { open = false }, current = current,
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun DueField(due: Long?, allowClear: Boolean = true, label: Int = R.string.due, onChange: (Long?) -> Unit) {
     var picking by remember { mutableStateOf(false) }
-    Column {
+    val today = Dates.today()
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(label), style = MaterialTheme.typography.labelLarge)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { picking = true }) {
-                Text(due?.let { Dates.format(it) } ?: stringResource(R.string.pick_date))
-            }
-            if (due != null && allowClear) TextButton(onClick = { onChange(null) }) { Text(stringResource(R.string.clear_date)) }
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            QuickChip(stringResource(R.string.day_today), due == today) { onChange(today) }
+            QuickChip(stringResource(R.string.day_tomorrow), due == today + 1) { onChange(today + 1) }
+            QuickChip(stringResource(R.string.day_in_week), due == today + 7) { onChange(today + 7) }
+            val other = due != null && due !in setOf(today, today + 1, today + 7)
+            QuickChip(if (other) Dates.format(due!!) else stringResource(R.string.pick_date) + " …", other) { picking = true }
+            if (due != null && allowClear) QuickChip("✕ " + stringResource(R.string.clear_date), false) { onChange(null) }
         }
     }
     if (picking) {

@@ -946,4 +946,12 @@
     <string name="time_plan_sum">Total: %1$d %%</string>
     <string name="time_from_events">From the calendar: %1$s</string>
     <string name="time_by_hand">Added in matters: %1$s</string>
+    <string name="close">Close</string>
+    <string name="day_today">Today</string>
+    <string name="day_tomorrow">Tomorrow</string>
+    <string name="day_in_week">In a week</string>
+    <string name="event_when">When and where</string>
+    <string name="event_from">Start</string>
+    <string name="event_to">End</string>
+    <string name="event_notes_group">Notes and outcome</string>
 </resources>

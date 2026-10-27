@@ -458,25 +458,19 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
 /** A simple labelled choice: a button showing the current value, opening a list. */
 @Composable
 fun <T> Picker(label: String, current: String, options: List<Pair<T, String>>, onPick: (T) -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    Column {
-        Text(label, style = MaterialTheme.typography.labelLarge)
-        Box {
-            OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(current, modifier = Modifier.weight(1f))
-                    Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
-                }
-            }
-            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-                options.forEach { (value, text) ->
-                    DropdownMenuItem(text = { Text(text) }, onClick = {
-                        open = false
-                        onPick(value)
-                    })
-                }
+    // A few options: all in view as buttons. Many: one field that opens a list with search.
+    if (options.size <= 6 && options.all { it.second.length <= 28 }) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(label, style = MaterialTheme.typography.labelLarge)
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                options.forEach { (value, text) -> QuickChip(text, on = text == current) { onPick(value) } }
             }
         }
+    } else {
+        var open by remember { mutableStateOf(false) }
+        FieldTile(label, current) { open = true }
+        if (open) PickSheet(label, options.mapIndexed { i, (_, text) -> PickItem(i, text) }, onPick = { i -> open = false; onPick(options[i].first) },
+            onDismiss = { open = false }, current = options.indexOfFirst { it.second == current }.takeIf { it >= 0 })
     }
 }
 

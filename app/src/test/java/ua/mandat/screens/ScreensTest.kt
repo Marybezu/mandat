@@ -16,6 +16,7 @@ import android.content.ComponentName
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
@@ -119,6 +120,13 @@ class ScreensTest {
     }
     @Test fun periodYear() = shot("13-period-year") {
         ua.mandat.ui.PeriodScreen(db, session, ua.mandat.ui.PeriodKind.YEAR, ua.mandat.ui.yearSpan(java.time.LocalDate.now().year))
+    }
+    @Test fun eventSheet() = shot("24-event-sheet") {
+        val e = runBlocking { db.events().observeAll().first().first { it.startMin != null } }
+        val people = runBlocking { db.events().peopleOf(e.id).toSet() }
+        androidx.compose.runtime.CompositionLocalProvider(ua.mandat.ui.LocalInlineSheets provides true) {
+            ua.mandat.ui.EventDialog(db, session, ua.mandat.ui.EventDraft(e, isNew = false, people))
+        }
     }
     @Test fun calendar() = shot("14-calendar") { ua.mandat.ui.CalendarScreen(db, session) }
     @Config(qualifiers = "+night")

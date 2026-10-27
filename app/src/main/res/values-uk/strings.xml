@@ -948,4 +948,12 @@
     <string name="time_plan_sum">Разом: %1$d %%</string>
     <string name="time_from_events">З календаря: %1$s</string>
     <string name="time_by_hand">Додано в справах: %1$s</string>
+    <string name="close">Закрити</string>
+    <string name="day_today">Сьогодні</string>
+    <string name="day_tomorrow">Завтра</string>
+    <string name="day_in_week">За тиждень</string>
+    <string name="event_when">Коли й де</string>
+    <string name="event_from">Початок</string>
+    <string name="event_to">Кінець</string>
+    <string name="event_notes_group">Нотатки й підсумок</string>
 </resources>

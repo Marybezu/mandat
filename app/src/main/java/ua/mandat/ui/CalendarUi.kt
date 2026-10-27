@@ -99,6 +99,19 @@ fun EventKind.label(): Int = when (this) {
     EventKind.OTHER -> R.string.event_other
 }
 
+/** An icon per kind of event, for the tiles where the kind is chosen. */
+@Composable
+fun EventKind.icon(): androidx.compose.ui.graphics.vector.ImageVector = when (this) {
+    EventKind.MEETING -> Sym.group
+    EventKind.SESSION -> androidx.compose.ui.res.vectorResource(R.drawable.sym_gavel)
+    EventKind.COMMITTEE -> Sym.badge
+    EventKind.TRIP -> androidx.compose.material.icons.Icons.Outlined.Place
+    EventKind.RECEPTION -> Sym.home
+    EventKind.CALL -> androidx.compose.material.icons.Icons.Outlined.Call
+    EventKind.MEDIA -> androidx.compose.material.icons.Icons.Outlined.Share
+    EventKind.OTHER -> androidx.compose.material.icons.Icons.Outlined.MoreVert
+}
+
 fun EventKind.color(): Color = when (this) {
     EventKind.MEETING -> ChartColors.blue
     EventKind.SESSION -> ChartColors.purple
@@ -400,66 +413,69 @@ fun EventDialog(db: MandatDb, session: Session, draft: EventDraft) {
     var toPhone by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    AlertDialog(
-        onDismissRequest = { session.eventDraft = null },
-        properties = DialogProperties(dismissOnClickOutside = false),
-        title = { Text(stringResource(if (draft.isNew) R.string.event_new else R.string.event)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(value = draft.title, onValueChange = { draft.title = it },
-                    label = { Text(stringResource(R.string.what)) }, minLines = 1, modifier = Modifier.fillMaxWidth())
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    EventKind.entries.forEach { k ->
-                        FilterChip(selected = draft.kind == k, onClick = { draft.kind = k }, label = { Text(stringResource(k.label())) })
-                    }
+    EditSheet(
+        title = stringResource(if (draft.isNew) R.string.event_new else R.string.event),
+        onDismiss = { session.eventDraft = null },
+        onSave = { session.saveEventDraft() },
+        saveEnabled = draft.valid(),
+    ) {
+        SheetGroup {
+            OutlinedTextField(value = draft.title, onValueChange = { draft.title = it },
+                label = { Text(stringResource(R.string.what)) }, minLines = 1, modifier = Modifier.fillMaxWidth())
+            ChoiceTiles(EventKind.entries, draft.kind, label = { stringResource(it.label()) }, onPick = { draft.kind = it },
+                columns = 4, icon = { it.icon() }, mark = { it.color() })
+        }
+        SheetGroup(stringResource(R.string.event_when)) {
+            DueField(draft.day, allowClear = false, label = R.string.event_day) { if (it != null) draft.day = it }
+            // Time: whole day, or from–to as two large tiles
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (draft.startMin == null) {
+                    FieldTile(stringResource(R.string.event_time), stringResource(R.string.cal_all_day), placeholder = true) { pickingTime = 0 }
+                } else {
+                    FieldTile(stringResource(R.string.event_from), timeText(draft.startMin!!), Modifier.weight(1f)) { pickingTime = 0 }
+                    FieldTile(stringResource(R.string.event_to), draft.endMin?.let(::timeText) ?: "…", Modifier.weight(1f),
+                        onClear = { draft.startMin = null; draft.endMin = null }) { pickingTime = 1 }
                 }
-                DueField(draft.day, allowClear = false, label = R.string.event_day) { if (it != null) draft.day = it }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.event_time), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { pickingTime = 0 }) { Text(draft.startMin?.let(::timeText) ?: stringResource(R.string.cal_all_day)) }
-                    if (draft.startMin != null) {
-                        Text("–")
-                        TextButton(onClick = { pickingTime = 1 }) { Text(draft.endMin?.let(::timeText) ?: "…") }
-                        TextButton(onClick = { draft.startMin = null; draft.endMin = null }) { Text("✕") }
-                    }
-                }
-                if (draft.kind == EventKind.TRIP || draft.endDay != null) {
-                    DueField(draft.endDay, label = R.string.event_end_day) { draft.endDay = it?.takeIf { d -> d > draft.day } }
-                }
-                OutlinedTextField(value = draft.place, onValueChange = { draft.place = it },
-                    label = { Text(stringResource(R.string.event_place)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                // People taking part
-                Text(stringResource(R.string.event_people), style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    draft.people.mapNotNull { id -> people.firstOrNull { it.id == id } }.forEach { p ->
-                        FilterBadge(p.name) { draft.people = draft.people - p.id }
-                    }
-                    TextButton(onClick = { pickingPerson = true }) { Text("+ " + stringResource(R.string.add_person)) }
-                }
-                // Before the meeting: a brief on each person taking part (the event is saved first)
-                val briefable = if (draft.isNew) emptyList() else draft.people.mapNotNull { id -> people.firstOrNull { it.id == id } }
-                if (briefable.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(R.string.brief_title) + ":", style = MaterialTheme.typography.labelMedium, color = Muted)
-                    briefable.forEach { p -> MiniChip(p.name + " →", onClick = { session.saveEventDraft(); session.oneOnOne = p.id }) }
-                }
-                MatterPicker(matters, allMatters, draft.matterId) { draft.matterId = it }
-                OutlinedTextField(value = draft.notes, onValueChange = { draft.notes = it },
-                    label = { Text(stringResource(R.string.event_notes)) }, minLines = 2, modifier = Modifier.fillMaxWidth())
-                if (draft.day <= Dates.today()) {
-                    OutlinedTextField(value = draft.outcome, onValueChange = { draft.outcome = it },
-                        label = { Text(stringResource(R.string.event_outcome)) }, minLines = 2, modifier = Modifier.fillMaxWidth())
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = draft.remind, onCheckedChange = { draft.remind = it })
-                    Text(stringResource(R.string.event_remind), style = MaterialTheme.typography.bodyMedium)
-                }
-                TextButton(onClick = { toPhone = true }, enabled = draft.valid()) { Text(stringResource(R.string.event_to_phone)) }
-                if (!draft.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
             }
-        },
-        confirmButton = { TextButton(onClick = { session.saveEventDraft() }, enabled = draft.valid()) { Text(stringResource(R.string.save)) } },
-        dismissButton = { TextButton(onClick = { session.eventDraft = null }) { Text(stringResource(R.string.cancel)) } },
-    )
+            if (draft.kind == EventKind.TRIP || draft.endDay != null) {
+                DueField(draft.endDay, label = R.string.event_end_day) { draft.endDay = it?.takeIf { d -> d > draft.day } }
+            }
+            OutlinedTextField(value = draft.place, onValueChange = { draft.place = it },
+                label = { Text(stringResource(R.string.event_place)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        }
+        SheetGroup(stringResource(R.string.event_people)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                draft.people.mapNotNull { id -> people.firstOrNull { it.id == id } }.forEach { p ->
+                    FilterBadge(p.name) { draft.people = draft.people - p.id }
+                }
+                QuickChip("+ " + stringResource(R.string.add_person), false) { pickingPerson = true }
+            }
+            // Before the meeting: a brief on each person taking part (the event is saved first)
+            val briefable = if (draft.isNew) emptyList() else draft.people.mapNotNull { id -> people.firstOrNull { it.id == id } }
+            if (briefable.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stringResource(R.string.brief_title) + ":", style = MaterialTheme.typography.labelMedium, color = Muted)
+                briefable.forEach { p -> MiniChip(p.name + " →", onClick = { session.saveEventDraft(); session.oneOnOne = p.id }) }
+            }
+            MatterPicker(matters, allMatters, draft.matterId) { draft.matterId = it }
+        }
+        SheetGroup(stringResource(R.string.event_notes_group)) {
+            OutlinedTextField(value = draft.notes, onValueChange = { draft.notes = it },
+                label = { Text(stringResource(R.string.event_notes)) }, minLines = 2, modifier = Modifier.fillMaxWidth())
+            if (draft.day <= Dates.today()) {
+                OutlinedTextField(value = draft.outcome, onValueChange = { draft.outcome = it },
+                    label = { Text(stringResource(R.string.event_outcome)) }, minLines = 2, modifier = Modifier.fillMaxWidth())
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { draft.remind = !draft.remind }) {
+                Text(stringResource(R.string.event_remind), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                androidx.compose.material3.Switch(checked = draft.remind, onCheckedChange = { draft.remind = it })
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(onClick = { toPhone = true }, enabled = draft.valid()) { Text(stringResource(R.string.event_to_phone)) }
+            Spacer(Modifier.weight(1f))
+            if (!draft.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
+        }
+    }
     if (pickingPerson) {
         PersonOrContactDialog(db, session, exclude = draft.people, onPick = { id -> draft.people = draft.people + id; pickingPerson = false },
             onCancel = { pickingPerson = false })
@@ -477,23 +493,16 @@ fun EventDialog(db: MandatDb, session: Session, draft: EventDraft) {
         }, onCancel = { pickingTime = null })
     }
     if (toPhone) {
-        AlertDialog(
-            onDismissRequest = { toPhone = false },
-            title = { Text(stringResource(R.string.event_to_phone)) },
-            text = { Text(stringResource(R.string.event_to_phone_warning)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    toPhone = false
-                    val e = ua.mandat.data.cleanEvent(draft.current(0))
-                    if (e != null) {
-                        // Saved first: leaving Mandat locks it, and nothing typed is lost
-                        session.saveEventDraft()
-                        PhoneCalendar.addToPhone(context, e.title, e.day, e.endDay, e.startMin, e.endMin, e.place)
-                    }
-                }) { Text(stringResource(R.string.event_to_phone_go)) }
-            },
-            dismissButton = { TextButton(onClick = { toPhone = false }) { Text(stringResource(R.string.cancel)) } },
-        )
+        ConfirmDialog(stringResource(R.string.event_to_phone), stringResource(R.string.event_to_phone_warning), stringResource(R.string.event_to_phone_go),
+            onConfirm = {
+                toPhone = false
+                val e = ua.mandat.data.cleanEvent(draft.current(0))
+                if (e != null) {
+                    // Saved first: leaving Mandat locks it, and nothing typed is lost
+                    session.saveEventDraft()
+                    PhoneCalendar.addToPhone(context, e.title, e.day, e.endDay, e.startMin, e.endMin, e.place)
+                }
+            }, onCancel = { toPhone = false })
     }
     if (confirmDelete) {
         ConfirmDelete(onConfirm = {
@@ -530,16 +539,13 @@ fun PersonOrContactDialog(db: MandatDb, session: Session, exclude: Set<Long>, on
     val shownPeople = people.filter { it.id !in exclude && hit(it.name, it.organization, it.jobTitle) }
     val shownContacts = if (q.length < 2) emptyList() else contacts.filter { hit(it.name, it.organization, it.phones, it.label) }.take(50)
     val bookTitle = stringResource(R.string.directory)
-    AlertDialog(
-        onDismissRequest = onCancel,
-        title = { Text(stringResource(R.string.pick_person)) },
-        text = {
-            Column {
+    SheetWindow(stringResource(R.string.pick_person), onCancel) {
+            Column(Modifier.padding(horizontal = Space.screen)) {
                 OutlinedTextField(value = query, onValueChange = { query = it }, singleLine = true,
                     label = { Text(stringResource(R.string.search)) }, modifier = Modifier.fillMaxWidth())
                 if (contacts.isNotEmpty() && q.length < 2) Text(stringResource(R.string.pick_book_hint), style = MaterialTheme.typography.labelSmall, color = Muted,
                     modifier = Modifier.padding(top = 4.dp))
-                LazyColumn(Modifier.heightIn(max = 380.dp)) {
+                LazyColumn(Modifier.fillMaxWidth()) {
                     items(shownPeople, key = { "p${it.id}" }) { p ->
                         Column(Modifier.fillMaxWidth().clickable { onPick(p.id) }.padding(vertical = 10.dp)) {
                             Text(p.name, style = MaterialTheme.typography.bodyLarge)
@@ -564,10 +570,7 @@ fun PersonOrContactDialog(db: MandatDb, session: Session, exclude: Set<Long>, on
                     }
                 }
             }
-        },
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) } },
-    )
+    }
 }
 
 /** Events of a matter or a person inside its card: what is coming, then the last ones. */
