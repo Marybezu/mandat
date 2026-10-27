@@ -1041,4 +1041,15 @@
     <string name="text_kind_other">Other</string>
     <string name="text_kind_template">My template</string>
     <string name="export_text_one">Text: %1$s (.docx, .md)</string>
+    <string name="report_make">Draft a report for voters →</string>
+    <string name="report_title">Work report: %1$s – %2$s</string>
+    <string name="report_note">A draft gathered from Mandat: check it, add to it and remove what is not needed. Sensitive matters and private promises are left out.</string>
+    <string name="report_done">What was done</string>
+    <string name="report_kept">Public promises kept</string>
+    <string name="report_meetings">Meeting people</string>
+    <string name="report_receptions">receptions</string>
+    <string name="report_visits">visits</string>
+    <string name="report_aid">Aid</string>
+    <string name="report_collected">collected</string>
+    <string name="report_in_work">What I am working on next</string>
 </resources>

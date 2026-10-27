@@ -79,6 +79,7 @@ fun RetroScreen(db: MandatDb, session: Session) {
     val entries by remember(db) { db.time().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val promises by remember(db) { db.promises().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val delegations by remember(db) { db.delegations().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val aid by remember(db) { db.money().observeAid().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val links by remember(db) { db.people().observeLinks() }.collectAsStateWithLifecycle(emptyList())
@@ -133,6 +134,23 @@ fun RetroScreen(db: MandatDb, session: Session) {
                     }
                     Text("${Dates.format(span.from)} – ${Dates.format(span.to)}", style = MaterialTheme.typography.labelLarge, color = Muted, modifier = Modifier.padding(top = 6.dp))
                     if (d != null && d.focus.any { it.approximate }) Text(stringResource(R.string.retro_approx), style = MaterialTheme.typography.labelSmall, color = Muted)
+                    // A report for voters, drafted from this period as a text to edit and export
+                    if (d != null) {
+                        val heads = ReportHeads(
+                            title = stringResource(R.string.report_title, Dates.format(span.from), Dates.format(span.to)),
+                            done = stringResource(R.string.report_done), kept = stringResource(R.string.report_kept),
+                            meetings = stringResource(R.string.report_meetings), aid = stringResource(R.string.report_aid),
+                            inWork = stringResource(R.string.report_in_work), receptions = stringResource(R.string.report_receptions),
+                            visits = stringResource(R.string.report_visits), collected = stringResource(R.string.report_collected),
+                            note = stringResource(R.string.report_note),
+                        )
+                        QuickChip(stringResource(R.string.report_make), false, Modifier.padding(top = 8.dp)) {
+                            val body = voterReport(heads, span, matters, d.finishedIds.toSet(), promises, events, aid)
+                            session.showRetro = false
+                            session.showTexts = true
+                            session.textDraft = newText(null, ua.mandat.data.TextKind.REPORT, heads.title, body)
+                        }
+                    }
                 }
             }
             if (d == null) return@LazyColumn
@@ -312,5 +330,52 @@ private fun PairColumns(values: List<Pair<String, Pair<Int, Int>>>, colorA: Colo
                 Text(label, style = MaterialTheme.typography.labelSmall, color = Muted, maxLines = 1)
             }
         }
+    }
+}
+
+/** Headings of the voters' report, in the app's language. */
+class ReportHeads(val title: String, val done: String, val kept: String, val meetings: String, val aid: String, val inWork: String,
+                  val receptions: String, val visits: String, val collected: String, val note: String)
+
+/**
+ * A first draft of a report to voters for [span]: matters completed, public promises kept,
+ * receptions and visits, aid organised, and what is still in work. Only what may be public:
+ * sensitive matters, private promises and people's names are left out. The owner edits it.
+ */
+fun voterReport(h: ReportHeads, span: Span, matters: List<ua.mandat.data.Matter>, finished: Set<Long>, promises: List<ua.mandat.data.Promise>,
+                events: List<ua.mandat.data.Event>, aid: List<ua.mandat.data.AidRecord>): String = buildString {
+    val open = matters.filter { !it.sensitive }
+    append("# ").append(h.title).append("\n\n")
+    append("[").append(h.note).append("]\n\n")
+    val done = open.filter { it.id in finished }
+    if (done.isNotEmpty()) {
+        append("## ").append(h.done).append("\n")
+        done.forEach { m -> append("- ").append(m.title).append(m.goal.takeIf { it.isNotBlank() }?.let { " — $it" }.orEmpty()).append("\n") }
+        append("\n")
+    }
+    val kept = promises.filter { it.isPublic && ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.DONE && it.closedAt != null && Dates.dayOf(it.closedAt) in span }
+    if (kept.isNotEmpty()) {
+        append("## ").append(h.kept).append("\n")
+        kept.forEach { append("- ").append(it.what).append("\n") }
+        append("\n")
+    }
+    val inSpan = events.filter { it.day in span }
+    val receptions = inSpan.count { it.kind == ua.mandat.data.EventKind.RECEPTION.name }
+    val visits = inSpan.count { it.kind == ua.mandat.data.EventKind.TRIP.name }
+    if (receptions + visits > 0) {
+        append("## ").append(h.meetings).append("\n")
+        if (receptions > 0) append("- ").append(h.receptions).append(": ").append(receptions).append("\n")
+        if (visits > 0) append("- ").append(h.visits).append(": ").append(visits).append("\n")
+        append("\n")
+    }
+    val aidIn = aid.filter { it.day in span && it.collected }.sumOf { it.uah }
+    if (aidIn > 0) {
+        append("## ").append(h.aid).append("\n")
+        append("- ").append(h.collected).append(": ").append(ua.mandat.data.formatAmount(aidIn)).append(" грн\n\n")
+    }
+    val active = open.filter { ua.mandat.data.MatterStatus.of(it.status) == ua.mandat.data.MatterStatus.ACTIVE && it.attention == ua.mandat.data.Attention.FOCUS.name }
+    if (active.isNotEmpty()) {
+        append("## ").append(h.inWork).append("\n")
+        active.forEach { m -> append("- ").append(m.title).append(m.nextStep.takeIf { it.isNotBlank() }?.let { " — $it" }.orEmpty()).append("\n") }
     }
 }

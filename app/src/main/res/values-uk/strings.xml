@@ -1043,4 +1043,15 @@
     <string name="text_kind_other">Інше</string>
     <string name="text_kind_template">Мій шаблон</string>
     <string name="export_text_one">Текст: %1$s (.docx, .md)</string>
+    <string name="report_make">Скласти звіт для виборців →</string>
+    <string name="report_title">Звіт про роботу: %1$s – %2$s</string>
+    <string name="report_note">Чернетка зібрана з Мандата: перевірте, доповніть і приберіть зайве. Чутливі справи й особисті обіцянки сюди не потрапили.</string>
+    <string name="report_done">Що зроблено</string>
+    <string name="report_kept">Виконані публічні обіцянки</string>
+    <string name="report_meetings">Зустрічі з людьми</string>
+    <string name="report_receptions">особистих прийомів</string>
+    <string name="report_visits">виїздів</string>
+    <string name="report_aid">Допомога</string>
+    <string name="report_collected">зібрано</string>
+    <string name="report_in_work">Над чим працюю далі</string>
 </resources>
