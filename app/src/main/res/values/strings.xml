@@ -974,11 +974,11 @@
     <string name="retro_started">new matters</string>
     <string name="retro_finished">completed</string>
     <string name="retro_avg_days">days on average to completion</string>
-    <string name="retro_on_time_pct">%% of deadlines on time</string>
+    <string name="retro_on_time_pct">deadlines on time, per cent</string>
     <string name="retro_directions">Directions: time by month</string>
     <string name="retro_directions_hint">Hours given to each role: calendar events through their matter plus time added in matters.</string>
     <string name="retro_focus">Past priorities</string>
-    <string name="retro_focus_hint">What was in focus each month, and how it ended.</string>
+    <string name="retro_focus_hint">What was in focus each month, and how it ended. For months before the journal (≈): the matters most worked on.</string>
     <string name="retro_focus_legend">✓ completed · ▶ still in work · ‖ paused or closed</string>
     <string name="retro_flow">Movement</string>
     <string name="retro_on_time_months">Deadlines on time by month</string>

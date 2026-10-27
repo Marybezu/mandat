@@ -49,9 +49,29 @@ object Retro {
 
     data class FocusMonth(val month: Span, val matterIds: List<Long>, val approximate: Boolean)
 
+    /**
+     * The matters most worked on in a month, by what happened in them: events, delegations given,
+     * deadlines due and time added. Used for months before the journal began.
+     */
+    fun mostActive(month: Span, events: List<Event>, delegations: List<Delegation>, deadlines: List<Deadline>, entries: List<TimeEntry>,
+                   zone: ZoneId = ZoneId.systemDefault(), limit: Int = 5): List<Long> {
+        val score = HashMap<Long, Int>()
+        fun add(id: Long?, n: Int = 1) { if (id != null) score[id] = (score[id] ?: 0) + n }
+        events.filter { it.day in month }.forEach { add(it.matterId, 2) }
+        delegations.filter { dayOf(it.createdAt, zone) in month }.forEach { add(it.matterId) }
+        deadlines.filter { it.day in month }.forEach { add(it.matterId) }
+        entries.filter { it.day in month }.forEach { add(it.matterId, 1 + it.minutes / 60) }
+        return score.entries.sortedByDescending { it.value }.take(limit).map { it.key }
+    }
+
     /** Matters that were in focus at some point of each month (and active at that time). */
-    fun focusByMonth(span: Span, matters: List<Matter>, history: Map<Long, List<MatterChange>>, zone: ZoneId = ZoneId.systemDefault()): List<FocusMonth> =
-        months(span).map { month ->
+    fun focusByMonth(span: Span, matters: List<Matter>, history: Map<Long, List<MatterChange>>, zone: ZoneId = ZoneId.systemDefault(),
+                     before: (Span) -> List<Long> = { emptyList() }): List<FocusMonth> {
+        // Months that ended before the journal began cannot tell what was in focus: the most
+        // worked-on matters stand in for them, marked as approximate
+        val journalFrom = history.values.flatten().minOfOrNull { it.day }
+        return months(span).map { month ->
+            if (journalFrom == null || month.to < journalFrom) return@map FocusMonth(month, before(month), true)
             var approx = false
             val ids = matters.filter { m ->
                 if (dayOf(m.createdAt, zone) > month.to) return@filter false
@@ -68,6 +88,7 @@ object Retro {
             }.map { it.id }
             FocusMonth(month, ids, approx)
         }
+    }
 
     data class MonthFlow(val month: Span, val started: Int, val finished: Int, val dueDeadlines: Int, val onTime: Int)
 

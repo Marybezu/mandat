@@ -78,6 +78,7 @@ fun RetroScreen(db: MandatDb, session: Session) {
     val eventLinks by remember(db) { db.events().observeLinks() }.collectAsStateWithLifecycle(emptyList())
     val entries by remember(db) { db.time().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val promises by remember(db) { db.promises().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db) { db.delegations().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val links by remember(db) { db.people().observeLinks() }.collectAsStateWithLifecycle(emptyList())
@@ -96,11 +97,11 @@ fun RetroScreen(db: MandatDb, session: Session) {
     val roleName = roles.associate { it.id to it.name }
 
     // Counted away from the screen thread: years of records never slow the screen down
-    val data by produceState<RetroData?>(null, span, matters, history, deadlines, events, eventLinks, entries) {
+    val data by produceState<RetroData?>(null, span, matters, history, deadlines, events, eventLinks, entries, delegations) {
         value = withContext(Dispatchers.Default) {
             val byMatter = history.groupBy { it.matterId }
             RetroData(
-                focus = Retro.focusByMonth(span, matters, byMatter),
+                focus = Retro.focusByMonth(span, matters, byMatter) { m -> Retro.mostActive(m, events, delegations, deadlines, entries) },
                 flow = Retro.flowByMonth(span, today, matters, byMatter, deadlines),
                 durations = Retro.durations(span, matters, byMatter),
                 time = Retro.timeByMonth(span, events, entries, matters.associate { it.id to it.roleId }),

@@ -976,11 +976,11 @@
     <string name="retro_started">нових справ</string>
     <string name="retro_finished">завершено</string>
     <string name="retro_avg_days">днів у середньому до завершення</string>
-    <string name="retro_on_time_pct">%% строків вчасно</string>
+    <string name="retro_on_time_pct">строків вчасно, у відсотках</string>
     <string name="retro_directions">Напрямки: час за місяцями</string>
     <string name="retro_directions_hint">Скільки годин ішло на кожну роль: події календаря через справу й додане в справах.</string>
     <string name="retro_focus">Пріоритети минулого</string>
-    <string name="retro_focus_hint">Що було у фокусі щомісяця і чим скінчилося.</string>
+    <string name="retro_focus_hint">Що було у фокусі щомісяця і чим скінчилося. Для місяців до журналу змін (≈) — справи, у яких було найбільше роботи.</string>
     <string name="retro_focus_legend">✓ завершено · ▶ ще в роботі · ‖ призупинено чи закрито</string>
     <string name="retro_flow">Динаміка</string>
     <string name="retro_on_time_months">Строки вчасно за місяцями</string>
