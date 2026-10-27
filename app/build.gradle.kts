@@ -91,6 +91,9 @@ dependencies {
     // Password-protected export: standard ZIP with AES-256, opened by 7-Zip and similar apps
     implementation("net.lingala.zip4j:zip4j:2.11.5")
 
+    // Optional on-device AI: Gemma runtime by Google AI Edge (Apache 2.0); the model file is added by the owner
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.18.1")
+
     testImplementation("junit:junit:4.13.2")
 
     // Screen checks only (never in the app): draw each screen with neutral test data,
