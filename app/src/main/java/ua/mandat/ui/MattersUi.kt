@@ -563,36 +563,47 @@ private fun MatterLinks(db: MandatDb, session: Session, matterId: Long, draft: M
         )
     }
     stanceFor?.let { row ->
-        AlertDialog(
-            onDismissRequest = { stanceFor = null },
-            title = { Text(row.name) },
-            text = {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    Text(stringResource(R.string.stance), style = MaterialTheme.typography.labelLarge)
-                    (listOf<ua.mandat.data.Stance?>(null) + ua.mandat.data.Stance.entries).forEach { st ->
-                        TextButton(onClick = {
-                            stanceFor = null
-                            session.write { it.people().setStance(matterId, row.personId, st?.name, Dates.today()) }
-                        }) { Text(st?.let { stringResource(it.label()) } ?: stringResource(R.string.stance_none)) }
-                    }
-                    // Who does what (RACI); only one person leads
-                    Text(stringResource(R.string.raci_title), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
-                    (listOf<ua.mandat.data.Raci?>(null) + ua.mandat.data.Raci.entries).forEach { r ->
-                        TextButton(onClick = {
-                            stanceFor = null
-                            session.write { db ->
-                                db.withTransaction {
-                                    if (r == ua.mandat.data.Raci.LEAD) db.people().clearLead(matterId)
-                                    db.people().setRaci(matterId, row.personId, r?.name)
-                                }
+        // Where this person stands and what they do here; each tap is saved at once
+        var stance by remember(row) { mutableStateOf(ua.mandat.data.Stance.of(row.stance)) }
+        var raci by remember(row) { mutableStateOf(ua.mandat.data.Raci.of(row.raci)) }
+        EditSheet(title = row.name, onDismiss = { stanceFor = null }, onSave = null) {
+            SheetGroup(stringResource(R.string.stance)) {
+                ChoiceTiles(listOf<ua.mandat.data.Stance?>(null) + ua.mandat.data.Stance.entries, stance,
+                    label = { st -> st?.let { stringResource(it.label()) } ?: stringResource(R.string.stance_none) },
+                    onPick = { st ->
+                        stance = st
+                        session.write { it.people().setStance(matterId, row.personId, st?.name, Dates.today()) }
+                    },
+                    columns = 3,
+                    mark = { st -> when (st) {
+                        ua.mandat.data.Stance.ALLY -> ChartColors.teal
+                        ua.mandat.data.Stance.UNDECIDED -> ChartColors.amberLight
+                        ua.mandat.data.Stance.OPPONENT -> ChartColors.salmon
+                        ua.mandat.data.Stance.NEUTRAL -> ChartColors.grayLight
+                        null -> null
+                    } },
+                )
+            }
+            // Who does what (RACI); only one person leads
+            SheetGroup(stringResource(R.string.raci_title)) {
+                ChoiceTiles(listOf<ua.mandat.data.Raci?>(null) + ua.mandat.data.Raci.entries, raci,
+                    label = { r -> r?.let { stringResource(it.label()) } ?: stringResource(R.string.raci_none) },
+                    onPick = { r ->
+                        raci = r
+                        session.write { db ->
+                            db.withTransaction {
+                                if (r == ua.mandat.data.Raci.LEAD) db.people().clearLead(matterId)
+                                db.people().setRaci(matterId, row.personId, r?.name)
                             }
-                        }) { Text(r?.let { stringResource(it.label()) } ?: stringResource(R.string.raci_none)) }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { stanceFor = null }) { Text(stringResource(R.string.cancel)) } },
-        )
+                        }
+                    },
+                    columns = 3,
+                )
+            }
+            TextButton(onClick = { stanceFor = null; session.saveDraft(); session.oneOnOne = row.personId }) {
+                Text(stringResource(R.string.brief_title) + " →")
+            }
+        }
     }
 }
 

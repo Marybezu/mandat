@@ -638,11 +638,14 @@ private fun AddDialog(db: MandatDb, session: Session) {
     }
 
     // The text lives in the Session: it survives turning the phone and is saved on lock
-    AlertDialog(
-        onDismissRequest = { session.inboxDraft = null },
-        title = { Text(stringResource(R.string.inbox)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    EditSheet(
+        title = stringResource(R.string.inbox),
+        onDismiss = { session.inboxDraft = null },
+        onSave = { session.saveInboxDraft() },
+        saveText = stringResource(R.string.save_to_inbox),
+    ) {
+        SheetGroup {
+
                 OutlinedTextField(
                     value = text,
                     onValueChange = { session.inboxDraft = it },
@@ -679,11 +682,8 @@ private fun AddDialog(db: MandatDb, session: Session) {
                             color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.padding(top = 4.dp))
                     }
                 }
-            }
-        },
-        confirmButton = { TextButton(onClick = { session.saveInboxDraft() }) { Text(stringResource(R.string.save_to_inbox)) } },
-        dismissButton = { TextButton(onClick = { session.inboxDraft = null }) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+    }
 }
 
 /** A visible reminder while screenshots are allowed; tapping it forbids them again. */
