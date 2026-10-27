@@ -10,7 +10,7 @@ import java.util.zip.ZipInputStream
 
 class TextsTest {
     @Test fun countsWords() {
-        assertEquals(5, wordCount("# Заголовок\n- пункт один, і ще м'яко"))
+        assertEquals(6, wordCount("# Заголовок\n- пункт один, і ще м'яко"))
         assertEquals(0, speakingMinutes(0))
         assertEquals(1, speakingMinutes(30))
         assertEquals(3, speakingMinutes(360))
