@@ -934,4 +934,16 @@
     <string name="votes_needed">How many "for" are needed</string>
     <string name="votes_needed_hint">A majority in a committee or council, say. People with a stance in this matter are counted.</string>
     <string name="votes_clear">Do not count</string>
+    <string name="minutes_short">%1$d min</string>
+    <string name="time_matter">Time in 30 days: %1$s</string>
+    <string name="time_by_role">Time by role</string>
+    <string name="time_total">In total: %1$s</string>
+    <string name="time_hint">Calendar events through their matter, plus time added in a matter (+15, +30, +60). Whole-day events are not counted.</string>
+    <string name="time_no_role">No role</string>
+    <string name="time_plan">(wanted %1$d %%)</string>
+    <string name="time_set_plan">Desired share of time</string>
+    <string name="time_plan_hint">What percentage of your time you want to give each role. Next to the facts you will see how it actually went.</string>
+    <string name="time_plan_sum">Total: %1$d %%</string>
+    <string name="time_from_events">From the calendar: %1$s</string>
+    <string name="time_by_hand">Added in matters: %1$s</string>
 </resources>

@@ -330,6 +330,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (!request.isNew) MatterStrip(db, request.matter, session)
+            if (!request.isNew) MatterTime(db, request.matter, session)
             OutlinedTextField(
                 value = draft.title, onValueChange = { draft.title = it },
                 label = { Text(stringResource(R.string.matter_title)) },
@@ -443,6 +444,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                             db.money().deleteAidFor(id)
                             db.reviews().unlinkRef("matter", id)
                             db.communities().unlinkRef("matter", id)
+                            db.time().clearMatter(id)
                             db.matters().delete(id)
                         }
                     }
@@ -714,4 +716,38 @@ private fun VoteCounter(linked: List<ua.mandat.data.MatterPersonRow>, draft: Mat
             dismissButton = { TextButton(onClick = { draft.votesNeeded = null; editing = false }) { Text(stringResource(R.string.votes_clear)) } },
         )
     }
+}
+
+/**
+ * Time on this matter: calendar events linked to it count by themselves; work outside events is
+ * added with one tap. Shown for the last 30 days.
+ */
+@Composable
+private fun MatterTime(db: MandatDb, matter: Matter, session: Session) {
+    val entries by remember(db, matter.id) { db.time().observeForMatter(matter.id) }.collectAsStateWithLifecycle(emptyList())
+    val events by remember(db, matter.id) { db.events().observeForMatter(matter.id) }.collectAsStateWithLifecycle(emptyList())
+    val today = Dates.today()
+    val span = ua.mandat.data.Span(today - 29, today)
+    val fromEvents = events.filter { it.day in span }.sumOf { ua.mandat.data.eventMinutes(it) }
+    val byHand = entries.filter { it.day in span }.sumOf { it.minutes }
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+        Text(
+            stringResource(R.string.time_matter, hoursText(fromEvents + byHand)),
+            style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f),
+        )
+        listOf(15, 30, 60).forEach { m ->
+            TextButton(onClick = {
+                session.write { it.time().insert(ua.mandat.data.TimeEntry(day = today, minutes = m, matterId = matter.id, roleId = matter.roleId, createdAt = System.currentTimeMillis())) }
+            }) { Text("+$m") }
+        }
+    }
+}
+
+/** Minutes as "1 год 30 хв", "45 хв" or "0". */
+@Composable
+fun hoursText(minutes: Int): String = when {
+    minutes <= 0 -> "0"
+    minutes < 60 -> stringResource(R.string.minutes_short, minutes)
+    minutes % 60 == 0 -> stringResource(R.string.hours_short, minutes / 60)
+    else -> stringResource(R.string.hours_short, minutes / 60) + " " + stringResource(R.string.minutes_short, minutes % 60)
 }

@@ -200,6 +200,7 @@ fun RolesManager(db: MandatDb, session: Session) {
                     session.write { db ->
                         db.withTransaction {
                             db.matters().clearRole(role.id)
+                            db.time().clearRole(role.id)
                             db.roles().delete(role.id)
                         }
                     }

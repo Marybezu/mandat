@@ -97,6 +97,8 @@ class Session(app: Application) : AndroidViewModel(app) {
     var showTriage by mutableStateOf(false)
     /** A list behind a dashboard tile: what kind and which period. */
     var periodView by mutableStateOf<Pair<PeriodKind, ua.mandat.data.Span>?>(null)
+    /** What one role's time went to (0: no role), for a period. */
+    var roleTime by mutableStateOf<Pair<Long, ua.mandat.data.Span>?>(null)
     /** A request from elsewhere (for example the dashboard) to show a tab, and a filter for Matters. */
     var tabRequest by mutableStateOf<String?>(null)
     var mattersRequest by mutableStateOf<Pair<Int, String>?>(null)

@@ -936,4 +936,16 @@
     <string name="votes_needed">Скільки потрібно «за»</string>
     <string name="votes_needed_hint">Наприклад, більшість у комітеті чи раді. Рахуються люди з позицією в цій справі.</string>
     <string name="votes_clear">Не рахувати</string>
+    <string name="minutes_short">%1$d хв</string>
+    <string name="time_matter">Час за 30 днів: %1$s</string>
+    <string name="time_by_role">Час за ролями</string>
+    <string name="time_total">Усього: %1$s</string>
+    <string name="time_hint">Події календаря через свою справу, плюс додане в справі (+15, +30, +60). Події на весь день не рахуються.</string>
+    <string name="time_no_role">Без ролі</string>
+    <string name="time_plan">(хотіли %1$d %%)</string>
+    <string name="time_set_plan">Бажана частка часу</string>
+    <string name="time_plan_hint">Скільки відсотків часу ви хочете давати кожній ролі. Поруч з фактом буде видно, як вийшло насправді.</string>
+    <string name="time_plan_sum">Разом: %1$d %%</string>
+    <string name="time_from_events">З календаря: %1$s</string>
+    <string name="time_by_hand">Додано в справах: %1$s</string>
 </resources>

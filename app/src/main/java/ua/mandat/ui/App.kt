@@ -313,6 +313,10 @@ private fun Main(db: MandatDb, session: Session) {
         TriageScreen(db, session)
         return
     }
+    session.roleTime?.let { (role, span) ->
+        RoleTimeScreen(db, session, role, span)
+        return
+    }
     session.periodView?.let { (kind, span) ->
         PeriodScreen(db, session, kind, span)
         return

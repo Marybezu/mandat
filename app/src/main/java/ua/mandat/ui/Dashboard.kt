@@ -135,6 +135,7 @@ fun Dashboard(db: MandatDb, session: Session) {
                     add { MovedBlock(o, data?.prev, data?.weekly.orEmpty()) { kind -> session.periodView = kind to span } }
                 }
                 if (o.roles.any { it.moved > 0 }) add { RolesBlock(o, roles.associate { it.id to it.name }, hintIdle = !long, session) }
+                add { TimeBlock(db, session, span, roles) }
                 val open: (PeriodKind) -> Unit = { kind -> session.periodView = kind to span }
                 if (o.deadlinesDue + o.delegationsGiven + o.delegationsDone > 0) add { DeadlinesBlock(o, open) }
                 if (o.publicAll.total + o.personalPromises.total + o.keptInSpan > 0) add { PromisesBlock(o, open) { session.showPromises = true } }
