@@ -601,14 +601,10 @@ private fun LookSection(session: Session) {
     androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         listOf(Appearance.AUTO to R.string.look_auto, Appearance.LIGHT to R.string.look_light, Appearance.DARK to R.string.look_dark)
             .forEach { (value, label) ->
-                androidx.compose.material3.FilterChip(
-                    selected = mode == value,
-                    onClick = {
+                QuickChip(stringResource(label), mode == value) {
                         mode = value
                         Appearance.setMode(context, value)
-                    },
-                    label = { Text(stringResource(label)) },
-                )
+                    }
             }
     }
     Row(verticalAlignment = Alignment.CenterVertically) {

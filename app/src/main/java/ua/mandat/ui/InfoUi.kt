@@ -278,14 +278,16 @@ fun InfoDialog(db: MandatDb, session: Session, d: InfoDraft) {
     var confirmDelete by remember { mutableStateOf(false) }
     val none = stringResource(R.string.nobody)
 
-    AlertDialog(
-        onDismissRequest = { session.infoDraft = null },
-        properties = DialogProperties(dismissOnClickOutside = false),
-        title = { Text(stringResource(d.kind.label())) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    EditSheet(
+        title = stringResource(d.kind.label()),
+        onDismiss = { session.infoDraft = null },
+        onSave = { session.saveInfoDraft() },
+        saveEnabled = d.title.isNotBlank(),
+    ) {
+        SheetGroup {
+
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    InfoKind.entries.forEach { k -> FilterChip(selected = d.kind == k, onClick = { d.kind = k }, label = { Text(stringResource(k.label())) }) }
+                    InfoKind.entries.forEach { k -> QuickChip(stringResource(k.label()), d.kind == k) { d.kind = k } }
                 }
                 Text(stringResource(d.kind.hint()), style = MaterialTheme.typography.labelSmall, color = Muted)
                 OutlinedTextField(d.title, { d.title = it }, label = { Text(stringResource(R.string.what)) }, modifier = Modifier.fillMaxWidth())
@@ -301,19 +303,19 @@ fun InfoDialog(db: MandatDb, session: Session, d: InfoDraft) {
                 Text(stringResource(R.string.info_reach), style = MaterialTheme.typography.labelLarge)
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(1, 2, 3).forEach { r ->
-                        FilterChip(selected = d.reach == r, onClick = { d.reach = if (d.reach == r) null else r }, label = { Text(stringResource(reachLabel(r))) })
+                        QuickChip(stringResource(reachLabel(r)), d.reach == r) { d.reach = if (d.reach == r) null else r }
                     }
                 }
                 when (d.kind) {
                     InfoKind.ATTACK -> {
                         Text(stringResource(R.string.info_stage), style = MaterialTheme.typography.labelLarge)
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            AttackStage.entries.forEach { s -> FilterChip(selected = d.stage == s, onClick = { d.stage = s }, label = { Text(stringResource(s.label())) }) }
+                            AttackStage.entries.forEach { s -> QuickChip(stringResource(s.label()), d.stage == s) { d.stage = s } }
                         }
                         Text(stringResource(R.string.info_decision), style = MaterialTheme.typography.labelLarge)
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             AttackDecision.entries.forEach { a ->
-                                FilterChip(selected = d.decision == a, onClick = { d.decision = if (d.decision == a) null else a }, label = { Text(stringResource(a.label())) })
+                                QuickChip(stringResource(a.label()), d.decision == a) { d.decision = if (d.decision == a) null else a }
                             }
                         }
                         d.decision?.let { Text(stringResource(it.hint()), style = MaterialTheme.typography.labelSmall, color = Muted) }
@@ -339,11 +341,8 @@ fun InfoDialog(db: MandatDb, session: Session, d: InfoDraft) {
                     Text(stringResource(R.string.info_closed_mark), style = MaterialTheme.typography.bodyMedium)
                 }
                 if (!d.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
-            }
-        },
-        confirmButton = { TextButton(onClick = { session.saveInfoDraft() }, enabled = d.title.isNotBlank()) { Text(stringResource(R.string.save)) } },
-        dismissButton = { TextButton(onClick = { session.infoDraft = null }) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+    }
     if (confirmDelete) {
         ConfirmDelete(onConfirm = {
             val id = d.item.id
@@ -379,23 +378,22 @@ fun MessageDialog(db: MandatDb, session: Session, d: MessageDraft) {
     val matters by remember(db) { db.matters().observeActiveTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val allMatters by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     var confirmDelete by remember { mutableStateOf(false) }
-    AlertDialog(
-        onDismissRequest = { session.messageDraft = null },
-        properties = DialogProperties(dismissOnClickOutside = false),
-        title = { Text(stringResource(R.string.message_new)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    EditSheet(
+        title = stringResource(R.string.message_new),
+        onDismiss = { session.messageDraft = null },
+        onSave = { session.saveMessageDraft() },
+        saveEnabled = d.text.isNotBlank(),
+    ) {
+        SheetGroup {
+
                 OutlinedTextField(d.text, { d.text = it }, label = { Text(stringResource(R.string.message_text)) }, minLines = 2, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(d.proof, { d.proof = it }, label = { Text(stringResource(R.string.message_proof)) },
                     supportingText = { Text(stringResource(R.string.message_proof_hint)) }, minLines = 2, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(d.audience, { d.audience = it }, label = { Text(stringResource(R.string.message_audience)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 MatterPicker(matters, allMatters, d.matterId) { d.matterId = it }
                 if (!d.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
-            }
-        },
-        confirmButton = { TextButton(onClick = { session.saveMessageDraft() }, enabled = d.text.isNotBlank()) { Text(stringResource(R.string.save)) } },
-        dismissButton = { TextButton(onClick = { session.messageDraft = null }) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+    }
     if (confirmDelete) {
         ConfirmDelete(onConfirm = {
             val id = d.message.id
@@ -507,12 +505,14 @@ fun AllianceDialog(db: MandatDb, session: Session, d: AllianceDraft) {
     val allMatters by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     var confirmDelete by remember { mutableStateOf(false) }
     val none = stringResource(R.string.nobody)
-    AlertDialog(
-        onDismissRequest = { session.allianceDraft = null },
-        properties = DialogProperties(dismissOnClickOutside = false),
-        title = { Text(stringResource(R.string.alliance_new)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    EditSheet(
+        title = stringResource(R.string.alliance_new),
+        onDismiss = { session.allianceDraft = null },
+        onSave = { session.saveAllianceDraft() },
+        saveEnabled = d.valid(),
+    ) {
+        SheetGroup {
+
                 OutlinedTextField(d.withWhom, { d.withWhom = it }, label = { Text(stringResource(R.string.alliance_with)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(d.about, { d.about = it }, label = { Text(stringResource(R.string.alliance_about)) }, minLines = 2, modifier = Modifier.fillMaxWidth())
                 Picker(
@@ -526,15 +526,12 @@ fun AllianceDialog(db: MandatDb, session: Session, d: AllianceDraft) {
                 OutlinedTextField(d.gives, { d.gives = it }, label = { Text(stringResource(R.string.alliance_gives)) }, minLines = 1, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(d.gets, { d.gets = it }, label = { Text(stringResource(R.string.alliance_gets)) }, minLines = 1, modifier = Modifier.fillMaxWidth())
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    AllianceStatus.entries.forEach { s -> FilterChip(selected = d.status == s, onClick = { d.status = s }, label = { Text(stringResource(s.label())) }) }
+                    AllianceStatus.entries.forEach { s -> QuickChip(stringResource(s.label()), d.status == s) { d.status = s } }
                 }
                 OutlinedTextField(d.notes, { d.notes = it }, label = { Text(stringResource(R.string.person_notes)) }, minLines = 2, modifier = Modifier.fillMaxWidth())
                 if (!d.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
-            }
-        },
-        confirmButton = { TextButton(onClick = { session.saveAllianceDraft() }, enabled = d.valid()) { Text(stringResource(R.string.save)) } },
-        dismissButton = { TextButton(onClick = { session.allianceDraft = null }) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+    }
     if (confirmDelete) {
         ConfirmDelete(onConfirm = {
             val id = d.alliance.id

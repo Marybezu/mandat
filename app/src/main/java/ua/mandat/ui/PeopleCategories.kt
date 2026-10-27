@@ -89,11 +89,11 @@ fun CategoryFields(db: MandatDb, draft: PersonDraft) {
         }
     }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        FilterChip(selected = currentKey == null && !newOwn, onClick = { pick(null) }, label = { Text(stringResource(R.string.not_set)) })
-        choices.forEach { k -> FilterChip(selected = currentKey == k, onClick = { pick(k) }, label = { Text(categoryLabel(k)) }) }
-        FilterChip(selected = newOwn || (draft.category == PersonCategory.OTHER && OWN + draft.categoryCustom.trim() !in choices),
-            onClick = { newOwn = true; draft.category = PersonCategory.OTHER; draft.categoryCustom = "" },
-            label = { Text(stringResource(R.string.category_own)) })
+        QuickChip(stringResource(R.string.not_set), currentKey == null && !newOwn) { pick(null) }
+        choices.forEach { k -> QuickChip(categoryLabel(k), currentKey == k) { pick(k) } }
+        QuickChip(stringResource(R.string.category_own), newOwn || (draft.category == PersonCategory.OTHER && OWN + draft.categoryCustom.trim() !in choices)) {
+            newOwn = true; draft.category = PersonCategory.OTHER; draft.categoryCustom = ""
+        }
     }
     if (newOwn || (draft.category == PersonCategory.OTHER && OWN + draft.categoryCustom.trim() !in choices)) {
         OutlinedTextField(value = draft.categoryCustom, onValueChange = { draft.categoryCustom = it.take(100) },
@@ -103,8 +103,7 @@ fun CategoryFields(db: MandatDb, draft: PersonDraft) {
         Text(stringResource(R.string.category_more), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 4.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             choices.filter { it != currentKey }.forEach { k ->
-                FilterChip(selected = k in draft.more, onClick = { draft.more = if (k in draft.more) draft.more - k else draft.more + k },
-                    label = { Text(categoryLabel(k)) })
+                QuickChip(categoryLabel(k), k in draft.more) { draft.more = if (k in draft.more) draft.more - k else draft.more + k }
             }
         }
     }
@@ -157,11 +156,11 @@ fun CategorizeScreen(db: MandatDb, session: Session) {
             }
             suggestCategory(p.organization, p.jobTitle)?.let { s ->
                 Text(stringResource(R.string.categorize_suggested), style = MaterialTheme.typography.labelLarge)
-                FilterChip(selected = true, onClick = { assign(s.name) }, label = { Text(stringResource(s.label())) })
+                QuickChip(stringResource(s.label()), true) { assign(s.name) }
                 Spacer(Modifier.height(Space.gap))
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                choices.forEach { k -> FilterChip(selected = false, onClick = { assign(k) }, label = { Text(categoryLabel(k)) }) }
+                choices.forEach { k -> QuickChip(categoryLabel(k), false) { assign(k) } }
             }
             Row {
                 TextButton(onClick = { skipped = skipped + p.id }) { Text(stringResource(R.string.categorize_skip)) }

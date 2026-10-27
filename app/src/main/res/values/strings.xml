@@ -963,4 +963,6 @@
     <string name="delegation_group_when">Matter and dates</string>
     <string name="promise_group_kind">What kind of promise</string>
     <string name="delete_question">Delete? This cannot be undone.</string>
+    <string name="pick_one">Choose</string>
+    <string name="matter_group_work">Work</string>
 </resources>

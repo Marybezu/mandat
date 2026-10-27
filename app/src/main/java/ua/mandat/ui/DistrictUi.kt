@@ -421,48 +421,28 @@ fun CommunityScreen(db: MandatDb, session: Session, id: Long) {
 
 /** Choose one item from a list by its text, with a search box. */
 @Composable
-fun PickTextDialog(options: List<Pair<Long, String>>, onPick: (Long) -> Unit, onCancel: () -> Unit) {
-    var q by remember { mutableStateOf("") }
-    val shown = options.filter { q.isBlank() || it.second.contains(q.trim(), ignoreCase = true) }.take(100)
-    AlertDialog(
-        onDismissRequest = onCancel,
-        text = {
-            Column {
-                OutlinedTextField(q, { q = it }, singleLine = true, label = { Text(stringResource(R.string.search)) }, modifier = Modifier.fillMaxWidth())
-                Column(Modifier.height(340.dp).verticalScroll(rememberScrollState())) {
-                    if (shown.isEmpty()) Text(stringResource(R.string.search_nothing), color = Muted, modifier = Modifier.padding(top = 12.dp))
-                    shown.forEach { (id, text) ->
-                        Text(text, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.fillMaxWidth().clickable { onPick(id) }.padding(vertical = 10.dp))
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) } },
-    )
-}
+fun PickTextDialog(options: List<Pair<Long, String>>, onPick: (Long) -> Unit, onCancel: () -> Unit, title: String = stringResource(R.string.pick_one)) =
+    PickSheet(title, options.map { (id, text) -> PickItem(id, text) }, onPick = onPick, onDismiss = onCancel)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CommunityDialog(session: Session, d: CommunityDraft) {
-    AlertDialog(
-        onDismissRequest = { session.communityDraft = null },
-        properties = DialogProperties(dismissOnClickOutside = false),
-        title = { Text(stringResource(R.string.community_new)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    EditSheet(
+        title = stringResource(R.string.community_new),
+        onDismiss = { session.communityDraft = null },
+        onSave = { session.saveCommunityDraft() },
+        saveEnabled = d.name.isNotBlank(),
+    ) {
+        SheetGroup {
+
                 OutlinedTextField(d.name, { d.name = it }, label = { Text(stringResource(R.string.community_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    CommunityKind.entries.forEach { k -> FilterChip(selected = d.kind == k, onClick = { d.kind = k }, label = { Text(stringResource(k.label())) }) }
+                    CommunityKind.entries.forEach { k -> QuickChip(stringResource(k.label()), d.kind == k) { d.kind = k } }
                 }
                 OutlinedTextField(d.population, { d.population = it.filter { ch -> ch.isDigit() }.take(9) }, label = { Text(stringResource(R.string.community_population)) },
                     singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(d.head, { d.head = it }, label = { Text(stringResource(R.string.community_head)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(d.notes, { d.notes = it }, label = { Text(stringResource(R.string.community_notes)) }, minLines = 2, modifier = Modifier.fillMaxWidth())
-            }
-        },
-        confirmButton = { TextButton(onClick = { session.saveCommunityDraft() }, enabled = d.name.isNotBlank()) { Text(stringResource(R.string.save)) } },
-        dismissButton = { TextButton(onClick = { session.communityDraft = null }) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+    }
 }

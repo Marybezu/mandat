@@ -65,24 +65,20 @@ fun ThankDialog(db: MandatDb, session: Session, d: Delegation) {
         session.thankFor = null
         session.write { it.delegations().update(d.copy(status = TaskStatus.DONE.name, closedAt = d.closedAt ?: System.currentTimeMillis(), thanked = true)) }
     }
-    AlertDialog(
-        onDismissRequest = { session.thankFor = null },
-        title = { Text(stringResource(R.string.thank_title, name)) },
-        text = { Text(stringResource(R.string.thank_hint), style = MaterialTheme.typography.bodyMedium) },
-        confirmButton = {
-            TextButton(onClick = {
+    EditSheet(
+        title = stringResource(R.string.thank_title, name),
+        onDismiss = { session.thankFor = null },
+        onSave = {
                 mark()
                 val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
                 context.startActivity(Intent.createChooser(send, null))
-            }) { Text(stringResource(R.string.thank_write)) }
-        },
-        dismissButton = {
-            Row {
-                TextButton(onClick = { mark() }) { Text(stringResource(R.string.thank_done)) }
-                TextButton(onClick = { session.thankFor = null }) { Text(stringResource(R.string.not_now)) }
-            }
-        },
-    )
+            },
+        saveText = stringResource(R.string.thank_write),
+    ) {
+        SheetGroup {
+Text(stringResource(R.string.thank_hint), style = MaterialTheme.typography.bodyMedium)
+        }
+    }
 }
 
 /**

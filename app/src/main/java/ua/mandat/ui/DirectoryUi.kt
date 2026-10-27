@@ -273,12 +273,17 @@ private fun ContactDialog(session: Session, d: ContactDraft) {
     val c = d.contact
     fun close() { session.contactDraft = null }
 
-    AlertDialog(
-        onDismissRequest = ::close,
-        properties = DialogProperties(dismissOnClickOutside = false),
-        title = { Text(stringResource(if (d.isNew) R.string.dir_add else R.string.dir_contact)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    EditSheet(
+        title = stringResource(if (d.isNew) R.string.dir_add else R.string.dir_contact),
+        onDismiss = ::close,
+        onSave = {
+                close()
+                session.write { d.persist(it) }
+            },
+        saveEnabled = d.name.isNotBlank() || d.phones.isNotBlank(),
+    ) {
+        SheetGroup {
+
                 if (!d.isNew) {
                     ReachButtons(c.phones.lines().mapNotNull { normalizePhone(it) }.distinct(), emailsIn(c.emails))
                     Spacer(Modifier.height(4.dp))
@@ -301,16 +306,8 @@ private fun ContactDialog(session: Session, d: ContactDraft) {
                     }) { Text(stringResource(R.string.dir_to_people)) }
                     TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
                 }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                close()
-                session.write { d.persist(it) }
-            }, enabled = d.name.isNotBlank() || d.phones.isNotBlank()) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = ::close) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+    }
     if (confirmDelete) {
         ConfirmDelete(onConfirm = {
             confirmDelete = false

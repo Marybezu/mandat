@@ -135,25 +135,8 @@ fun TodayFeel(db: MandatDb, session: Session) {
 }
 
 @Composable
-private fun LinkPickDialog(options: List<Pair<Long, String>>, onPick: (Long) -> Unit, onCancel: () -> Unit) {
-    var q by remember { mutableStateOf("") }
-    val shown = options.filter { q.isBlank() || it.second.contains(q.trim(), ignoreCase = true) }.take(100)
-    AlertDialog(
-        onDismissRequest = onCancel,
-        text = {
-            Column {
-                OutlinedTextField(q, { q = it }, singleLine = true, label = { Text(stringResource(R.string.search)) }, modifier = Modifier.fillMaxWidth())
-                Column(Modifier.height(320.dp).verticalScroll(rememberScrollState())) {
-                    shown.forEach { (id, name) ->
-                        Text(name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.fillMaxWidth().clickable { onPick(id) }.padding(vertical = 10.dp))
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) } },
-    )
-}
+private fun LinkPickDialog(options: List<Pair<Long, String>>, onPick: (Long) -> Unit, onCancel: () -> Unit) =
+    PickSheet(stringResource(R.string.pick_one), options.map { (id, text) -> PickItem(id, text) }, onPick = onPick, onDismiss = onCancel)
 
 /**
  * The diary: a mosaic of half a year (each square a day: written, or its mood or energy), the
@@ -204,7 +187,7 @@ fun DiaryScreen(db: MandatDb, session: Session) {
                 SectionCard(Sym.calendar, stringResource(R.string.diary_written_30, written30)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 6.dp)) {
                         listOf(R.string.diary_mode_written, R.string.diary_mood, R.string.diary_energy).forEachIndexed { i, label ->
-                            FilterChip(selected = mode == i, onClick = { mode = i }, label = { Text(stringResource(label)) })
+                            QuickChip(stringResource(label), mode == i) { mode = i }
                         }
                     }
                     Mosaic(today, byDay, mode, picked) { picked = it }
@@ -290,23 +273,20 @@ private fun DiaryEditDialog(session: Session, r: Review, onClose: () -> Unit) {
     var text by remember(r) { mutableStateOf(r.progress) }
     var energy by remember(r) { mutableStateOf(r.energy) }
     var mood by remember(r) { mutableStateOf(r.mood) }
-    AlertDialog(
-        onDismissRequest = onClose,
-        title = { Text(Dates.format(r.day)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(text, { text = it }, minLines = 3, modifier = Modifier.fillMaxWidth())
-                FeelRow(stringResource(R.string.diary_energy), energy) { energy = it }
-                FeelRow(stringResource(R.string.diary_mood), mood) { mood = it }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
+    EditSheet(
+        title = Dates.format(r.day),
+        onDismiss = onClose,
+        onSave = {
                 onClose()
                 val clean = text.trim().take(ua.mandat.data.MAX_NOTE_LENGTH)
                 session.write { it.reviews().update(r.copy(progress = clean, energy = energy, mood = mood)) }
-            }) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.cancel)) } },
-    )
+            },
+    ) {
+        SheetGroup {
+
+                OutlinedTextField(text, { text = it }, minLines = 3, modifier = Modifier.fillMaxWidth())
+                FeelRow(stringResource(R.string.diary_energy), energy) { energy = it }
+                FeelRow(stringResource(R.string.diary_mood), mood) { mood = it }
+        }
+    }
 }

@@ -176,9 +176,9 @@ fun BudgetScreen(db: MandatDb, session: Session) {
             }
             item(key = "period") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    FilterChip(selected = !year, onClick = { year = false; back = 0 }, label = { Text(stringResource(R.string.cal_month)) })
+                    QuickChip(stringResource(R.string.cal_month), !year) { year = false; back = 0 }
                     Spacer(Modifier.width(6.dp))
-                    FilterChip(selected = year, onClick = { year = true; back = 0 }, label = { Text(stringResource(R.string.dash_year)) })
+                    QuickChip(stringResource(R.string.dash_year), year) { year = true; back = 0 }
                     Spacer(Modifier.weight(1f))
                     IconButton(onClick = { back++ }) { Text("‹", style = MaterialTheme.typography.titleLarge) }
                     Text(title, style = MaterialTheme.typography.titleSmall)
@@ -395,25 +395,26 @@ fun MoneyDialog(db: MandatDb, session: Session, d: MoneyDraft) {
     val categories = (defaults + own + listOf(d.category)).distinct()
     var otherCurrency by remember { mutableStateOf(d.currency !in listOf("UAH", "USD", "EUR")) }
 
-    AlertDialog(
-        onDismissRequest = { session.moneyDraft = null },
-        properties = DialogProperties(dismissOnClickOutside = false),
-        title = { Text(stringResource(if (income) R.string.money_income else R.string.money_expense)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    EditSheet(
+        title = stringResource(if (income) R.string.money_income else R.string.money_expense),
+        onDismiss = { session.moneyDraft = null },
+        onSave = { session.saveMoneyDraft() },
+        saveEnabled = d.valid(),
+    ) {
+        SheetGroup {
+
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    FilterChip(selected = !income, onClick = { d.kind = MoneyKind.EXPENSE.name; d.category = ExpenseCategory.HOME.name }, label = { Text(stringResource(R.string.money_expense)) })
-                    FilterChip(selected = income, onClick = { d.kind = MoneyKind.INCOME.name; d.category = IncomeCategory.SALARY.name }, label = { Text(stringResource(R.string.money_income)) })
+                    QuickChip(stringResource(R.string.money_expense), !income) { d.kind = MoneyKind.EXPENSE.name; d.category = ExpenseCategory.HOME.name }
+                    QuickChip(stringResource(R.string.money_income), income) { d.kind = MoneyKind.INCOME.name; d.category = IncomeCategory.SALARY.name }
                 }
                 OutlinedTextField(d.amountText, { d.amountText = it.take(20) }, label = { Text(stringResource(R.string.money_amount)) }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), isError = d.amountText.isNotBlank() && d.amount() == null,
                     modifier = Modifier.fillMaxWidth())
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("UAH", "USD", "EUR").forEach { c ->
-                        FilterChip(selected = d.currency == c && !otherCurrency, onClick = { d.currency = c; otherCurrency = false }, label = { Text(c) })
+                        QuickChip(c, d.currency == c && !otherCurrency) { d.currency = c; otherCurrency = false }
                     }
-                    FilterChip(selected = otherCurrency, onClick = { otherCurrency = true; if (d.currency in listOf("UAH", "USD", "EUR")) d.currency = "" },
-                        label = { Text(stringResource(R.string.money_other_currency)) })
+                    QuickChip(stringResource(R.string.money_other_currency), otherCurrency) { otherCurrency = true; if (d.currency in listOf("UAH", "USD", "EUR")) d.currency = "" }
                 }
                 if (otherCurrency) {
                     OutlinedTextField(d.currency, { d.currency = it.filter { ch -> ch.isLetter() }.uppercase().take(3) }, label = { Text(stringResource(R.string.money_currency_code)) },
@@ -426,12 +427,12 @@ fun MoneyDialog(db: MandatDb, session: Session, d: MoneyDraft) {
                 }
                 Text(stringResource(R.string.money_category), style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    categories.forEach { c -> FilterChip(selected = d.category == c, onClick = { d.category = c }, label = { Text(categoryName(c)) }) }
+                    categories.forEach { c -> QuickChip(categoryName(c), d.category == c) { d.category = c } }
                 }
                 if (!income && d.category == ExpenseCategory.CHARITY.name) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         CharityKind.entries.forEach { k ->
-                            FilterChip(selected = d.charityKind == k, onClick = { d.charityKind = if (d.charityKind == k) null else k }, label = { Text(stringResource(k.label())) })
+                            QuickChip(stringResource(k.label()), d.charityKind == k) { d.charityKind = if (d.charityKind == k) null else k }
                         }
                     }
                     OutlinedTextField(d.toWhom, { d.toWhom = it }, label = { Text(stringResource(R.string.money_to_whom)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -450,11 +451,8 @@ fun MoneyDialog(db: MandatDb, session: Session, d: MoneyDraft) {
                     }
                 }
                 if (!d.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
-            }
-        },
-        confirmButton = { TextButton(onClick = { session.saveMoneyDraft() }, enabled = d.valid()) { Text(stringResource(R.string.save)) } },
-        dismissButton = { TextButton(onClick = { session.moneyDraft = null }) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+    }
     if (confirmDelete) {
         ConfirmDelete(onConfirm = {
             val id = d.entry.id
@@ -469,20 +467,10 @@ fun MoneyDialog(db: MandatDb, session: Session, d: MoneyDraft) {
 private fun LimitsDialog(session: Session, settings: Map<String, String>, onClose: () -> Unit) {
     val cats = ExpenseCategory.entries.map { it.name } + decodeCategories(settings[SETTING_EXPENSE_CATEGORIES])
     val texts = remember { mutableStateOf(cats.associateWith { c -> settings[SETTING_LIMIT_PREFIX + c]?.toLongOrNull()?.let { formatAmount(it).replace(" ", "") }.orEmpty() }) }
-    AlertDialog(
-        onDismissRequest = onClose,
-        title = { Text(stringResource(R.string.money_limits)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(stringResource(R.string.money_limits_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
-                cats.forEach { c ->
-                    OutlinedTextField(texts.value[c].orEmpty(), { v -> texts.value = texts.value + (c to v.take(15)) }, label = { Text(categoryName(c)) },
-                        singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
+    EditSheet(
+        title = stringResource(R.string.money_limits),
+        onDismiss = onClose,
+        onSave = {
                 val values = texts.value
                 onClose()
                 session.write { db ->
@@ -491,10 +479,17 @@ private fun LimitsDialog(session: Session, settings: Map<String, String>, onClos
                         db.settings().put(Setting(SETTING_LIMIT_PREFIX + c, (v ?: 0L).toString()))
                     }
                 }
-            }) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.cancel)) } },
-    )
+            },
+    ) {
+        SheetGroup {
+
+                Text(stringResource(R.string.money_limits_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
+                cats.forEach { c ->
+                    OutlinedTextField(texts.value[c].orEmpty(), { v -> texts.value = texts.value + (c to v.take(15)) }, label = { Text(categoryName(c)) },
+                        singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
+                }
+        }
+    }
 }
 
 /** The owner's own categories, added to the default ones. */
@@ -505,11 +500,21 @@ private fun CategoriesDialog(session: Session, settings: Map<String, String>, on
     var expense by remember { mutableStateOf(decodeCategories(settings[SETTING_EXPENSE_CATEGORIES])) }
     var newIn by remember { mutableStateOf("") }
     var newOut by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onClose,
-        title = { Text(stringResource(R.string.money_my_categories)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    EditSheet(
+        title = stringResource(R.string.money_my_categories),
+        onDismiss = onClose,
+        onSave = {
+                val i = (income + listOfNotNull(newIn.trim().ifEmpty { null })).distinct()
+                val e = (expense + listOfNotNull(newOut.trim().ifEmpty { null })).distinct()
+                onClose()
+                session.write { db ->
+                    db.settings().put(Setting(SETTING_INCOME_CATEGORIES, i.joinToString("\n")))
+                    db.settings().put(Setting(SETTING_EXPENSE_CATEGORIES, e.joinToString("\n")))
+                }
+            },
+    ) {
+        SheetGroup {
+
                 Text(stringResource(R.string.money_income), style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { income.forEach { c -> FilterBadge(c) { income = income - c } } }
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -523,21 +528,8 @@ private fun CategoriesDialog(session: Session, settings: Map<String, String>, on
                     TextButton(onClick = { if (newOut.isNotBlank()) { expense = (expense + newOut.trim()).distinct(); newOut = "" } }) { Text("+") }
                 }
                 Text(stringResource(R.string.money_categories_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val i = (income + listOfNotNull(newIn.trim().ifEmpty { null })).distinct()
-                val e = (expense + listOfNotNull(newOut.trim().ifEmpty { null })).distinct()
-                onClose()
-                session.write { db ->
-                    db.settings().put(Setting(SETTING_INCOME_CATEGORIES, i.joinToString("\n")))
-                    db.settings().put(Setting(SETTING_EXPENSE_CATEGORIES, e.joinToString("\n")))
-                }
-            }) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+    }
 }
 
 /**
@@ -582,31 +574,29 @@ private fun AidDialog(session: Session, matterId: Long, collected: Boolean, onCl
     var what by remember { mutableStateOf("") }
     var party by remember { mutableStateOf("") }
     var day by remember { mutableStateOf(Dates.today()) }
-    AlertDialog(
-        onDismissRequest = onClose,
-        title = { Text(stringResource(if (collected) R.string.aid_collected else R.string.aid_given)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(amount, { amount = it.take(20) }, label = { Text(stringResource(R.string.aid_amount)) }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(what, { what = it.take(300) }, label = { Text(stringResource(R.string.aid_what)) }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(party, { party = it.take(300) }, label = { Text(stringResource(if (collected) R.string.aid_from else R.string.aid_to)) },
-                    singleLine = true, modifier = Modifier.fillMaxWidth())
-                DueField(day, allowClear = false, label = R.string.event_day) { if (it != null) day = it }
+    val minor = parseAmount(amount) ?: 0L
+    EditSheet(
+        title = stringResource(if (collected) R.string.aid_collected else R.string.aid_given),
+        onDismiss = onClose,
+        onSave = {
+            onClose()
+            session.write {
+                it.money().insertAid(AidRecord(matterId = matterId, day = day, collected = collected, amount = minor, currency = "UAH", uah = minor,
+                    what = what.trim(), party = party.trim(), createdAt = System.currentTimeMillis()))
             }
         },
-        confirmButton = {
-            val minor = parseAmount(amount) ?: 0L
-            TextButton(onClick = {
-                onClose()
-                session.write {
-                    it.money().insertAid(AidRecord(matterId = matterId, day = day, collected = collected, amount = minor, currency = "UAH", uah = minor,
-                        what = what.trim(), party = party.trim(), createdAt = System.currentTimeMillis()))
-                }
-            }, enabled = minor > 0 || what.isNotBlank()) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.cancel)) } },
-    )
+        saveEnabled = minor > 0 || what.isNotBlank(),
+    ) {
+        SheetGroup {
+            OutlinedTextField(amount, { amount = it.take(20) }, label = { Text(stringResource(R.string.aid_amount)) }, singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(what, { what = it.take(300) }, label = { Text(stringResource(R.string.aid_what)) }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(party, { party = it.take(300) }, label = { Text(stringResource(if (collected) R.string.aid_from else R.string.aid_to)) },
+                singleLine = true, modifier = Modifier.fillMaxWidth())
+            DueField(day, allowClear = false, label = R.string.event_day) { if (it != null) day = it }
+        }
+    }
+
 }
 
 /** The budget on Review: this month in two numbers and one line; tap for the whole budget. */

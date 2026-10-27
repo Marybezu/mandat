@@ -139,9 +139,9 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {
             item(key = "chart") {
                 MCard {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
-                        FilterChip(selected = mode == 0, onClick = { mode = 0; pick = null }, label = { Text(stringResource(R.string.by_type)) })
-                        FilterChip(selected = mode == 1, onClick = { mode = 1; pick = null }, label = { Text(stringResource(R.string.by_role)) })
-                        FilterChip(selected = mode == 2, onClick = { mode = 2; pick = null }, label = { Text(stringResource(R.string.by_topic)) })
+                        QuickChip(stringResource(R.string.by_type), mode == 0) { mode = 0; pick = null }
+                        QuickChip(stringResource(R.string.by_role), mode == 1) { mode = 1; pick = null }
+                        QuickChip(stringResource(R.string.by_topic), mode == 2) { mode = 2; pick = null }
                     }
                     if (mode == 2 && topics.isEmpty()) {
                         EmptyHint(Sym.layers, stringResource(R.string.topics_empty))
@@ -326,11 +326,12 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
     ) { padding ->
         Column(
             Modifier.padding(padding).consumeWindowInsets(padding).imePadding().fillMaxSize().verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = Space.screen, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(Space.gap + 4.dp),
         ) {
             if (!request.isNew) MatterStrip(db, request.matter, session)
             if (!request.isNew) MatterTime(db, request.matter, session)
+            SheetGroup {
             OutlinedTextField(
                 value = draft.title, onValueChange = { draft.title = it },
                 label = { Text(stringResource(R.string.matter_title)) },
@@ -349,14 +350,11 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                     roles.map { it to it.name },
                 onPick = { draft.roleId = it?.id },
             )
-            Text(stringResource(R.string.matter_attention), style = MaterialTheme.typography.labelLarge)
+            }
+            SheetGroup(stringResource(R.string.matter_attention)) {
             androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Attention.entries.forEach { level ->
-                    FilterChip(
-                        selected = draft.attention == level,
-                        onClick = { draft.attention = level },
-                        label = { Text(stringResource(level.label())) },
-                    )
+                    QuickChip(stringResource(level.label()), draft.attention == level) { draft.attention = level }
                 }
             }
             if (draft.attention == Attention.FOCUS && otherFocus >= FOCUS_LIMIT) {
@@ -366,6 +364,8 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
+            }
+            SheetGroup(stringResource(R.string.matter_group_work)) {
             OutlinedTextField(
                 value = draft.nextStep, onValueChange = { draft.nextStep = it },
                 label = { Text(stringResource(R.string.matter_next_step)) },
@@ -383,30 +383,32 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                 minLines = 4,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                androidx.compose.material3.Checkbox(checked = draft.sensitive, onCheckedChange = { draft.sensitive = it })
-                Column {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { draft.sensitive = !draft.sensitive }) {
+                Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.matter_sensitive), style = MaterialTheme.typography.bodyMedium)
                     Text(stringResource(R.string.matter_sensitive_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
                 }
+                androidx.compose.material3.Switch(checked = draft.sensitive, onCheckedChange = { draft.sensitive = it })
+            }
             }
             if (request.isNew) {
                 Text(stringResource(R.string.save_matter_first), style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.secondary)
             } else {
                 // A fundraising matter keeps its own ledger, apart from the personal budget
-                if (draft.type == MatterType.AID) AidLedger(db, session, request.matter.id)
-                MatterLinks(db, session, request.matter.id, draft)
+                if (draft.type == MatterType.AID) SheetGroup { AidLedger(db, session, request.matter.id) }
+                SheetGroup { MatterLinks(db, session, request.matter.id, draft) }
             }
             if (!request.isNew) {
+                SheetGroup {
                 Picker(
                     label = stringResource(R.string.matter_status),
                     current = stringResource(draft.status.label()),
                     options = MatterStatus.entries.map { it to stringResource(it.label()) },
                     onPick = { draft.status = it },
                 )
-                Spacer(Modifier.height(8.dp))
-                TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.matter_delete)) }
+                }
+                TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.matter_delete), color = MaterialTheme.colorScheme.error) }
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -592,6 +594,9 @@ private fun MatterStrip(db: MandatDb, matter: Matter, session: Session) {
     val open = ua.mandat.data.TaskStatus.OPEN
     val text = "${matter.title} ${matter.goal} ${matter.nextStep} ${matter.description}"
     val mine = topics.filter { ua.mandat.data.matches(text, it) }
+    val titleOfNone: String? = null
+    var stancePick by remember { mutableStateOf<String?>(null) }
+    var delegPick by remember { mutableStateOf<String?>(null) }
     MCard {
         androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (MatterStatus.of(matter.status) == MatterStatus.ACTIVE) {
@@ -614,7 +619,15 @@ private fun MatterStrip(db: MandatDb, matter: Matter, session: Session) {
                 Slice("u", stringResource(R.string.strip_undecided), withStance.count { it.stance == "UNDECIDED" }, ChartColors.amberLight),
                 Slice("o", stringResource(R.string.strip_opponents), withStance.count { it.stance == "OPPONENT" }, ChartColors.salmon),
                 Slice("n", stringResource(R.string.stance_neutral_many), withStance.count { it.stance == "NEUTRAL" }, ChartColors.grayLight),
-            ))
+            ), selected = stancePick, onPick = { stancePick = it })
+            // The people behind the chosen part, right under the bar; a name opens the brief
+            stancePick?.let { k ->
+                val key = mapOf("a" to "ALLY", "u" to "UNDECIDED", "o" to "OPPONENT", "n" to "NEUTRAL")[k]
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(top = 6.dp)) {
+                    withStance.filter { it.stance == key }.forEach { r -> MiniChip(r.name + " →", onClick = { session.saveDraft(); session.oneOnOne = r.personId }) }
+                }
+            }
         }
         val openD = delegations.filter { ua.mandat.data.TaskStatus.of(it.status) == open }
         if (openD.isNotEmpty()) {
@@ -625,7 +638,15 @@ private fun MatterStrip(db: MandatDb, matter: Matter, session: Session) {
             StackBar(listOf(
                 Slice("t", stringResource(R.string.on_time), openD.size - late, ChartColors.blue),
                 Slice("l", stringResource(R.string.stat_overdue), late, MaterialTheme.colorScheme.error),
-            ))
+            ), selected = delegPick, onPick = { delegPick = it })
+            delegPick?.let { k ->
+                val names by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+                val nameOf = names.associate { it.id to it.name }
+                Column(Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    openD.filter { (k == "l") == ua.mandat.data.isOverdue(it.due, it.status, today) }
+                        .forEach { d -> DelegationRow(d, d.personId?.let(nameOf::get), titleOfNone, session) }
+                }
+            }
         }
     }
 }
@@ -695,20 +716,20 @@ private fun VoteCounter(linked: List<ua.mandat.data.MatterPersonRow>, draft: Mat
     }
     if (editing) {
         var text by remember { mutableStateOf(needed?.toString().orEmpty()) }
-        AlertDialog(
-            onDismissRequest = { editing = false },
-            title = { Text(stringResource(R.string.votes_needed)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        EditSheet(
+            title = stringResource(R.string.votes_needed),
+            onDismiss = { editing = false },
+            onSave = { draft.votesNeeded = text.toIntOrNull()?.takeIf { it in 1..10_000 }; editing = false },
+            saveText = stringResource(R.string.ok),
+        ) {
+            SheetGroup {
+
                     Text(stringResource(R.string.votes_needed_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
                     OutlinedTextField(text, { v -> text = v.filter { it.isDigit() }.take(5) }, singleLine = true,
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth())
-                }
-            },
-            confirmButton = { TextButton(onClick = { draft.votesNeeded = text.toIntOrNull()?.takeIf { it in 1..10_000 }; editing = false }) { Text(stringResource(R.string.ok)) } },
-            dismissButton = { TextButton(onClick = { draft.votesNeeded = null; editing = false }) { Text(stringResource(R.string.votes_clear)) } },
-        )
+            }
+        }
     }
 }
 

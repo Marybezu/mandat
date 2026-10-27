@@ -965,4 +965,6 @@
     <string name="delegation_group_when">Справа й строки</string>
     <string name="promise_group_kind">Яка обіцянка</string>
     <string name="delete_question">Видалити? Цю дію не можна скасувати.</string>
+    <string name="pick_one">Оберіть</string>
+    <string name="matter_group_work">Робота</string>
 </resources>

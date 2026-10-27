@@ -189,8 +189,8 @@ fun PeopleList(db: MandatDb, session: Session) {
         item(key = "chart") {
             MCard {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
-                    FilterChip(selected = !byTeam, onClick = { byTeam = false; pick = null }, label = { Text(stringResource(R.string.person_category)) })
-                    FilterChip(selected = byTeam, onClick = { byTeam = true; pick = null }, label = { Text(teamLabel) })
+                    QuickChip(stringResource(R.string.person_category), !byTeam) { byTeam = false; pick = null }
+                    QuickChip(teamLabel, byTeam) { byTeam = true; pick = null }
                 }
                 DonutChart(
                     slices = if (byTeam) teamSlices else categorySlices,
@@ -314,7 +314,7 @@ fun PeopleList(db: MandatDb, session: Session) {
             val letters = people.mapNotNull { it.name.trim().firstOrNull()?.uppercaseChar()?.toString() }.distinct().sorted()
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 letters.forEach { l ->
-                    FilterChip(selected = letter == l, onClick = { letter = if (letter == l) null else l }, label = { Text(l) })
+                    QuickChip(l, letter == l) { letter = if (letter == l) null else l }
                 }
             }
         }
@@ -420,15 +420,13 @@ fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
                 Text(stringResource(R.string.influence), style = MaterialTheme.typography.labelLarge)
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(1, 2, 3).forEach { lv ->
-                        FilterChip(selected = draft.influence == lv, onClick = { draft.influence = if (draft.influence == lv) null else lv },
-                            label = { Text(stringResource(influenceLabel(lv))) })
+                        QuickChip(stringResource(influenceLabel(lv)), draft.influence == lv) { draft.influence = if (draft.influence == lv) null else lv }
                     }
                 }
                 Text(stringResource(R.string.general_stance), style = MaterialTheme.typography.labelLarge)
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     ua.mandat.data.Stance.entries.forEach { st ->
-                        FilterChip(selected = draft.stance == st, onClick = { draft.stance = if (draft.stance == st) null else st },
-                            label = { Text(stringResource(st.label())) })
+                        QuickChip(stringResource(st.label()), draft.stance == st) { draft.stance = if (draft.stance == st) null else st }
                     }
                 }
             }

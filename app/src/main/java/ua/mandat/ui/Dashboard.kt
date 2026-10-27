@@ -94,11 +94,7 @@ fun Dashboard(db: MandatDb, session: Session) {
     Column(verticalArrangement = Arrangement.spacedBy(Space.gap)) {
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
             Period.entries.forEach { p ->
-                FilterChip(
-                    selected = period == p,
-                    onClick = { period = p; back = 0 },
-                    label = { Text(stringResource(p.label())) },
-                )
+                QuickChip(stringResource(p.label()), period == p) { period = p; back = 0 }
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {

@@ -174,21 +174,19 @@ fun RolesManager(db: MandatDb, session: Session) {
 
     renaming?.let { role ->
         var name by remember(role.id) { mutableStateOf(role.name) }
-        AlertDialog(
-            onDismissRequest = { renaming = null },
-            title = { Text(stringResource(R.string.rename)) },
-            text = {
-                OutlinedTextField(value = name, onValueChange = { name = it }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            },
-            confirmButton = {
-                TextButton(onClick = {
+        EditSheet(
+            title = stringResource(R.string.rename),
+            onDismiss = { renaming = null },
+            onSave = {
                     val clean = name.trim().take(100)
                     if (clean.isNotEmpty()) session.write { it.roles().rename(role.id, clean) }
                     renaming = null
-                }) { Text(stringResource(R.string.save)) }
-            },
-            dismissButton = { TextButton(onClick = { renaming = null }) { Text(stringResource(R.string.cancel)) } },
-        )
+                },
+        ) {
+            SheetGroup {
+OutlinedTextField(value = name, onValueChange = { name = it }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            }
+        }
     }
 
     deleting?.let { role ->
@@ -218,14 +216,10 @@ fun ModePicker(session: Session) {
     Text(stringResource(R.string.mode_title), style = MaterialTheme.typography.titleMedium)
     androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         listOf(false to R.string.mode_rada, true to R.string.mode_council).forEach { (council, label) ->
-            androidx.compose.material3.FilterChip(
-                selected = AppMode.council == council,
-                onClick = {
+            QuickChip(stringResource(label), AppMode.council == council) {
                     AppMode.council = council
                     session.write { it.settings().put(Setting(ua.mandat.data.SETTING_MODE, if (council) ua.mandat.data.MODE_COUNCIL else ua.mandat.data.MODE_RADA)) }
-                },
-                label = { Text(stringResource(label)) },
-            )
+                }
         }
     }
     Text(stringResource(R.string.mode_hint), style = MaterialTheme.typography.labelSmall, color = Muted)

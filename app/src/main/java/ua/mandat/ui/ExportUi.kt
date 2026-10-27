@@ -200,23 +200,22 @@ fun ExportScreen(db: MandatDb, session: Session) {
             SectionCard(Sym.save, stringResource(R.string.export_what)) {
                 Check(stringResource(R.string.export_people), plan.people) { plan.people = it }
                 if (plan.people) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(start = 40.dp)) {
-                    FilterChip(selected = plan.peopleCategory == null, onClick = { plan.peopleCategory = null }, label = { Text(stringResource(R.string.matters_all_roles)) })
+                    QuickChip(stringResource(R.string.matters_all_roles), plan.peopleCategory == null) { plan.peopleCategory = null }
                     (listOf("TEAM") + categoryChoices(people)).forEach { k ->
-                        FilterChip(selected = plan.peopleCategory == k, onClick = { plan.peopleCategory = k },
-                            label = { Text(if (k == "TEAM") stringResource(R.string.team) else categoryLabel(k)) })
+                        QuickChip(if (k == "TEAM") stringResource(R.string.team) else categoryLabel(k), plan.peopleCategory == k) { plan.peopleCategory = k }
                     }
                 }
                 Check(stringResource(R.string.export_book, contacts.size), plan.book) { plan.book = it }
                 if (plan.book) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(start = 40.dp)) {
-                    FilterChip(selected = plan.bookGroup == null, onClick = { plan.bookGroup = null }, label = { Text(stringResource(R.string.matters_all_roles)) })
+                    QuickChip(stringResource(R.string.matters_all_roles), plan.bookGroup == null) { plan.bookGroup = null }
                     contacts.map { it.label }.filter { it.isNotBlank() }.distinct().sorted().forEach { g ->
-                        FilterChip(selected = plan.bookGroup == g, onClick = { plan.bookGroup = g }, label = { Text(g) })
+                        QuickChip(g, plan.bookGroup == g) { plan.bookGroup = g }
                     }
                 }
                 Check(stringResource(R.string.export_calendar), plan.calendar) { plan.calendar = it }
                 if (plan.calendar) Row(Modifier.padding(start = 40.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(R.string.export_span_all, R.string.export_span_future, R.string.export_span_year).forEachIndexed { i, l ->
-                        FilterChip(selected = plan.calendarSpan == i, onClick = { plan.calendarSpan = i }, label = { Text(stringResource(l)) })
+                        QuickChip(stringResource(l), plan.calendarSpan == i) { plan.calendarSpan = i }
                     }
                 }
                 if (ownOnly) Text(stringResource(R.string.export_mandat_only), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(start = 12.dp, top = 6.dp))
@@ -224,8 +223,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
                 Text(stringResource(R.string.export_tables), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 6.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     TABLES.forEach { t ->
-                        FilterChip(selected = t in plan.tables, onClick = { plan.tables = if (t in plan.tables) plan.tables - t else plan.tables + t },
-                            label = { Text(stringResource(tableLabel(t))) })
+                        QuickChip(stringResource(tableLabel(t)), t in plan.tables) { plan.tables = if (t in plan.tables) plan.tables - t else plan.tables + t }
                     }
                 }
                 Check(stringResource(R.string.export_diary), plan.diary) { plan.diary = it }

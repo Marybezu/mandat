@@ -122,11 +122,22 @@ fun TimeBlock(db: MandatDb, session: Session, span: Span, roles: List<Role>) {
 private fun SharesDialog(session: Session, roles: List<Role>, planned: Map<Long?, Int>, onClose: () -> Unit) {
     val values = remember { mutableStateMapOf<Long, String>().apply { roles.forEach { r -> put(r.id, planned[r.id]?.toString().orEmpty()) } } }
     val sum = values.values.sumOf { it.toIntOrNull() ?: 0 }
-    AlertDialog(
-        onDismissRequest = onClose,
-        title = { Text(stringResource(R.string.time_set_plan)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    EditSheet(
+        title = stringResource(R.string.time_set_plan),
+        onDismiss = onClose,
+        onSave = {
+                val chosen = values.mapValues { it.value.toIntOrNull()?.coerceIn(0, 100) ?: 0 }
+                session.write { db ->
+                    db.withTransaction {
+                        db.settings().deletePrefix(TIME_SHARE_PREFIX)
+                        chosen.filterValues { it > 0 }.forEach { (id, v) -> db.settings().put(Setting(TIME_SHARE_PREFIX + id, v.toString())) }
+                    }
+                }
+                onClose()
+            },
+    ) {
+        SheetGroup {
+
                 Text(stringResource(R.string.time_plan_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
                 roles.forEach { r ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -137,22 +148,8 @@ private fun SharesDialog(session: Session, roles: List<Role>, planned: Map<Long?
                 }
                 Text(stringResource(R.string.time_plan_sum, sum), style = MaterialTheme.typography.labelMedium,
                     color = if (sum == 100 || sum == 0) Muted else ChartColors.coral)
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val chosen = values.mapValues { it.value.toIntOrNull()?.coerceIn(0, 100) ?: 0 }
-                session.write { db ->
-                    db.withTransaction {
-                        db.settings().deletePrefix(TIME_SHARE_PREFIX)
-                        chosen.filterValues { it > 0 }.forEach { (id, v) -> db.settings().put(Setting(TIME_SHARE_PREFIX + id, v.toString())) }
-                    }
-                }
-                onClose()
-            }) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+    }
 }
 
 /** What the time of one role (0: no role) went to in a period: events and time added by hand. */

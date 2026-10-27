@@ -83,8 +83,8 @@ fun TimeTab(db: MandatDb, session: Session) {
     var mode by rememberSaveable { mutableStateOf(0) }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.padding(horizontal = Space.screen, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = mode == 0, onClick = { mode = 0 }, label = { Text(stringResource(R.string.calendar)) })
-            FilterChip(selected = mode == 1, onClick = { mode = 1 }, label = { Text(stringResource(R.string.time_dates)) })
+            QuickChip(stringResource(R.string.calendar), mode == 0) { mode = 0 }
+            QuickChip(stringResource(R.string.time_dates), mode == 1) { mode = 1 }
         }
         Box(Modifier.weight(1f)) {
             if (mode == 0) CalendarScreen(db, session) else TimeScreen(db, session)
@@ -601,7 +601,7 @@ fun EventLinks(db: MandatDb, session: Session, flow: kotlinx.coroutines.flow.Flo
 @Composable
 private fun ViewChips(view: Int, onView: (Int) -> Unit) {
     listOf(R.string.cal_month, R.string.cal_week, R.string.cal_list).forEachIndexed { i, label ->
-        FilterChip(selected = view == i, onClick = { onView(i) }, label = { Text(stringResource(label)) })
+        QuickChip(stringResource(label), view == i) { onView(i) }
     }
 }
 

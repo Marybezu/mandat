@@ -176,27 +176,25 @@ fun TopicsScreen(db: MandatDb, session: Session) {
 private fun TopicDialog(topic: Topic, isNew: Boolean, onDismiss: () -> Unit, onDelete: (() -> Unit)? = null, onSave: (Topic) -> Unit) {
     var name by remember { mutableStateOf(topic.name) }
     var keys by remember { mutableStateOf(topic.keys.joinToString(", ")) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(if (isNew) R.string.topic_add else R.string.topic_edit)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    EditSheet(
+        title = stringResource(if (isNew) R.string.topic_add else R.string.topic_edit),
+        onDismiss = onDismiss,
+        onSave = {
+                val k = keysFor(keys.ifBlank { name })
+                onSave(Topic(name.trim().take(60), k.ifEmpty { keysFor(name) }))
+            },
+        saveEnabled = name.isNotBlank(),
+    ) {
+        SheetGroup {
+
                 OutlinedTextField(value = name, onValueChange = { name = it }, singleLine = true,
                     label = { Text(stringResource(R.string.topic_name)) }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = keys, onValueChange = { keys = it },
                     label = { Text(stringResource(R.string.topic_keys)) },
                     supportingText = { Text(stringResource(R.string.topic_keys_hint)) }, modifier = Modifier.fillMaxWidth())
                 if (onDelete != null) TextButton(onClick = onDelete) { Text(stringResource(R.string.delete)) }
-            }
-        },
-        confirmButton = {
-            TextButton(enabled = name.isNotBlank(), onClick = {
-                val k = keysFor(keys.ifBlank { name })
-                onSave(Topic(name.trim().take(60), k.ifEmpty { keysFor(name) }))
-            }) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+    }
 }
 
 /** One topic: a ring of where it appears, then everything about it, by section. */
