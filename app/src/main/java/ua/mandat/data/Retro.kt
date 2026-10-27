@@ -36,7 +36,8 @@ object Retro {
         if (mine.isEmpty()) return current to true
         val last = mine.lastOrNull { it.day <= day }
         if (last != null) return last.newValue to false
-        return (mine.first().oldValue ?: current) to (mine.first().oldValue == null)
+        // Before the first entry: its old value; none means the matter did not exist yet
+        return mine.first().oldValue to false
     }
 
     /** The day a matter was finished: from the journal, or else its last change if it is done now. */
