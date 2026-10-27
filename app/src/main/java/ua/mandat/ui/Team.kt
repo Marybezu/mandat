@@ -196,6 +196,11 @@ fun OneOnOneScreen(db: MandatDb, session: Session, personId: Long) {
                     if (p.notes.isNotBlank()) Text(p.notes, style = MaterialTheme.typography.bodyMedium, color = Muted, maxLines = 4)
                     Spacer(Modifier.height(6.dp))
                     ReachButtons(ua.mandat.data.phonesIn(p.contact), ua.mandat.data.emailsIn(p.contact))
+                    // To print or have at hand: the brief as PDF, through Export (with a password by default)
+                    QuickChip(stringResource(R.string.brief_pdf), false, Modifier.padding(top = 6.dp)) {
+                        session.exportBrief = p.id
+                        session.showExport = true
+                    }
                 }
             }
             // The next meeting and the last ones, with what came of them

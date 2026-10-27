@@ -261,6 +261,11 @@ private fun Main(db: MandatDb, session: Session) {
         return
     }
     session.thankFor?.let { ThankDialog(db, session, it) }
+    // Export can be opened from a brief or a text, so it comes over them
+    if (session.showExport) {
+        ExportScreen(db, session)
+        return
+    }
     session.oneOnOne?.let {
         OneOnOneScreen(db, session, it)
         return
@@ -271,10 +276,6 @@ private fun Main(db: MandatDb, session: Session) {
     }
     session.communityOpen?.let {
         CommunityScreen(db, session, it)
-        return
-    }
-    if (session.showExport) {
-        ExportScreen(db, session)
         return
     }
     if (session.showCategorize) {

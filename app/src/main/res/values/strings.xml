@@ -1052,4 +1052,6 @@
     <string name="report_aid">Aid</string>
     <string name="report_collected">collected</string>
     <string name="report_in_work">What I am working on next</string>
+    <string name="brief_pdf">Brief as PDF</string>
+    <string name="export_brief_one">Brief before a meeting (.md)</string>
 </resources>

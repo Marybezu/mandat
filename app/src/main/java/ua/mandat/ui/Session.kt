@@ -138,6 +138,8 @@ class Session(app: Application) : AndroidViewModel(app) {
     var showTexts by mutableStateOf(false)
     /** A text to export: Export opens with it chosen. */
     var exportText by mutableStateOf<Long?>(null)
+    /** A person whose brief to export. */
+    var exportBrief by mutableStateOf<Long?>(null)
 
     fun saveTextDraft() {
         val d = textDraft ?: return

@@ -79,8 +79,10 @@ class ExportPlan {
     var everything by mutableStateOf(false)
     /** One text as Word, PDF and Markdown. */
     var textId by mutableStateOf<Long?>(null)
+    /** A brief before meeting a person, as a document. */
+    var briefId by mutableStateOf<Long?>(null)
 
-    fun any() = people || book || calendar || tables.isNotEmpty() || diary || matterId != null || everything || textId != null
+    fun any() = people || book || calendar || tables.isNotEmpty() || diary || matterId != null || everything || textId != null || briefId != null
 }
 
 private val TABLES = listOf("matters", "delegations", "promises", "deadlines", "events", "money", "people")
@@ -96,8 +98,8 @@ fun ExportScreen(db: MandatDb, session: Session) {
     BackHandler { session.showExport = false }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val plan = remember { ExportPlan().also { p -> session.exportText?.let { p.textId = it } } }
-    androidx.compose.runtime.LaunchedEffect(Unit) { session.exportText = null }
+    val plan = remember { ExportPlan().also { p -> session.exportText?.let { p.textId = it }; session.exportBrief?.let { p.briefId = it } } }
+    androidx.compose.runtime.LaunchedEffect(Unit) { session.exportText = null; session.exportBrief = null }
     val textTitle by remember(db, plan.textId) { kotlinx.coroutines.flow.flow { emit(plan.textId?.let { id -> session.withOpenDb { it.texts().get(id) }?.title }) } }
         .collectAsStateWithLifecycle(null)
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
@@ -163,7 +165,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
     fun fileName(): String {
         val date = java.time.LocalDate.now().toString()
         val single = listOf(plan.people || plan.book, plan.calendar, plan.tables.isNotEmpty(), plan.diary, plan.matterId != null, plan.everything, plan.textId != null).count { it } == 1 &&
-            plan.tables.size <= 1 && !(plan.people && plan.book) && plan.textId == null && !((plan.diary || plan.matterId != null) && plan.pdf)
+            plan.tables.size <= 1 && !(plan.people && plan.book) && plan.textId == null && plan.briefId == null && !((plan.diary || plan.matterId != null) && plan.pdf)
         if (mode == PROTECT_MANDAT) return "mandat-$date.$MANDAT_EXPORT_EXT"
         if (protect || !single) return "mandat-$date.zip"
         return "mandat-$date." + when {
@@ -239,7 +241,8 @@ fun ExportScreen(db: MandatDb, session: Session) {
                         modifier = Modifier.clickable { pickingMatter = true })
                 }
                 plan.textId?.let { Check(stringResource(R.string.export_text_one, textTitle.orEmpty()), true) { on -> if (!on) plan.textId = null } }
-                if (plan.diary || plan.matterId != null || plan.textId != null) Check(stringResource(R.string.export_pdf), plan.pdf) { plan.pdf = it }
+                plan.briefId?.let { Check(stringResource(R.string.export_brief_one), true) { on -> if (!on) plan.briefId = null } }
+                if (plan.diary || plan.matterId != null || plan.textId != null || plan.briefId != null) Check(stringResource(R.string.export_pdf), plan.pdf) { plan.pdf = it }
                 if (hidden.isEmpty()) Check(stringResource(R.string.export_everything), plan.everything) { plan.everything = it }
                 else Text(stringResource(R.string.export_everything_hidden), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(start = 12.dp))
                 }
@@ -620,8 +623,51 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
         }
         addDoc("text", md)
     }
+    plan.briefId?.let { id -> people.firstOrNull { it.id == id } }?.let { p -> addDoc("brief", briefDocument(context, db, p, hidden, titles)) }
     if (plan.everything && hidden.isEmpty()) out += "everything.json" to ua.mandat.backup.BackupData.dump(db)
     return out
+}
+
+/** The brief before meeting a person, as a readable document; hidden matters and what is tied to them stay out. */
+private suspend fun briefDocument(context: Context, db: MandatDb, p: ua.mandat.data.Person, hidden: Set<Long>, titles: Map<Long, String>): String = buildString {
+    fun visible(id: Long?) = id == null || id !in hidden
+    val today = Dates.today()
+    append("# ").append(Export.md(p.name)).append("\n\n")
+    listOf(p.jobTitle, p.organization).filter { it.isNotBlank() }.joinToString(" · ").takeIf { it.isNotEmpty() }?.let { append(Export.md(it)).append("\n\n") }
+    if (p.contact.isNotBlank()) append(Export.md(p.contact)).append("\n\n")
+    if (p.notes.isNotBlank()) append(Export.md(p.notes)).append("\n\n")
+    val events = db.events().observeForPerson(p.id).first().filter { visible(it.matterId) }
+    events.filter { it.lastDay >= today }.minByOrNull { it.day }?.let { e ->
+        append("## ").append(context.getString(R.string.brief_next)).append("\n\n- ").append(Export.day(e.day)).append(" — ").append(Export.md(e.title)).append("\n\n")
+    }
+    val past = events.filter { it.lastDay < today }.sortedByDescending { it.day }.take(3)
+    if (past.isNotEmpty()) {
+        append("## ").append(context.getString(R.string.brief_last)).append("\n\n")
+        past.forEach { e -> append("- ").append(Export.day(e.day)).append(" — ").append(Export.md(e.title))
+            .append(e.outcome.takeIf { it.isNotBlank() }?.let { " ✓ " + Export.md(it) }.orEmpty()).append("\n") }
+        append("\n")
+    }
+    val matters = db.people().observeMattersOf(p.id).first().filter { visible(it.matterId) }
+    if (matters.isNotEmpty()) {
+        val next = db.matters().observeAll().first().associate { it.id to it.nextStep }
+        append("## ").append(context.getString(R.string.agenda_matters)).append("\n\n")
+        matters.forEach { m -> append("- ").append(Export.md(m.title))
+            .append(ua.mandat.data.Stance.of(m.stance)?.let { " — " + context.getString(it.label()) }.orEmpty())
+            .append(next[m.matterId]?.takeIf { it.isNotBlank() }?.let { " → " + Export.md(it) }.orEmpty()).append("\n") }
+        append("\n")
+    }
+    val promises = db.promises().observeForPerson(p.id).first().filter { visible(it.matterId) && TaskStatus.of(it.status) == TaskStatus.OPEN }
+    if (promises.isNotEmpty()) {
+        append("## ").append(context.getString(R.string.agenda_promises)).append("\n\n")
+        promises.forEach { x -> append("- ").append(Export.md(x.what)).append(x.due?.let { " (" + Export.day(it) + ")" }.orEmpty()).append("\n") }
+        append("\n")
+    }
+    val asked = db.delegations().observeForPerson(p.id).first().filter { visible(it.matterId) && TaskStatus.of(it.status) == TaskStatus.OPEN }
+    if (asked.isNotEmpty()) {
+        append("## ").append(context.getString(R.string.brief_asked)).append("\n\n")
+        asked.forEach { d -> append("- ").append(Export.md(d.what)).append(d.due?.let { " (" + Export.day(it) + ")" }.orEmpty())
+            .append(d.matterId?.let(titles::get)?.let { " · " + Export.md(it) }.orEmpty()).append("\n") }
+    }
 }
 
 /** One matter as a readable document: its card, people, deadlines, delegations, promises, events. */

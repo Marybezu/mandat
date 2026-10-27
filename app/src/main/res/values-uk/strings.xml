@@ -1054,4 +1054,6 @@
     <string name="report_aid">Допомога</string>
     <string name="report_collected">зібрано</string>
     <string name="report_in_work">Над чим працюю далі</string>
+    <string name="brief_pdf">Бриф у PDF</string>
+    <string name="export_brief_one">Бриф перед зустріччю (.md)</string>
 </resources>
