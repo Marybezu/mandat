@@ -364,6 +364,7 @@ private fun Main(db: MandatDb, session: Session) {
     }
 
     val aiCenterLabel = stringResource(R.string.ai_center)
+    val context = androidx.compose.ui.platform.LocalContext.current
     Scaffold(
         topBar = {
             Column(Modifier.statusBarsPadding()) {
@@ -382,7 +383,7 @@ private fun Main(db: MandatDb, session: Session) {
                     IconButton(onClick = { options = true }) {
                         Icon(Sym.settings, contentDescription = stringResource(R.string.options), tint = Muted)
                     }
-                    IconButton(onClick = { session.lock() }) {
+                    IconButton(onClick = { AiClipboard.clearIfOurs(context); session.lock() }) {
                         Icon(Sym.lock, contentDescription = stringResource(R.string.lock_now), tint = Muted)
                     }
                 }

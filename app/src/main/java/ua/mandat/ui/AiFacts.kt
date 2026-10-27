@@ -20,7 +20,7 @@ private fun MandatDb.hiddenOk(session: Session): (Long?) -> Boolean {
  * For free text not tied to a matter (the diary, the Inbox, notes on people): true when it names a
  * hidden matter, so it is left out too while something is hidden.
  */
-private suspend fun MandatDb.namesHidden(session: Session): (String) -> Boolean {
+internal suspend fun MandatDb.namesHidden(session: Session): (String) -> Boolean {
     val hidden = session.hiddenMatters.value
     if (hidden.isEmpty()) return { false }
     val titles = matters().observeAll().first().filter { it.id in hidden }.map { it.title.trim().lowercase() }.filter { it.length >= 3 }
@@ -111,7 +111,8 @@ suspend fun matterFacts(db: MandatDb, session: Session, matterId: Long): String 
 /** An attack or critique and the matter around it, for a draft rebuttal. */
 suspend fun attackFacts(db: MandatDb, session: Session, infoId: Long): String {
     val ok = db.hiddenOk(session)
-    val item = db.info().observeAll().first().firstOrNull { it.id == infoId && ok(it.matterId) } ?: return ""
+    val named = db.namesHidden(session)
+    val item = db.info().observeAll().first().firstOrNull { it.id == infoId && ok(it.matterId) && !(it.matterId == null && named(it.title + " " + it.source + " " + it.notes)) } ?: return ""
     return buildString {
         append("Що сталося: ").append(item.title).append("\n")
         if (item.source.isNotBlank()) append("Джерело: ").append(item.source).append("\n")
@@ -129,7 +130,8 @@ suspend fun weekFacts(db: MandatDb, session: Session): String {
     val moved = matters.filter { MatterStatus.of(it.status) == MatterStatus.ACTIVE && Dates.dayOf(it.updatedAt) in span }
     val done = matters.filter { MatterStatus.of(it.status) == MatterStatus.DONE && Dates.dayOf(it.updatedAt) in span }
     val stuck = matters.filter { ua.mandat.data.isStale(it, today) }
-    val due = db.deadlines().observeAll().first().filter { ok(it.matterId) && it.day in span }
+    val named = db.namesHidden(session)
+    val due = db.deadlines().observeAll().first().filter { ok(it.matterId) && !(it.matterId == null && named(it.title + " " + it.basis)) && it.day in span }
     return buildString {
         append("Тиждень ").append(Dates.format(span.from)).append(" – ").append(Dates.format(span.to)).append("\n")
         if (moved.isNotEmpty()) append("Рухались: ").append(moved.take(12).joinToString("; ") { it.title + (it.nextStep.takeIf { n -> n.isNotBlank() }?.let { n -> " (далі: $n)" } ?: "") }).append("\n")

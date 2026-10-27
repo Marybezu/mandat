@@ -147,16 +147,23 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
      * its note, so the note can be removed from the Inbox once its item is saved.
      */
     suspend fun sortInbox(notes: List<String>, people: List<String>, today: String): List<Pair<Int, Found>> {
+        // Only notes that fit whole are sent, and only their numbers are accepted back, so a note the
+        // model never saw cannot be answered for (and later removed from the Inbox)
+        var sent = 0
         val prompt = buildString {
             append("Today is ").append(today).append(".\n")
-            if (people.isNotEmpty()) append("Known people: ").append(people.take(200).joinToString("; ")).append("\n")
+            if (people.isNotEmpty()) append("Known people: ").append(people.take(60).joinToString("; ").take(1500)).append("\n")
             append("Notes:\n")
-            notes.take(40).forEachIndexed { i, n -> append(i).append(". ").append(n.replace('\n', ' ').take(NOTE_CHARS)).append("\n") }
+            for (n in notes.take(SORT_BATCH)) {
+                val line = sent.toString() + ". " + n.replace('\n', ' ').take(NOTE_CHARS) + "\n"
+                if (length + line.length > MAX_INPUT) break
+                append(line); sent++
+            }
         }
         val raw = withEngine { e ->
-            runCatching { ask(e, SYSTEM_SORT, prompt.take(MAX_INPUT), 1500, 0.2, SORT_SCHEMA) }.getOrElse { ask(e, SYSTEM_SORT, prompt.take(MAX_INPUT), 1500, 0.2) }
+            runCatching { ask(e, SYSTEM_SORT, prompt, 1500, 0.2, SORT_SCHEMA) }.getOrElse { ask(e, SYSTEM_SORT, prompt, 1500, 0.2) }
         }
-        return parseSorted(raw, notes.size.coerceAtMost(40))
+        return parseSorted(raw, sent)
     }
 
     enum class Task(val system: String, val maxTokens: Int) {
@@ -183,6 +190,8 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
         const val MAX_INPUT = 6000
         /** How much of one Inbox note the model reads when sorting. */
         const val NOTE_CHARS = 300
+        /** How many Inbox notes one sorting reads at most. */
+        const val SORT_BATCH = 15
 
         private const val UK = "Відповідай лише українською мовою, без жодного російського слова. Не вигадуй фактів, імен, дат, цифр чи правових норм: використовуй лише те, що дано."
 

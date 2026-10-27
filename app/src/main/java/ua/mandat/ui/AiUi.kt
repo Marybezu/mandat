@@ -197,14 +197,18 @@ object AiClipboard {
     const val LABEL = "mandat"
     @Volatile var copied = false
 
-    /** Clears the clipboard if it still holds Mandat's copy (or if that cannot be checked from the background). */
+    /**
+     * Clears the clipboard only when it still holds Mandat's copy. Called in the foreground (on
+     * unlock and on the lock button), where the clipboard can be read; never from the background,
+     * so a copy can still be pasted in another app, and nothing copied elsewhere is touched.
+     */
     fun clearIfOurs(context: Context) {
         if (!copied) return
-        copied = false
         runCatching {
             val cm = context.getSystemService(ClipboardManager::class.java) ?: return
-            val label = runCatching { cm.primaryClipDescription?.label?.toString() }.getOrNull()
-            if (label == null || label == LABEL) cm.clearPrimaryClip()
+            val label = cm.primaryClipDescription?.label?.toString() ?: return
+            copied = false
+            if (label == LABEL) cm.clearPrimaryClip()
         }
     }
 }
@@ -317,22 +321,30 @@ fun AiRow(session: Session, task: LocalAi.Task, facts: suspend () -> String, onU
 private class Pick(val found: Found, val note: Long? = null, on: Boolean = false) { var on by mutableStateOf(on) }
 
 /** Saves chosen suggestions; [matchId] ties a name to a known person only when it is certain. */
-private suspend fun saveFound(d: ua.mandat.data.MandatDb, chosen: List<Found>, matchId: (String) -> Long?, dateOf: (String) -> Long?) {
+private suspend fun saveFound(d: ua.mandat.data.MandatDb, chosen: List<Found>, matchId: (String) -> Long?, dateOf: (String) -> Long?) =
+    saveFoundWith(d, chosen.map { it to null }, matchId, dateOf)
+
+/**
+ * Saves suggestions; [Pair.second] is the owner's original note, kept whole in the record (in the
+ * description, purpose, source or basis) when the model's line is shorter, so no detail is lost.
+ */
+private suspend fun saveFoundWith(d: ua.mandat.data.MandatDb, chosen: List<Pair<Found, String?>>, matchId: (String) -> Long?, dateOf: (String) -> Long?) {
     val now = System.currentTimeMillis()
-    chosen.forEach { f ->
+    chosen.forEach { (f, original) ->
+        val keep = original?.trim()?.takeIf { it.isNotBlank() && it != f.text.trim() }.orEmpty()
         val personId = f.person.takeIf { it.isNotBlank() }?.let(matchId)
         val due = dateOf(f.due)
         // A name that matched nobody stays in the text, so it is not lost
         val withName = if (personId == null && f.person.isNotBlank()) f.text + " — " + f.person else f.text
         when (f.kind) {
-            "matter" -> ua.mandat.data.cleanMatter(matterFromNote(f.text, now))?.let { m ->
+            "matter" -> ua.mandat.data.cleanMatter(matterFromNote(f.text, now).let { if (keep.isNotEmpty()) it.copy(description = keep) else it })?.let { m ->
                 val id = d.matters().insert(m)
                 d.history().insertAll(ua.mandat.data.changesOf(null, m, id, now, Dates.today()))
             }
-            "delegation" -> newDelegation(personId, null).also { it.what = withName; it.due = due }.persist(d)
-            "promise" -> newPromise(personId, null).also { it.what = f.text; it.due = due; if (personId == null) it.toWhom = f.person }.persist(d)
+            "delegation" -> newDelegation(personId, null).also { it.what = withName; it.due = due; if (keep.isNotEmpty()) it.purpose = keep }.persist(d)
+            "promise" -> newPromise(personId, null).also { it.what = f.text; it.due = due; if (personId == null) it.toWhom = f.person; if (keep.isNotEmpty()) it.source = keep }.persist(d)
             // A deadline without a date would land on today: it goes to the Inbox instead
-            "deadline" -> if (due != null) newDeadline(null).also { it.title = f.text; it.day = due }.persist(d)
+            "deadline" -> if (due != null) newDeadline(null).also { it.title = f.text; it.day = due; if (keep.isNotEmpty()) it.basis = keep }.persist(d)
                 else ua.mandat.data.cleanInboxText(withName)?.let { d.inbox().insert(ua.mandat.data.InboxItem(text = it, createdAt = now)) }
             else -> ua.mandat.data.cleanInboxText(withName)?.let { d.inbox().insert(ua.mandat.data.InboxItem(text = it, createdAt = now)) }
         }
@@ -452,7 +464,8 @@ fun InboxSortSheet(db: ua.mandat.data.MandatDb, session: Session, onClose: () ->
             val all = picks.map { Triple(it.note, it.found, it.on) }
             val noteText = notes.toMap()
             // A note or an undated deadline stays as the original note itself, not as a copy of the model's line
-            val toSave = all.filter { it.third && isRecord(it.second) }.map { it.second }
+            // Each record keeps its whole original note when that note leaves the Inbox
+            val toSave = all.filter { it.third && isRecord(it.second) }.map { it.second to it.first?.let(noteText::get) }
             // A note leaves the Inbox only when all that was made from it is saved, it was read whole,
             // and each part became a record of its own; otherwise the original stays as it was
             val toDelete = all.filter { it.first != null }.groupBy { it.first!! }.filter { (note, from) ->
@@ -460,7 +473,7 @@ fun InboxSortSheet(db: ua.mandat.data.MandatDb, session: Session, onClose: () ->
             }.keys
             session.write { d ->
                 d.withTransaction {
-                    saveFound(d, toSave, { matcher.person(it)?.id }, matcher::date)
+                    saveFoundWith(d, toSave, { matcher.person(it)?.id }, matcher::date)
                     toDelete.forEach { d.inbox().delete(it) }
                 }
             }
@@ -473,9 +486,11 @@ fun InboxSortSheet(db: ua.mandat.data.MandatDb, session: Session, onClose: () ->
             if (busy) AiBusy()
             else if (inbox.isNotEmpty()) AiChip(stringResource(R.string.ai_sort_go)) {
                 busy = true; failed = false
-                val batch = inbox.take(40)
                 scope.launch {
-                    val r = runCatching { session.ai.sortInbox(batch.map { it.text }, people.map { it.name }, java.time.LocalDate.now().toString()) }.getOrNull()
+                    // A note that names a hidden matter is not sent while it is hidden
+                    val named = session.withOpenDb { d -> d.namesHidden(session) } ?: return@launch
+                    val batch = inbox.filterNot { named(it.text) }.take(LocalAi.SORT_BATCH)
+                    val r = if (batch.isEmpty()) null else runCatching { session.ai.sortInbox(batch.map { it.text }, people.map { it.name }, java.time.LocalDate.now().toString()) }.getOrNull()
                     busy = false
                     picks.clear(); notes.clear()
                     batch.forEach { notes[it.id] = it.text }
@@ -493,13 +508,15 @@ suspend fun briefFacts(db: ua.mandat.data.MandatDb, session: Session, personId: 
     val hidden = session.hiddenMatters.value
     fun ok(id: Long?) = id == null || id !in hidden
     val p = db.people().all().firstOrNull { it.id == personId } ?: return ""
+    val named = db.namesHidden(session)
+    fun free(id: Long?, text: String) = ok(id) && !(id == null && named(text))
     val matters = db.people().observeMattersOf(personId).first().filter { ok(it.matterId) }
-    val promises = db.promises().observeForPerson(personId).first().filter { ok(it.matterId) && ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.OPEN }
-    val asked = db.delegations().observeForPerson(personId).first().filter { ok(it.matterId) && ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.OPEN }
-    val events = db.events().observeForPerson(personId).first().filter { ok(it.matterId) }.sortedByDescending { it.day }.take(5)
+    val promises = db.promises().observeForPerson(personId).first().filter { free(it.matterId, it.what) && ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.OPEN }
+    val asked = db.delegations().observeForPerson(personId).first().filter { free(it.matterId, it.what) && ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.OPEN }
+    val events = db.events().observeForPerson(personId).first().filter { free(it.matterId, it.title + " " + it.outcome) }.sortedByDescending { it.day }.take(5)
     return buildString {
         append("Людина: ").append(p.name).append(". ").append(listOf(p.jobTitle, p.organization).filter { it.isNotBlank() }.joinToString(", ")).append("\n")
-        if (p.notes.isNotBlank()) append("Нотатки: ").append(p.notes.take(800)).append("\n")
+        if (p.notes.isNotBlank() && !named(p.notes)) append("Нотатки: ").append(p.notes.take(800)).append("\n")
         if (matters.isNotEmpty()) append("Спільні справи: ").append(matters.joinToString("; ") { it.title + (it.stance?.let { s -> " (позиція: $s)" } ?: "") }).append("\n")
         if (promises.isNotEmpty()) append("Ми обіцяли: ").append(promises.joinToString("; ") { it.what }).append("\n")
         if (asked.isNotEmpty()) append("Ми доручили цій людині: ").append(asked.joinToString("; ") { it.what }).append("\n")

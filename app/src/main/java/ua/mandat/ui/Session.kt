@@ -645,6 +645,8 @@ class Session(app: Application) : AndroidViewModel(app) {
                         tripOn.value = hidden.first
                         hiddenMatters.value = hidden.second
                         state = LockState.Open(db)
+                        // Back in the foreground: Mandat's own copy left on the clipboard is taken off
+                        AiClipboard.clearIfOurs(getApplication())
                         applyResume()
                         // Record the automatic copy made when Mandat last closed
                         background.launch { reconcileAuto(db) }
@@ -688,7 +690,6 @@ class Session(app: Application) : AndroidViewModel(app) {
         aiCenter = null
         showInboxSort = false
         aiTextHelp = false
-        AiClipboard.clearIfOurs(getApplication())
         val current = state
         val wasInUse = current is LockState.Open || current == LockState.Opening
         if (wasInUse) state = LockState.Locked
