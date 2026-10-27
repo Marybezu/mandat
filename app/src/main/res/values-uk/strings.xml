@@ -1045,7 +1045,7 @@
     <string name="export_text_one">Текст: %1$s (.docx, .md)</string>
     <string name="report_make">Скласти звіт для виборців →</string>
     <string name="report_title">Звіт про роботу: %1$s – %2$s</string>
-    <string name="report_note">Чернетка зібрана з Мандата: перевірте, доповніть і приберіть зайве. Чутливі справи й особисті обіцянки сюди не потрапили.</string>
+    <string name="report_note">Чернетка зібрана з Мандата: перевірте, доповніть і приберіть зайве, особливо тексти обіцянок. Чутливі справи, усе пов\'язане з ними, особисті обіцянки й робочі нотатки сюди не потрапили.</string>
     <string name="report_done">Що зроблено</string>
     <string name="report_kept">Виконані публічні обіцянки</string>
     <string name="report_meetings">Зустрічі з людьми</string>
@@ -1056,4 +1056,10 @@
     <string name="report_in_work">Над чим працюю далі</string>
     <string name="brief_pdf">Бриф у PDF</string>
     <string name="export_brief_one">Бриф перед зустріччю (.md)</string>
+    <string name="matter_delete_texts">Видалити й тексти справи (%1$d). Інакше вони лишаться без справи.</string>
+    <string name="text_limit">Текст досяг найбільшої довжини (200 000 знаків): далі не додається. Поділіть його на кілька текстів.</string>
+    <string name="text_template_sensitive">Текст чутливої справи не стає шаблоном: шаблони видно навіть у режимі поїздки.</string>
+    <string name="text_template_saved">Збережено в «Мої шаблони».</string>
+    <string name="export_mandat_no_docs">Текст і бриф у файл Мандата не входять: для них виберіть ZIP з паролем.</string>
+    <string name="currency_uah">грн</string>
 </resources>

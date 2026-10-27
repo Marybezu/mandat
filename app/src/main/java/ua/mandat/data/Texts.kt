@@ -88,7 +88,9 @@ const val TEXT_VERSIONS_KEPT = 20
 fun cleanText(t: TextDoc): TextDoc? {
     val title = t.title.trim().take(300)
     if (title.isEmpty()) return null
-    return t.copy(title = title, body = t.body.take(MAX_TEXT_LENGTH), kind = TextKind.of(t.kind).name)
+    val kind = TextKind.of(t.kind)
+    // A template belongs to no matter: it is offered everywhere, so it must carry nothing hidden
+    return t.copy(title = title, body = t.body.take(MAX_TEXT_LENGTH), kind = kind.name, matterId = if (kind == TextKind.TEMPLATE) null else t.matterId)
 }
 
 /** Words in a text (marks and punctuation not counted). */

@@ -171,6 +171,8 @@ fun TextEditor(db: MandatDb, session: Session, draft: TextDraft) {
     var value by remember(draft) { mutableStateOf(TextFieldValue(draft.body)) }
     var versions by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var info by remember { mutableStateOf<Int?>(null) }
+    val sensitive by remember(db) { db.matters().observeSensitiveIds() }.collectAsStateWithLifecycle(emptyList())
     val words = wordCount(value.text)
     val fields = FIELD.findAll(value.text).toList()
     fun nextField() {
@@ -189,7 +191,7 @@ fun TextEditor(db: MandatDb, session: Session, draft: TextDraft) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextKind.entries.forEach { k -> QuickChip(stringResource(k.label()), draft.kind == k) { draft.kind = k } }
             }
-            MatterPicker(matters, allMatters, draft.matterId) { draft.matterId = it }
+            if (draft.kind != TextKind.TEMPLATE) MatterPicker(matters, allMatters, draft.matterId) { draft.matterId = it }
         }
         SheetGroup {
             // Words, time to read aloud and fields left: the length is always in view
@@ -198,7 +200,13 @@ fun TextEditor(db: MandatDb, session: Session, draft: TextDraft) {
                 style = MaterialTheme.typography.labelLarge, color = if (fields.isNotEmpty()) ChartColors.amber else Muted)
             if (fields.isNotEmpty()) QuickChip(stringResource(R.string.text_next_field), false) { nextField() }
             OutlinedTextField(
-                value, { v -> value = v; draft.body = v.text.take(ua.mandat.data.MAX_TEXT_LENGTH) },
+                value, { v ->
+                    // The field itself stops at the limit, so what is seen is what is saved
+                    val max = ua.mandat.data.MAX_TEXT_LENGTH
+                    value = if (v.text.length <= max) v else v.copy(text = v.text.take(max), selection = TextRange(minOf(v.selection.start, max), minOf(v.selection.end, max)))
+                    if (v.text.length > max) info = R.string.text_limit
+                    draft.body = value.text
+                },
                 label = { Text(stringResource(R.string.text_body)) }, minLines = 14,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 280.dp),
             )
@@ -206,16 +214,21 @@ fun TextEditor(db: MandatDb, session: Session, draft: TextDraft) {
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (!draft.isNew) QuickChip(stringResource(R.string.text_versions), false) { versions = true }
-            if (!draft.isNew) QuickChip(stringResource(R.string.text_export), false) {
+            if (!draft.isNew && draft.valid()) QuickChip(stringResource(R.string.text_export), false) {
                 val id = draft.doc.id
                 session.saveTextDraft()
                 session.exportText = id
                 session.showExport = true
             }
             if (draft.kind != TextKind.TEMPLATE) QuickChip(stringResource(R.string.text_save_as_template), false) {
-                // A copy becomes the owner's template; the text itself stays as it is
-                val copy = newText(null, TextKind.TEMPLATE, draft.title, draft.body)
-                session.write { copy.persist(it) }
+                // A copy becomes the owner's template; the text itself stays as it is. A sensitive
+                // matter's text never becomes a template, since templates show even in trip mode
+                if (draft.matterId != null && draft.matterId in sensitive) info = R.string.text_template_sensitive
+                else {
+                    val copy = newText(null, TextKind.TEMPLATE, draft.title, draft.body)
+                    session.write { copy.persist(it) }
+                    info = R.string.text_template_saved
+                }
             }
         }
         if (!draft.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
@@ -236,6 +249,7 @@ fun TextEditor(db: MandatDb, session: Session, draft: TextDraft) {
             footer = { if (list.isEmpty()) EmptyHint(Sym.info, stringResource(R.string.text_no_versions)) },
         )
     }
+    info?.let { m -> ConfirmDialog(null, stringResource(m), stringResource(R.string.ok), onConfirm = { info = null }, onCancel = { info = null }) }
     if (confirmDelete) ConfirmDelete(onConfirm = {
         val id = draft.doc.id
         session.textDraft = null
@@ -247,10 +261,10 @@ fun TextEditor(db: MandatDb, session: Session, draft: TextDraft) {
 @Composable
 fun MatterTexts(db: MandatDb, session: Session, matterId: Long) {
     val texts by remember(db, matterId) { db.texts().observeForMatter(matterId) }.collectAsStateWithLifecycle(emptyList())
-    val own by remember(db) { db.texts().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val own by remember(db) { db.texts().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     var choosing by remember { mutableStateOf(false) }
     Text(stringResource(R.string.texts_title), style = MaterialTheme.typography.labelLarge)
-    texts.forEach { t -> TextLine(t, null) { session.saveDraft(); session.textDraft = TextDraft(t, isNew = false) } }
+    texts.forEach { t -> TextLine(t, null) { session.textDraft = TextDraft(t, isNew = false) } }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         QuickChip("+ " + stringResource(R.string.text_new), false) { session.textDraft = newText(matterId) }
         QuickChip(stringResource(R.string.text_from_template), false) { choosing = true }

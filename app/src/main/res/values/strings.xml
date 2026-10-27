@@ -1054,4 +1054,10 @@
     <string name="report_in_work">What I am working on next</string>
     <string name="brief_pdf">Brief as PDF</string>
     <string name="export_brief_one">Brief before a meeting (.md)</string>
+    <string name="matter_delete_texts">Also delete the matter\'s texts (%1$d). Otherwise they stay without a matter.</string>
+    <string name="text_limit">The text has reached its longest length (200,000 characters): nothing more is added. Split it into several texts.</string>
+    <string name="text_template_sensitive">A sensitive matter\'s text does not become a template: templates show even in trip mode.</string>
+    <string name="text_template_saved">Saved in My templates.</string>
+    <string name="export_mandat_no_docs">Texts and briefs do not go into a Mandat file: choose a ZIP with a password for them.</string>
+    <string name="currency_uah">UAH</string>
 </resources>

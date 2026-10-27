@@ -433,6 +433,8 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
 
     if (confirmDelete) {
         val aidRecords by remember(db, request.matter.id) { db.money().observeAidFor(request.matter.id).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+        val matterTexts by remember(db, request.matter.id) { db.texts().observeForMatter(request.matter.id) }.collectAsStateWithLifecycle(emptyList())
+        var deleteTexts by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
             text = {
@@ -441,6 +443,11 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                     // The aid ledger belongs to the matter and goes with it: say so plainly
                     if (aidRecords.isNotEmpty()) Text(stringResource(R.string.matter_delete_aid, aidRecords.size),
                         color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
+                    // Texts hold much writing: the owner decides whether they go with the matter or stay unlinked
+                    if (matterTexts.isNotEmpty()) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp).clickable { deleteTexts = !deleteTexts }) {
+                        androidx.compose.material3.Checkbox(checked = deleteTexts, onCheckedChange = { deleteTexts = it })
+                        Text(stringResource(R.string.matter_delete_texts, matterTexts.size), style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
             },
             confirmButton = {
@@ -448,6 +455,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                     confirmDelete = false
                     val id = request.matter.id
                     session.draft = null
+                    val textIds = if (deleteTexts) matterTexts.map { it.id } else emptyList()
                     session.write { db ->
                         // Deleting a matter keeps its delegations and promises, just without the matter
                         db.withTransaction {
@@ -465,6 +473,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                             db.communities().unlinkRef("matter", id)
                             db.time().clearMatter(id)
                             db.history().deleteFor(id)
+                            textIds.forEach { t -> db.texts().deleteVersions(t); db.texts().delete(t) }
                             db.texts().clearMatter(id)
                             db.matters().delete(id)
                         }

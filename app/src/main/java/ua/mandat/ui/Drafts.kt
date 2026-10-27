@@ -472,8 +472,9 @@ class TextDraft(val doc: ua.mandat.data.TextDoc, val isNew: Boolean) {
                     db.texts().insertVersion(ua.mandat.data.TextVersion(textId = edited.id, body = saved.body, savedAt = saved.updatedAt))
                     db.texts().trimVersions(edited.id, ua.mandat.data.TEXT_VERSIONS_KEPT)
                 }
-                db.texts().update(edited)
-                edited.id
+                // Deleted meanwhile (or a backup restored): the writing is kept as a new text
+                if (saved == null) db.texts().insert(edited.copy(id = 0, createdAt = now))
+                else { db.texts().update(edited); edited.id }
             }
         }
     }

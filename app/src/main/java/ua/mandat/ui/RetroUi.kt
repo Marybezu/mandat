@@ -142,7 +142,7 @@ fun RetroScreen(db: MandatDb, session: Session) {
                             meetings = stringResource(R.string.report_meetings), aid = stringResource(R.string.report_aid),
                             inWork = stringResource(R.string.report_in_work), receptions = stringResource(R.string.report_receptions),
                             visits = stringResource(R.string.report_visits), collected = stringResource(R.string.report_collected),
-                            note = stringResource(R.string.report_note),
+                            note = stringResource(R.string.report_note), currency = stringResource(R.string.currency_uah),
                         )
                         QuickChip(stringResource(R.string.report_make), false, Modifier.padding(top = 8.dp)) {
                             val body = voterReport(heads, span, matters, d.finishedIds.toSet(), promises, events, aid)
@@ -335,31 +335,34 @@ private fun PairColumns(values: List<Pair<String, Pair<Int, Int>>>, colorA: Colo
 
 /** Headings of the voters' report, in the app's language. */
 class ReportHeads(val title: String, val done: String, val kept: String, val meetings: String, val aid: String, val inWork: String,
-                  val receptions: String, val visits: String, val collected: String, val note: String)
+                  val receptions: String, val visits: String, val collected: String, val note: String, val currency: String)
 
 /**
- * A first draft of a report to voters for [span]: matters completed, public promises kept,
- * receptions and visits, aid organised, and what is still in work. Only what may be public:
- * sensitive matters, private promises and people's names are left out. The owner edits it.
+ * A first draft of a report to voters for [span]: titles of matters completed, public promises
+ * kept, receptions and visits, aid organised, and what is in focus now. Sensitive matters and
+ * everything tied to them, private promises and working notes (goals, next steps) are left out;
+ * promise texts are the owner's own words, so the draft asks to check them before sharing.
  */
 fun voterReport(h: ReportHeads, span: Span, matters: List<ua.mandat.data.Matter>, finished: Set<Long>, promises: List<ua.mandat.data.Promise>,
                 events: List<ua.mandat.data.Event>, aid: List<ua.mandat.data.AidRecord>): String = buildString {
+    val sensitive = matters.filter { it.sensitive }.map { it.id }.toSet()
+    fun ok(matterId: Long?) = matterId == null || matterId !in sensitive
     val open = matters.filter { !it.sensitive }
     append("# ").append(h.title).append("\n\n")
     append("[").append(h.note).append("]\n\n")
     val done = open.filter { it.id in finished }
     if (done.isNotEmpty()) {
         append("## ").append(h.done).append("\n")
-        done.forEach { m -> append("- ").append(m.title).append(m.goal.takeIf { it.isNotBlank() }?.let { " — $it" }.orEmpty()).append("\n") }
+        done.forEach { m -> append("- ").append(m.title).append("\n") }
         append("\n")
     }
-    val kept = promises.filter { it.isPublic && ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.DONE && it.closedAt != null && Dates.dayOf(it.closedAt) in span }
+    val kept = promises.filter { it.isPublic && ok(it.matterId) && ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.DONE && it.closedAt != null && Dates.dayOf(it.closedAt) in span }
     if (kept.isNotEmpty()) {
         append("## ").append(h.kept).append("\n")
         kept.forEach { append("- ").append(it.what).append("\n") }
         append("\n")
     }
-    val inSpan = events.filter { it.day in span }
+    val inSpan = events.filter { it.day in span && ok(it.matterId) }
     val receptions = inSpan.count { it.kind == ua.mandat.data.EventKind.RECEPTION.name }
     val visits = inSpan.count { it.kind == ua.mandat.data.EventKind.TRIP.name }
     if (receptions + visits > 0) {
@@ -368,14 +371,14 @@ fun voterReport(h: ReportHeads, span: Span, matters: List<ua.mandat.data.Matter>
         if (visits > 0) append("- ").append(h.visits).append(": ").append(visits).append("\n")
         append("\n")
     }
-    val aidIn = aid.filter { it.day in span && it.collected }.sumOf { it.uah }
+    val aidIn = aid.filter { it.day in span && it.collected && ok(it.matterId) }.sumOf { it.uah }
     if (aidIn > 0) {
         append("## ").append(h.aid).append("\n")
-        append("- ").append(h.collected).append(": ").append(ua.mandat.data.formatAmount(aidIn)).append(" грн\n\n")
+        append("- ").append(h.collected).append(": ").append(ua.mandat.data.formatAmount(aidIn)).append(" ").append(h.currency).append("\n\n")
     }
     val active = open.filter { ua.mandat.data.MatterStatus.of(it.status) == ua.mandat.data.MatterStatus.ACTIVE && it.attention == ua.mandat.data.Attention.FOCUS.name }
     if (active.isNotEmpty()) {
         append("## ").append(h.inWork).append("\n")
-        active.forEach { m -> append("- ").append(m.title).append(m.nextStep.takeIf { it.isNotBlank() }?.let { " — $it" }.orEmpty()).append("\n") }
+        active.forEach { m -> append("- ").append(m.title).append("\n") }
     }
 }

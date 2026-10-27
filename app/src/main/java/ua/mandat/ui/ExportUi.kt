@@ -100,7 +100,8 @@ fun ExportScreen(db: MandatDb, session: Session) {
     val scope = rememberCoroutineScope()
     val plan = remember { ExportPlan().also { p -> session.exportText?.let { p.textId = it }; session.exportBrief?.let { p.briefId = it } } }
     androidx.compose.runtime.LaunchedEffect(Unit) { session.exportText = null; session.exportBrief = null }
-    val textTitle by remember(db, plan.textId) { kotlinx.coroutines.flow.flow { emit(plan.textId?.let { id -> session.withOpenDb { it.texts().get(id) }?.title }) } }
+    val textTitle by remember(db, plan.textId) { kotlinx.coroutines.flow.flow { emit(plan.textId?.let { id -> session.withOpenDb { it.texts().get(id) }
+        ?.takeIf { t -> t.matterId == null || t.matterId !in session.hiddenMatters.value }?.title }) } }
         .collectAsStateWithLifecycle(null)
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val contacts by remember(db) { db.contacts().observeAll() }.collectAsStateWithLifecycle(emptyList())
@@ -226,6 +227,8 @@ fun ExportScreen(db: MandatDb, session: Session) {
                     }
                 }
                 if (ownOnly) Text(stringResource(R.string.export_mandat_only), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(start = 12.dp, top = 6.dp))
+                if (ownOnly && (plan.textId != null || plan.briefId != null)) Text(stringResource(R.string.export_mandat_no_docs), style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(start = 12.dp, top = 2.dp))
                 else {
                 Text(stringResource(R.string.export_tables), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 6.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -608,7 +611,7 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
     plan.matterId?.takeIf { visible(it) }?.let { id -> db.matters().get(id)?.let { m -> addDoc("matter-$id", matterDossier(context, db, m, nameOf, hidden)) } }
     plan.textId?.let { id -> db.texts().get(id) }?.takeIf { visible(it.matterId) }?.let { t ->
         // Word for editing elsewhere; PDF and Markdown as with other documents
-        out += "text.docx" to ua.mandat.data.Docx.build(t.body.ifBlank { t.title })
+        out += "text.docx" to ua.mandat.data.Docx.build("# " + t.title + "\n\n" + t.body)
         val md = buildString {
             append("# ").append(Export.md(t.title)).append("\n\n")
             t.body.lines().forEach { l ->
