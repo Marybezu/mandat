@@ -211,6 +211,14 @@ fun TextEditor(db: MandatDb, session: Session, draft: TextDraft) {
                 modifier = Modifier.fillMaxWidth().heightIn(min = 280.dp),
             )
             Text(stringResource(R.string.text_marks_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
+            // The on-device AI as an editor: a shorter version, or fields filled from the matter; the result
+            // replaces the text only on a tap, and the old one stays among the versions once saved
+            val matterFacts = allMatters.firstOrNull { it.id == draft.matterId }?.title
+            if (words > 400) AiAnswer(session, ua.mandat.ai.LocalAi.Task.SHORTEN, facts = { "Скороти приблизно до 360 слів (3 хвилини вголос).\n\n" + value.text },
+                onUse = { a -> value = TextFieldValue(a); draft.body = a }, useText = stringResource(R.string.ai_replace))
+            if (fields.isNotEmpty()) AiAnswer(session, ua.mandat.ai.LocalAi.Task.FILL,
+                facts = { "Довідка: " + listOfNotNull(draft.title, matterFacts).joinToString("; ") + "\n\nТекст:\n" + value.text },
+                onUse = { a -> value = TextFieldValue(a); draft.body = a }, useText = stringResource(R.string.ai_replace))
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (!draft.isNew) QuickChip(stringResource(R.string.text_versions), false) { versions = true }

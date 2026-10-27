@@ -250,6 +250,7 @@ private fun Main(db: MandatDb, session: Session) {
     session.moneyDraft?.let { MoneyDialog(db, session, it) }
     session.communityDraft?.let { CommunityDialog(session, it) }
     session.textDraft?.let { TextEditor(db, session, it) }
+    if (session.showAiSplit) AiSplitSheet(db, session) { session.showAiSplit = false }
     session.vcfDone?.let { (n, uri) -> VcfDoneDialog(session, n, uri) }
 
     session.draft?.let { draft ->
@@ -660,6 +661,8 @@ private fun AddDialog(db: MandatDb, session: Session) {
                     keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                // A longer text (a letter, meeting notes) can be split into separate items by the on-device AI
+                if (session.ai.ready()) QuickChip(stringResource(R.string.ai_split_title), false) { session.inboxDraft = null; session.showAiSplit = true }
                 if (hint.kind != ua.mandat.data.NoteKind.NOTE && text.isNotBlank()) {
                     val kindLabel = stringResource(
                         when (hint.kind) {

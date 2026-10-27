@@ -131,6 +131,18 @@ fun Dashboard(db: MandatDb, session: Session) {
                 Text("→", color = MaterialTheme.colorScheme.primary)
             }
         }
+        // A short summary of the period by the on-device AI, from the same numbers and titles (only a suggestion)
+        if (!o.isEmpty) AiAnswer(session, ua.mandat.ai.LocalAi.Task.WEEK, facts = {
+            val moved = matters.filter { ua.mandat.data.MatterStatus.of(it.status) == ua.mandat.data.MatterStatus.ACTIVE && Dates.dayOf(it.updatedAt) in span }
+            val stuck = matters.filter { ua.mandat.data.isStale(it, today) }
+            buildString {
+                append("Період: ").append(Dates.format(span.from)).append(" – ").append(Dates.format(span.to)).append("\n")
+                append("Справ у русі: ").append(o.moved).append(", нових: ").append(o.started).append(", завершено: ").append(o.finished).append("\n")
+                append("Строків настало: ").append(o.deadlinesDue).append(", вчасно: ").append(o.deadlinesOnTime).append("\n")
+                if (moved.isNotEmpty()) append("Рухались: ").append(moved.take(10).joinToString("; ") { it.title + (it.nextStep.takeIf { n -> n.isNotBlank() }?.let { n -> " (далі: $n)" } ?: "") }).append("\n")
+                if (stuck.isNotEmpty()) append("Без руху понад місяць: ").append(stuck.take(10).joinToString("; ") { it.title }).append("\n")
+            }
+        }, onUse = null)
         if (o.isEmpty) {
             EmptyHint(Sym.explore, stringResource(R.string.dash_empty))
         } else {

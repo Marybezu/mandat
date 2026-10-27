@@ -136,6 +136,8 @@ class Session(app: Application) : AndroidViewModel(app) {
     /** The text being written, and whether the list of texts is open. */
     var textDraft by mutableStateOf<TextDraft?>(null)
     var showTexts by mutableStateOf(false)
+    /** Pasted text being split by the on-device AI. */
+    var showAiSplit by mutableStateOf(false)
     /** A text to export: Export opens with it chosen. */
     var exportText by mutableStateOf<Long?>(null)
     /** A person whose brief to export. */
@@ -543,6 +545,9 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     val backups = Backups(app, this)
 
+    /** The optional on-device model; its memory is freed on lock and after five idle minutes. */
+    val ai = ua.mandat.ai.LocalAi(app, ua.mandat.ai.ModelStore(app), background)
+
     // Turning the screen off always locks Mandat, even while the file picker is open
     private val screenOff = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -655,6 +660,7 @@ class Session(app: Application) : AndroidViewModel(app) {
     fun lock(): Boolean {
         generation++
         backups.cancelRestore()
+        background.launch { runCatching { ai.release() } }
         val current = state
         val wasInUse = current is LockState.Open || current == LockState.Opening
         if (wasInUse) state = LockState.Locked

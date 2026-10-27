@@ -95,6 +95,8 @@ dependencies {
     implementation("com.google.ai.edge.litertlm:litertlm-android:0.18.1")
 
     testImplementation("junit:junit:4.13.2")
+    // Real org.json for unit tests (Android provides it on the phone)
+    testImplementation("org.json:json:20240303")
 
     // Screen checks only (never in the app): draw each screen with neutral test data,
     // so a crash is caught before a release and the look can be reviewed
