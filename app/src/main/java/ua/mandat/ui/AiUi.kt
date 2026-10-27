@@ -101,7 +101,7 @@ fun AiSection(session: Session) {
     if (confirmDelete) ConfirmDialog(null, stringResource(R.string.ai_delete_question), stringResource(R.string.ai_delete), danger = true,
         onConfirm = {
             confirmDelete = false
-            scope.launch { session.ai.release(); session.ai.models.delete(); state = session.ai.models.state() }
+            scope.launch { session.ai.deleteModel(); state = session.ai.models.state() }
         }, onCancel = { confirmDelete = false })
 }
 
@@ -113,10 +113,24 @@ fun AiSection(session: Session) {
 fun AiSplitSheet(db: ua.mandat.data.MandatDb, session: Session, onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
     val people by androidx.compose.runtime.remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    var text by remember { mutableStateOf("") }
+    // The text lives in the Session: on lock it is kept in the Inbox
+    val text = session.aiSplitText
     var busy by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
     val found = remember { mutableStateListOf<Pair<Found, Boolean>>() }
+    val today = Dates.today()
+    /** Only a certain match: the same name, or the one person whose name starts with it. */
+    fun match(name: String): ua.mandat.data.Person? {
+        val n = name.trim().lowercase()
+        if (n.length < 2) return null
+        people.filter { it.name.isNotBlank() && it.name.trim().lowercase() == n }.singleOrNull()?.let { return it }
+        return people.filter { it.name.isNotBlank() && it.name.trim().lowercase().startsWith(n) }.singleOrNull()
+    }
+    /** A date from the model, unless it is clearly off (more than a year back or five years ahead). */
+    fun dateOf(s: String): Long? = runCatching { java.time.LocalDate.parse(s).toEpochDay() }.getOrNull()?.takeIf { it in (today - 365)..(today + 5 * 365) }
+    val notFound = stringResource(R.string.ai_person_not_found)
+    val linkedTo = stringResource(R.string.ai_person_linked)
+    val noDate = stringResource(R.string.ai_no_date_inbox)
     val kindLabel = mapOf(
         "matter" to stringResource(R.string.ai_kind_matter), "delegation" to stringResource(R.string.ai_kind_delegation),
         "promise" to stringResource(R.string.ai_kind_promise), "deadline" to stringResource(R.string.ai_kind_deadline), "note" to stringResource(R.string.ai_kind_note),
@@ -126,21 +140,24 @@ fun AiSplitSheet(db: ua.mandat.data.MandatDb, session: Session, onClose: () -> U
         onDismiss = onClose,
         onSave = if (found.any { it.second }) ({
             val chosen = found.filter { it.second }.map { it.first }
-            val byName = people.associateBy { it.name.lowercase() }
             session.write { d ->
                 val now = System.currentTimeMillis()
                 d.withTransaction {
                     chosen.forEach { f ->
-                        val personId = f.person.takeIf { it.isNotBlank() }?.let { n -> byName[n.lowercase()]?.id ?: people.firstOrNull { p -> p.name.contains(n, true) || n.contains(p.name, true) }?.id }
-                        val due = runCatching { java.time.LocalDate.parse(f.due).toEpochDay() }.getOrNull()
+                        val personId = f.person.takeIf { it.isNotBlank() }?.let { match(it)?.id }
+                        val due = dateOf(f.due)
+                        // A name that matched nobody stays in the text, so it is not lost
+                        val withName = if (personId == null && f.person.isNotBlank()) f.text + " — " + f.person else f.text
                         when (f.kind) {
                             "matter" -> ua.mandat.data.cleanMatter(matterFromNote(f.text, now))?.let { m ->
                                 val id = d.matters().insert(m)
                                 d.history().insertAll(ua.mandat.data.changesOf(null, m, id, now, Dates.today()))
                             }
-                            "delegation" -> newDelegation(personId, null).also { it.what = f.text; it.due = due }.persist(d)
+                            "delegation" -> newDelegation(personId, null).also { it.what = withName; it.due = due }.persist(d)
                             "promise" -> newPromise(personId, null).also { it.what = f.text; it.due = due; if (personId == null) it.toWhom = f.person }.persist(d)
-                            "deadline" -> newDeadline(null).also { it.title = f.text; due?.let { day -> it.day = day } }.persist(d)
+                            // A deadline without a date would land on today: it goes to the Inbox instead
+                            "deadline" -> if (due != null) newDeadline(null).also { it.title = f.text; it.day = due }.persist(d)
+                                else ua.mandat.data.cleanInboxText(withName)?.let { d.inbox().insert(ua.mandat.data.InboxItem(text = it, createdAt = now)) }
                             else -> ua.mandat.data.cleanInboxText(f.text + if (f.person.isNotBlank()) " — " + f.person else "")
                                 ?.let { d.inbox().insert(ua.mandat.data.InboxItem(text = it, createdAt = now)) }
                         }
@@ -153,7 +170,7 @@ fun AiSplitSheet(db: ua.mandat.data.MandatDb, session: Session, onClose: () -> U
     ) {
         SheetGroup {
             Text(stringResource(R.string.ai_split_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
-            OutlinedTextField(text, { text = it.take(LocalAi.MAX_INPUT) }, label = { Text(stringResource(R.string.ai_split_text)) }, minLines = 6, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(text, { session.aiSplitText = it.take(LocalAi.MAX_INPUT) }, label = { Text(stringResource(R.string.ai_split_text)) }, minLines = 6, modifier = Modifier.fillMaxWidth())
             if (busy) Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.padding(8.dp)); Text(stringResource(R.string.ai_thinking)) }
             else QuickChip(stringResource(R.string.ai_split_go), false) {
                 busy = true; failed = false
@@ -161,18 +178,23 @@ fun AiSplitSheet(db: ua.mandat.data.MandatDb, session: Session, onClose: () -> U
                     val r = runCatching { session.ai.split(text, people.map { it.name }, java.time.LocalDate.now().toString()) }.getOrNull()
                     busy = false
                     found.clear()
-                    if (r.isNullOrEmpty()) failed = true else found.addAll(r.map { it to true })
+                    // Nothing is ticked beforehand: each suggestion is read before it is saved
+                    if (r.isNullOrEmpty()) failed = true else found.addAll(r.map { it to false })
                 }
             }
             if (failed) Text(stringResource(R.string.ai_split_nothing), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
         if (found.isNotEmpty()) SheetGroup(stringResource(R.string.ai_split_found)) {
+            QuickChip(stringResource(R.string.ai_tick_all), false) { found.indices.forEach { i -> found[i] = found[i].first to true } }
             found.forEachIndexed { i, (f, on) ->
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { found[i] = f to !on }) {
                     Checkbox(checked = on, onCheckedChange = { found[i] = f to it })
                     Column(Modifier.weight(1f)) {
                         Text(f.text, style = MaterialTheme.typography.bodyMedium)
-                        Text(listOfNotNull(kindLabel[f.kind], f.person.ifBlank { null }, f.due.ifBlank { null }).joinToString(" · "),
+                        // What will really be saved: whom it is linked to, and the date (or where it goes without one)
+                        val who = f.person.takeIf { it.isNotBlank() }?.let { n -> match(n)?.let { linkedTo + " " + it.name } ?: (notFound + ": " + n) }
+                        val date = dateOf(f.due)?.let { Dates.format(it) } ?: if (f.kind == "deadline") noDate else null
+                        Text(listOfNotNull(kindLabel[f.kind], who, date).joinToString(" · "),
                             style = MaterialTheme.typography.labelMedium, color = Muted)
                     }
                 }
@@ -186,12 +208,16 @@ fun AiSplitSheet(db: ua.mandat.data.MandatDb, session: Session, onClose: () -> U
  * the diary; nothing is kept otherwise.
  */
 @Composable
-fun AiAnswer(session: Session, task: LocalAi.Task, facts: suspend () -> String, onUse: ((String) -> Unit)? = null, useText: String? = null) {
+fun AiAnswer(session: Session, task: LocalAi.Task, facts: suspend () -> String, onUse: ((String) -> Unit)? = null, useText: String? = null, key: Any? = null) {
     val scope = rememberCoroutineScope()
-    var busy by remember { mutableStateOf(false) }
-    var answer by remember { mutableStateOf<String?>(null) }
-    var failed by remember { mutableStateOf(false) }
-    if (!session.ai.ready()) return
+    val ready by session.ai.models.ready.collectAsStateWithLifecycle()
+    val hidden by session.hiddenMatters.collectAsStateWithLifecycle()
+    // An answer belongs to what was hidden when it was asked (and to the text it was made from):
+    // turning on trip mode or the lens, or editing the text, drops it
+    var busy by remember(hidden, key) { mutableStateOf(false) }
+    var answer by remember(hidden, key) { mutableStateOf<String?>(null) }
+    var failed by remember(hidden, key) { mutableStateOf(false) }
+    if (!ready) return
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (busy) Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.padding(8.dp)); Text(stringResource(R.string.ai_thinking)) }
         else QuickChip(stringResource(when (task) {
@@ -201,9 +227,12 @@ fun AiAnswer(session: Session, task: LocalAi.Task, facts: suspend () -> String, 
             LocalAi.Task.FILL -> R.string.ai_fill
         }), false) {
             busy = true; failed = false
+            val askedWith = session.hiddenMatters.value
             scope.launch {
-                answer = runCatching { session.ai.write(task, facts()) }.getOrNull()?.takeIf { it.isNotBlank() }
-                failed = answer == null
+                val a = try { session.ai.write(task, facts()) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Throwable) { null }
+                val still = session.hiddenMatters.value == askedWith
+                answer = a?.takeIf { it.isNotBlank() && still }
+                failed = answer == null && still
                 busy = false
             }
         }

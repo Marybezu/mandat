@@ -38,32 +38,62 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
     var backend: String = "?"
         private set
 
-    fun ready() = models.modelFile() != null
+    fun ready() = models.ready.value
+
+    /** The conversation being answered, so locking can ask it to stop. */
+    @Volatile private var current: Any? = null
+
+    /** Set by lock: an answer still being written is thrown away and the engine closed right after. */
+    @Volatile private var abandoned = false
+
+    private val prefs get() = context.getSharedPreferences("ai", Context.MODE_PRIVATE)
 
     private fun engineLocked(): Engine {
         val path = models.modelFile()?.absolutePath ?: error("no model")
         engine?.takeIf { loadedPath == path }?.let { return it }
         engine?.close()
         engine = null
-        val created = runCatching { create(path, gpu = true).also { backend = "GPU" } }
-            .getOrElse { create(path, gpu = false).also { backend = "CPU" } }
+        // A GPU that once failed (or crashed the app while starting) is not tried again
+        val gpuOk = !prefs.getBoolean(KEY_GPU_BAD, false) && !prefs.getBoolean(KEY_GPU_TRYING, false)
+        val created = if (gpuOk) {
+            prefs.edit().putBoolean(KEY_GPU_TRYING, true).commit()
+            val gpu = runCatching { create(path, gpu = true) }.getOrNull()
+            prefs.edit().putBoolean(KEY_GPU_TRYING, false).putBoolean(KEY_GPU_BAD, gpu == null).commit()
+            gpu?.also { backend = "GPU" } ?: create(path, gpu = false).also { backend = "CPU" }
+        } else create(path, gpu = false).also { backend = "CPU" }
         engine = created
         loadedPath = path
         return created
     }
 
-    private fun create(path: String, gpu: Boolean): Engine =
-        Engine(EngineConfig(modelPath = path, backend = if (gpu) Backend.GPU() else Backend.CPU(), maxNumTokens = 8192, cacheDir = context.cacheDir.absolutePath))
-            .also { it.initialize() }
+    private fun create(path: String, gpu: Boolean): Engine {
+        val e = Engine(EngineConfig(modelPath = path, backend = if (gpu) Backend.GPU() else Backend.CPU(), maxNumTokens = 8192,
+            cacheDir = models.cacheDir.absolutePath))
+        // A failed start must not leave native memory behind
+        try { e.initialize() } catch (t: Throwable) { runCatching { e.close() }; throw t }
+        return e
+    }
 
     private suspend fun <T> withEngine(block: (Engine) -> T): T {
-        idleJob?.cancel()
+        synchronized(this) { idleJob?.cancel() }
+        abandoned = false
         try {
-            return mutex.withLock { withContext(Dispatchers.Default) { block(engineLocked()) } }
+            val r = mutex.withLock { withContext(Dispatchers.Default) { block(engineLocked()) } }
+            if (abandoned) error("locked")
+            return r
         } finally {
             // Memory back to the phone after five minutes without use
-            idleJob = scope.launch { delay(IDLE_MS); release() }
+            synchronized(this) { idleJob = scope.launch { delay(IDLE_MS); release() } }
         }
+    }
+
+    /** On lock: asks a running answer to stop (when the runtime allows it), then frees the engine. */
+    suspend fun stopAndRelease() {
+        abandoned = true
+        current?.let { c -> runCatching { c.javaClass.getMethod("cancelProcess").invoke(c) } }
+        release()
+        // What the engine may have cached from the last answers goes with the lock
+        withContext(Dispatchers.IO) { runCatching { java.io.File(context.cacheDir, "ai").deleteRecursively() } }
     }
 
     /** Frees the model's memory (also on lock); waits for a running answer to finish first. */
@@ -73,6 +103,12 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
             engine = null
             loadedPath = null
         }
+    }
+
+    /** Removes the model and everything the engine cached for it. */
+    suspend fun deleteModel() {
+        release()
+        withContext(Dispatchers.IO) { models.delete() }
     }
 
     private fun ask(e: Engine, system: String, prompt: String, maxTokens: Int, temperature: Double, json: String? = null): String =
@@ -85,8 +121,9 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
                 enableResponseFormat = json != null,
             ),
         ).use { conv ->
-            if (json != null) conv.sendMessage(prompt, responseFormat = ResponseFormat.json(json)).toString()
-            else conv.sendMessage(prompt).toString()
+            current = conv
+            try { if (json != null) conv.sendMessage(prompt, responseFormat = ResponseFormat.json(json)).toString()
+            else conv.sendMessage(prompt).toString() } finally { current = null }
         }.trim()
 
     /** Splits pasted text (a letter, notes from a meeting) into matters, delegations, promises, deadlines and notes. */
@@ -114,6 +151,8 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
 
     companion object {
         private const val IDLE_MS = 5 * 60 * 1000L
+        private const val KEY_GPU_BAD = "gpu_bad"
+        private const val KEY_GPU_TRYING = "gpu_trying"
         const val MAX_INPUT = 6000
 
         private const val UK = "Відповідай лише українською мовою, без жодного російського слова. Не вигадуй фактів, імен, дат, цифр чи правових норм: використовуй лише те, що дано."

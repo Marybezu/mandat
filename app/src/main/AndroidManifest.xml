@@ -24,6 +24,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Mandat"
         tools:targetApi="36">
+        <!-- The GPU for the optional on-device AI; not a permission, and not required -->
+        <uses-native-library android:name="libOpenCL.so" android:required="false" />
 
         <activity
             android:name=".ui.MainActivity"

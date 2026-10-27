@@ -1098,4 +1098,9 @@
     <string name="ai_suggestion">Пропозиція ШІ — перевірте перед використанням</string>
     <string name="ai_replace">Замінити текст</string>
     <string name="ai_dismiss">Прибрати</string>
+    <string name="ai_person_not_found">людину не знайдено</string>
+    <string name="ai_person_linked">з</string>
+    <string name="ai_no_date_inbox">без дати — у «Вхідні»</string>
+    <string name="ai_tick_all">Позначити все</string>
+    <string name="ai_text_too_long">Текст задовгий, щоб ШІ прочитав його повністю: скоротіть або поділіть його.</string>
 </resources>

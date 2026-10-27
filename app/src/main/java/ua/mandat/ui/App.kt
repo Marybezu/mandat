@@ -662,7 +662,9 @@ private fun AddDialog(db: MandatDb, session: Session) {
                     modifier = Modifier.fillMaxWidth(),
                 )
                 // A longer text (a letter, meeting notes) can be split into separate items by the on-device AI
-                if (session.ai.ready()) QuickChip(stringResource(R.string.ai_split_title), false) { session.inboxDraft = null; session.showAiSplit = true }
+                val aiReady by session.ai.models.ready.collectAsStateWithLifecycle()
+                // What was typed goes along into the split sheet
+                if (aiReady) QuickChip(stringResource(R.string.ai_split_title), false) { session.aiSplitText = text; session.inboxDraft = null; session.showAiSplit = true }
                 if (hint.kind != ua.mandat.data.NoteKind.NOTE && text.isNotBlank()) {
                     val kindLabel = stringResource(
                         when (hint.kind) {

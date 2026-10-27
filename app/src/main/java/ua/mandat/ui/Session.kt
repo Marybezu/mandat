@@ -138,6 +138,7 @@ class Session(app: Application) : AndroidViewModel(app) {
     var showTexts by mutableStateOf(false)
     /** Pasted text being split by the on-device AI. */
     var showAiSplit by mutableStateOf(false)
+    var aiSplitText by mutableStateOf("")
     /** A text to export: Export opens with it chosen. */
     var exportText by mutableStateOf<Long?>(null)
     /** A person whose brief to export. */
@@ -660,7 +661,11 @@ class Session(app: Application) : AndroidViewModel(app) {
     fun lock(): Boolean {
         generation++
         backups.cancelRestore()
-        background.launch { runCatching { ai.release() } }
+        background.launch { runCatching { ai.stopAndRelease() } }
+        // Text pasted for the AI to split is kept in the Inbox, not lost
+        val openSplit = aiSplitText.takeIf { showAiSplit && it.isNotBlank() }
+        showAiSplit = false
+        aiSplitText = ""
         val current = state
         val wasInUse = current is LockState.Open || current == LockState.Opening
         if (wasInUse) state = LockState.Locked
@@ -740,6 +745,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                             { openMoney?.persist(current.db) },
                             { openCommunity?.persist(current.db) },
                             { openText?.persist(current.db) },
+                            { persistInboxDraft(current.db, openSplit) },
                             { openContact?.takeIf { !it.isNew || it.touched }?.persist(current.db) },
                             { persistReview(current.db, openReview) },
                             // Last: only the days on which something is due, for reminders

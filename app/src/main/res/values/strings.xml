@@ -1096,4 +1096,9 @@
     <string name="ai_suggestion">AI suggestion — check before using</string>
     <string name="ai_replace">Replace the text</string>
     <string name="ai_dismiss">Dismiss</string>
+    <string name="ai_person_not_found">person not found</string>
+    <string name="ai_person_linked">with</string>
+    <string name="ai_no_date_inbox">no date — to the inbox</string>
+    <string name="ai_tick_all">Tick all</string>
+    <string name="ai_text_too_long">The text is too long for the AI to read whole: shorten or split it.</string>
 </resources>

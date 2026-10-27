@@ -30,6 +30,12 @@ class ModelStore(private val context: Context) {
 
     fun modelFile(): File? = models(dir).maxByOrNull { it.lastModified() }
 
+    /** Whether a model is installed, kept up to date by import and delete (read once at start). */
+    val ready = kotlinx.coroutines.flow.MutableStateFlow(modelFile() != null)
+
+    /** Where the engine keeps its own cache (compiled kernels, weights); removed with the model. */
+    val cacheDir: File get() = File(context.cacheDir, "ai").apply { mkdirs() }
+
     fun state(): State {
         val f = modelFile() ?: return State.Missing
         return State.Ready(f.length() / MB)
@@ -46,6 +52,8 @@ class ModelStore(private val context: Context) {
         withContext(Dispatchers.IO) {
             val cr = context.contentResolver
             val total = cr.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
+            // A file of any other size cannot be the published model: refused before copying gigabytes
+            if (total > 0 && total != E2B_SIZE) error(context.getString(ua.mandat.R.string.ai_wrong_file, E2B_FILE))
             val tmp = File(dir, "import.tmp")
             tmp.delete() // a leftover from a failed copy must not block the space check
             if (total > 0) require(dir.usableSpace > total + 200 * MB) { context.getString(ua.mandat.R.string.ai_no_space) }
@@ -88,11 +96,14 @@ class ModelStore(private val context: Context) {
             } else {
                 null
             }
+            ready.value = true
             ImportResult(deleted)
         }
 
     fun delete() {
         dir.listFiles()?.forEach { it.delete() }
+        File(context.cacheDir, "ai").deleteRecursively()
+        ready.value = false
     }
 
     companion object {
@@ -102,6 +113,7 @@ class ModelStore(private val context: Context) {
         private const val E2B_REVISION = "1caa527c1e88b55f046fcd8d2b4265606680663d"
         const val E2B_DOWNLOAD = "$E2B_PAGE/resolve/$E2B_REVISION/$E2B_FILE?download=true"
         /** SHA-256 of that file as published (Hugging Face LFS), 2 588 147 712 bytes. */
+        private const val E2B_SIZE = 2_588_147_712L
         private const val E2B_SHA256 = "181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c"
         private const val MODEL_DIR = "models"
         private const val MB = 1024L * 1024L
