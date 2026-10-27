@@ -34,6 +34,7 @@ class RetroTest {
         val m = matter(1, jan, "SLEEPING")
         val history = mapOf(1L to listOf(
             MatterChange(matterId = 1, day = jan, at = 0, field = FIELD_ATTENTION, oldValue = null, newValue = "FOCUS"),
+            MatterChange(matterId = 1, day = jan, at = 0, field = FIELD_STATUS, oldValue = null, newValue = "ACTIVE"),
             MatterChange(matterId = 1, day = mar, at = 0, field = FIELD_ATTENTION, oldValue = "FOCUS", newValue = "SLEEPING"),
         ))
         val months = Retro.focusByMonth(Span(day(2026, 1, 1), day(2026, 4, 30)), listOf(m), history, utc)
