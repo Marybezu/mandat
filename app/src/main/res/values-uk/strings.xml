@@ -1122,7 +1122,7 @@
     <string name="ai_split_short">Лист, нотатки наради чи все, що в голові, — на справи, доручення, строки</string>
     <string name="ai_sort_inbox">Розібрати «Вхідні»</string>
     <string name="ai_sort_short">Чим стане кожна нотатка: справою, дорученням, строком</string>
-    <string name="ai_sort_hint">Нотаток у «Вхідних»: %1$d. ШІ розбере до 15 за раз і запропонує, чим стане кожна. Нотатка зникне з «Вхідних», лише коли все створене з неї збережено; довгі нотатки лишаються як є.</string>
+    <string name="ai_sort_hint">Нотаток у «Вхідних»: %1$d. ШІ розбирає до 15 за раз і пропонує, чим стане кожна. Нотатка зникне з «Вхідних», лише коли все створене з неї збережено. Довгі нотатки (понад 300 знаків) краще «Розкласти текст».</string>
     <string name="ai_sort_go">Розібрати</string>
     <string name="ai_next_step">Що далі</string>
     <string name="ai_next_hint">Один наступний крок для справи</string>
@@ -1156,4 +1156,5 @@
     <string name="ai_help">Допомога</string>
     <string name="ai_suggest">Запропонувати</string>
     <string name="ai_check">Перевірте перед використанням</string>
+    <string name="ai_sort_next">Розібрати наступні</string>
 </resources>

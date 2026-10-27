@@ -454,6 +454,8 @@ fun InboxSortSheet(db: ua.mandat.data.MandatDb, session: Session, onClose: () ->
     var failed by remember { mutableStateOf(false) }
     val picks = remember { mutableStateListOf<Pick>() }
     val notes = remember { mutableStateMapOf<Long, String>() }
+    // Notes already offered in this sheet: "Sort" goes on to the next ones
+    val offered = remember { mutableStateListOf<Long>() }
     val matcher = Matcher(people, Dates.today())
     EditSheet(
         title = "$AI_MARK " + stringResource(R.string.ai_sort_inbox),
@@ -463,14 +465,14 @@ fun InboxSortSheet(db: ua.mandat.data.MandatDb, session: Session, onClose: () ->
             fun isRecord(f: Found) = f.kind != "note" && !(f.kind == "deadline" && matcher.date(f.due) == null)
             val all = picks.map { Triple(it.note, it.found, it.on) }
             val noteText = notes.toMap()
-            // A note or an undated deadline stays as the original note itself, not as a copy of the model's line
-            // Each record keeps its whole original note when that note leaves the Inbox
-            val toSave = all.filter { it.third && isRecord(it.second) }.map { it.second to it.first?.let(noteText::get) }
             // A note leaves the Inbox only when all that was made from it is saved, it was read whole,
-            // and each part became a record of its own; otherwise the original stays as it was
+            // and each part became a record that can hold the original (a deadline cannot: then the note stays)
             val toDelete = all.filter { it.first != null }.groupBy { it.first!! }.filter { (note, from) ->
-                (noteText[note]?.length ?: Int.MAX_VALUE) <= LocalAi.NOTE_CHARS && from.all { it.third && isRecord(it.second) }
+                (noteText[note]?.length ?: Int.MAX_VALUE) <= LocalAi.NOTE_CHARS && from.all { it.third && isRecord(it.second) && it.second.kind != "deadline" }
             }.keys
+            // A note or an undated deadline stays as the original note itself, not as a copy of the model's line;
+            // a record keeps the whole original only when that note leaves the Inbox
+            val toSave = all.filter { it.third && isRecord(it.second) }.map { t -> t.second to t.first?.takeIf { it in toDelete }?.let(noteText::get) }
             session.write { d ->
                 d.withTransaction {
                     saveFoundWith(d, toSave, { matcher.person(it)?.id }, matcher::date)
@@ -484,12 +486,15 @@ fun InboxSortSheet(db: ua.mandat.data.MandatDb, session: Session, onClose: () ->
         SheetGroup {
             Text(stringResource(R.string.ai_sort_hint, inbox.size), style = MaterialTheme.typography.bodyMedium, color = Muted)
             if (busy) AiBusy()
-            else if (inbox.isNotEmpty()) AiChip(stringResource(R.string.ai_sort_go)) {
+            else if (inbox.isNotEmpty()) AiChip(stringResource(if (offered.isEmpty()) R.string.ai_sort_go else R.string.ai_sort_next)) {
                 busy = true; failed = false
                 scope.launch {
                     // A note that names a hidden matter is not sent while it is hidden
-                    val named = session.withOpenDb { d -> d.namesHidden(session) } ?: return@launch
-                    val batch = inbox.filterNot { named(it.text) }.take(LocalAi.SORT_BATCH)
+                    val named = session.withOpenDb { d -> d.namesHidden(session) }
+                    if (named == null) { busy = false; return@launch }
+                    // Long notes are left for "Split a text": they cannot be read whole here
+                    val batch = inbox.filter { it.text.length <= LocalAi.NOTE_CHARS && it.id !in offered && !named(it.text) }.take(LocalAi.SORT_BATCH)
+                    offered.addAll(batch.map { it.id })
                     val r = if (batch.isEmpty()) null else runCatching { session.ai.sortInbox(batch.map { it.text }, people.map { it.name }, java.time.LocalDate.now().toString()) }.getOrNull()
                     busy = false
                     picks.clear(); notes.clear()

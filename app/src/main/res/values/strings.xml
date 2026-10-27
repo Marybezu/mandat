@@ -1120,7 +1120,7 @@
     <string name="ai_split_short">A letter, meeting notes or whatever is on your mind — into matters, delegations, deadlines</string>
     <string name="ai_sort_inbox">Sort the Inbox</string>
     <string name="ai_sort_short">What each note becomes: a matter, a delegation, a deadline</string>
-    <string name="ai_sort_hint">Notes in the Inbox: %1$d. The AI sorts up to 15 at a time and suggests what each becomes. A note leaves the Inbox only when everything made from it is saved; long notes stay as they are.</string>
+    <string name="ai_sort_hint">Notes in the Inbox: %1$d. The AI sorts up to 15 at a time and suggests what each becomes. A note leaves the Inbox only when everything made from it is saved. Long notes (over 300 characters) are better split with Split a text.</string>
     <string name="ai_sort_go">Sort</string>
     <string name="ai_next_step">What next</string>
     <string name="ai_next_hint">One next step for a matter</string>
@@ -1154,4 +1154,5 @@
     <string name="ai_help">Help</string>
     <string name="ai_suggest">Suggest</string>
     <string name="ai_check">Check before using</string>
+    <string name="ai_sort_next">Sort the next ones</string>
 </resources>
