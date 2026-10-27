@@ -679,15 +679,13 @@ private fun TripSwitch(db: ua.mandat.data.MandatDb, session: Session) {
         androidx.compose.material3.Switch(checked = on, onCheckedChange = { v -> if (v) explain = true else set(false) })
     }
     if (explain) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { explain = false },
-            title = { Text(stringResource(R.string.trip_mode)) },
-            text = { Text(stringResource(R.string.trip_explain), modifier = Modifier.verticalScroll(rememberScrollState())) },
-            confirmButton = {
-                if (!on) TextButton(onClick = { explain = false; set(true) }) { Text(stringResource(R.string.trip_turn_on)) }
-                else TextButton(onClick = { explain = false }) { Text(stringResource(R.string.ok)) }
-            },
-            dismissButton = { if (!on) TextButton(onClick = { explain = false }) { Text(stringResource(R.string.cancel)) } },
-        )
+        EditSheet(
+            title = stringResource(R.string.trip_mode),
+            onDismiss = { explain = false },
+            onSave = if (!on) ({ explain = false; set(true) }) else null,
+            saveText = stringResource(R.string.trip_turn_on),
+        ) {
+            SheetGroup { Text(stringResource(R.string.trip_explain), style = MaterialTheme.typography.bodyMedium) }
+        }
     }
 }
