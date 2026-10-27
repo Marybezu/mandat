@@ -142,11 +142,38 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
     /** A short free text from facts given (a brief, a week's summary, a shorter speech). */
     suspend fun write(task: Task, facts: String): String = withEngine { e -> ask(e, task.system, facts.take(MAX_INPUT), task.maxTokens, 0.5) }
 
+    /**
+     * Sorts Inbox notes: for each note, what it most likely is. The index ties an answer back to
+     * its note, so the note can be removed from the Inbox once its item is saved.
+     */
+    suspend fun sortInbox(notes: List<String>, people: List<String>, today: String): List<Pair<Int, Found>> {
+        val prompt = buildString {
+            append("Today is ").append(today).append(".\n")
+            if (people.isNotEmpty()) append("Known people: ").append(people.take(200).joinToString("; ")).append("\n")
+            append("Notes:\n")
+            notes.take(40).forEachIndexed { i, n -> append(i).append(". ").append(n.replace('\n', ' ').take(300)).append("\n") }
+        }
+        val raw = withEngine { e ->
+            runCatching { ask(e, SYSTEM_SORT, prompt.take(MAX_INPUT), 1500, 0.2, SORT_SCHEMA) }.getOrElse { ask(e, SYSTEM_SORT, prompt.take(MAX_INPUT), 1500, 0.2) }
+        }
+        return parseSorted(raw, notes.size.coerceAtMost(40))
+    }
+
     enum class Task(val system: String, val maxTokens: Int) {
         BRIEF(SYSTEM_BRIEF, 450),
         WEEK(SYSTEM_WEEK, 500),
         SHORTEN(SYSTEM_SHORTEN, 1200),
         FILL(SYSTEM_FILL, 1500),
+        ANSWER(SYSTEM_ANSWER, 500),
+        MORNING(SYSTEM_MORNING, 450),
+        EVENING(SYSTEM_EVENING, 450),
+        NEXT_STEP(SYSTEM_NEXT, 120),
+        MATTER_SUMMARY(SYSTEM_MATTER, 450),
+        FORMAL(SYSTEM_FORMAL, 1500),
+        SIMPLER(SYSTEM_SIMPLER, 1500),
+        LANGUAGE(SYSTEM_LANGUAGE, 700),
+        REBUTTAL(SYSTEM_REBUTTAL, 700),
+        MESSAGES(SYSTEM_MESSAGES, 450),
     }
 
     companion object {
@@ -167,6 +194,43 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
 "properties":{"kind":{"type":"string","enum":["matter","delegation","promise","deadline","note"]},"text":{"type":"string"},"person":{"type":"string"},"due":{"type":"string"}},
 "required":["kind","text"]}}},"required":["items"]}"""
 
+        private const val SYSTEM_SORT = "You help a public official sort quick notes. For each numbered note give: i (its number), " +
+            "kind (matter, delegation, promise, deadline or note), text (a short line in the note's own language), person (a name or empty), " +
+            "due (YYYY-MM-DD if given or clearly implied, else empty). Do not invent anything. Answer with ONLY JSON: {\"items\":[{\"i\":0,\"kind\":\"note\",\"text\":\"…\",\"person\":\"\",\"due\":\"\"}]}"
+
+        private const val SORT_SCHEMA = """{"type":"object","properties":{"items":{"type":"array","items":{"type":"object",
+"properties":{"i":{"type":"integer"},"kind":{"type":"string","enum":["matter","delegation","promise","deadline","note"]},"text":{"type":"string"},"person":{"type":"string"},"due":{"type":"string"}},
+"required":["i","kind","text"]}}},"required":["items"]}"""
+
+        private const val SYSTEM_ANSWER = "Ти помічник, що відповідає на питання лише за записами, поданими нижче. Відповідай коротко: 1–5 речень або пунктів; після кожного твердження вкажи номер запису в квадратних дужках, наприклад [2]. " +
+            "Якщо в записах немає відповіді, так і скажи. Не додавай нічого поза записами. $UK"
+
+        private const val SYSTEM_MORNING = "Ти помічник на початку дня. З наданих фактів назви три найважливіші речі на сьогодні, ризики (строки, обіцянки, зустрічі без підготовки) " +
+            "і з ким зустрічі та що ми їм обіцяли. До 6 пунктів, кожен одним реченням. $UK"
+
+        private const val SYSTEM_EVENING = "Ти помічник для запису в щоденник. З наданих фактів про день напиши стислий запис від першої особи без зазначення роду: що зроблено, що зрушило, що лишилося. " +
+            "3–5 речень, без оцінок. $UK"
+
+        private const val SYSTEM_NEXT = "Ти помічник зі справами. З історії справи запропонуй один наступний конкретний крок: одне коротке речення, що починається з дієслова. " +
+            "Відповідай лише цим реченням. $UK"
+
+        private const val SYSTEM_MATTER = "Ти помічник зі справами. З наданих фактів напиши стислий підсумок справи: де вона зараз, що зроблено, що заважає, що далі. " +
+            "3–5 пунктів, кожен одним реченням. $UK"
+
+        private const val SYSTEM_FORMAL = "Ти редактор. Перепиши поданий текст в офіційно-діловому стилі, зберігши зміст, факти й позначки рядків «# », «## », «- ». $UK Відповідай лише готовим текстом."
+
+        private const val SYSTEM_SIMPLER = "Ти редактор. Перепиши поданий текст простіше й коротшими реченнями, зрозуміло для широкого читача, зберігши зміст, факти й позначки рядків «# », «## », «- ». " +
+            "$UK Відповідай лише готовим текстом."
+
+        private const val SYSTEM_LANGUAGE = "Ти мовний редактор української. Знайди в поданому тексті русизми, суржик, кальки й помилки слововживання. " +
+            "Для кожного випадку напиши рядок: «було → як правильно — коротке пояснення». Якщо помилок немає, так і скажи. Не переписуй увесь текст. " +
+            "Відповідай лише українською мовою, без жодного російського слова."
+
+        private const val SYSTEM_REBUTTAL = "Ти помічник з комунікацій. З наданих фактів напиши чернетку спростування: спокійно, про дії, а не про особу, лише перевірені факти з поданого, " +
+            "без образ і без вигаданих цифр. 4–8 речень. $UK"
+
+        private const val SYSTEM_MESSAGES = "Ти помічник з комунікацій. З наданих фактів запропонуй 3 ключові меседжі: кожен — одне коротке речення й доказ із поданих фактів. $UK"
+
         private const val SYSTEM_BRIEF = "Ти помічник перед зустріччю. З наданих фактів про людину склади короткий бриф: 3–5 пунктів, кожен одним реченням — " +
             "що важливо пам'ятати, що ми їй обіцяли, що вона має зробити, про що варто запитати. $UK"
 
@@ -178,6 +242,21 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
 
         private const val SYSTEM_FILL = "Ти помічник з листів. У тексті є поля в квадратних дужках. Заповни ті, для яких є відомості в довідці; решту лиши як є, у дужках. " +
             "Не змінюй інших слів. $UK Відповідай лише готовим текстом."
+
+        /** Items of a sorted Inbox: each with the number of its note; unknown numbers and kinds are dropped. */
+        fun parseSorted(raw: String, count: Int): List<Pair<Int, Found>> {
+            val text = raw.replace("```json", "").replace("```", "")
+            val objects: List<JSONObject> = runCatching {
+                JSONObject(text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1)).getJSONArray("items")
+            }.map { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) } }
+                .getOrElse { Regex("\\{[^{}]*\"kind\"[^{}]*\\}").findAll(text).mapNotNull { m -> runCatching { JSONObject(m.value) }.getOrNull() }.toList() }
+            val seen = HashSet<Int>()
+            return objects.mapNotNull { o ->
+                val i = o.optInt("i", -1).takeIf { it in 0 until count && seen.add(it) } ?: return@mapNotNull null
+                val f = parseFound(JSONObject().put("items", org.json.JSONArray().put(o)).toString()).firstOrNull() ?: return@mapNotNull null
+                i to f
+            }
+        }
 
         /** Accepts {"items":[...]}, a bare [...] or a cut-off answer (objects read one by one). */
         fun parseFound(raw: String): List<Found> {

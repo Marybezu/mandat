@@ -298,11 +298,20 @@ fun ReviewScreen(db: MandatDb, session: Session) {
                         minLines = 2, modifier = Modifier.fillMaxWidth(),
                     )
                     if (unload.isNotBlank()) {
-                        TextButton(onClick = {
-                            val clean = cleanInboxText(unload)
-                            unload = ""
-                            if (clean != null) session.write { it.inbox().insert(InboxItem(text = clean, createdAt = System.currentTimeMillis())) }
-                        }) { Text(stringResource(R.string.evening_to_inbox)) }
+                        val aiReady by session.ai.models.ready.collectAsStateWithLifecycle()
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = {
+                                val clean = cleanInboxText(unload)
+                                unload = ""
+                                if (clean != null) session.write { it.inbox().insert(InboxItem(text = clean, createdAt = System.currentTimeMillis())) }
+                            }) { Text(stringResource(R.string.evening_to_inbox)) }
+                            // Or let the AI split what was emptied from the head into matters, tasks and deadlines
+                            if (aiReady) AiChip(stringResource(R.string.ai_split_go)) {
+                                session.aiSplitText = unload.take(ua.mandat.ai.LocalAi.MAX_INPUT)
+                                unload = ""
+                                session.showAiSplit = true
+                            }
+                        }
                     }
                 }
             }
@@ -371,7 +380,7 @@ fun SearchScreen(db: MandatDb, session: Session) {
     }
 }
 
-private fun kindLabel(kind: String): Int = when (kind) {
+fun kindLabel(kind: String): Int = when (kind) {
     "matter" -> R.string.matter_edit
     "person" -> R.string.person_edit
     "inbox" -> R.string.inbox
@@ -388,7 +397,7 @@ private fun kindLabel(kind: String): Int = when (kind) {
     else -> R.string.tab_review
 }
 
-private fun openHit(db: MandatDb, session: Session, kind: String, id: Long) {
+fun openHit(db: MandatDb, session: Session, kind: String, id: Long) {
     when (kind) {
         "matter" -> { session.searching = false; session.openMatter(id) }
         "person" -> { session.searching = false; session.openPerson(id) }

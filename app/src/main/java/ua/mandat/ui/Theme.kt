@@ -107,12 +107,11 @@ fun MandatTheme(dynamic: Boolean = false, content: @Composable () -> Unit) {
 
 /** Spacing used everywhere, so screens line up. */
 object Space {
-    /** Compact view: less space around everything, more fits on the screen. */
-    var compact by androidx.compose.runtime.mutableStateOf(false)
-    val screen get() = if (compact) 12.dp else 16.dp
-    val card get() = if (compact) 10.dp else 14.dp
-    val gap get() = if (compact) 5.dp else 8.dp
-    val section get() = if (compact) 14.dp else 20.dp
+    // One density for the whole app: compact, so more fits on the screen without crowding
+    val screen = 12.dp
+    val card = 10.dp
+    val gap = 5.dp
+    val section = 14.dp
 }
 
 /** A calm colour pair (background, text) for a matter type's tag; meaning, not decoration. */

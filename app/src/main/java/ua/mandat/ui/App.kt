@@ -75,6 +75,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
@@ -212,6 +214,9 @@ private fun Main(db: MandatDb, session: Session) {
         session.tabRequest?.let { name -> Tab.entries.firstOrNull { it.name == name }?.let { tab = it } }
         session.tabRequest = null
     }
+    androidx.compose.runtime.LaunchedEffect(session.optionsRequest) {
+        if (session.optionsRequest) { options = true; session.optionsRequest = false }
+    }
 
     val rolesAskedFlow = remember(db) { db.settings().observe(SETTING_ROLES_ASKED).map { it != null } }
     val rolesAsked by rolesAskedFlow.collectAsStateWithLifecycle(initialValue = null)
@@ -251,6 +256,8 @@ private fun Main(db: MandatDb, session: Session) {
     session.communityDraft?.let { CommunityDialog(session, it) }
     session.textDraft?.let { TextEditor(db, session, it) }
     if (session.showAiSplit) AiSplitSheet(db, session) { session.showAiSplit = false }
+    if (session.showInboxSort) InboxSortSheet(db, session) { session.showInboxSort = false }
+    if (session.aiCenter != null) AiCenter(db, session)
     session.vcfDone?.let { (n, uri) -> VcfDoneDialog(session, n, uri) }
 
     session.draft?.let { draft ->
@@ -356,6 +363,7 @@ private fun Main(db: MandatDb, session: Session) {
         session.draft = MatterDraft(EditRequest(matterFromNote("", System.currentTimeMillis()), isNew = true))
     }
 
+    val aiCenterLabel = stringResource(R.string.ai_center)
     Scaffold(
         topBar = {
             Column(Modifier.statusBarsPadding()) {
@@ -363,6 +371,11 @@ private fun Main(db: MandatDb, session: Session) {
                     title = stringResource(tab.title),
                     subtitle = if (tab == Tab.Today) Dates.longToday() else null,
                 ) {
+                    // Everything the AI can do, in one place; the same violet mark as every AI suggestion
+                    IconButton(onClick = { session.aiCenter = tab.name }) {
+                        Text(AI_MARK, style = MaterialTheme.typography.titleLarge, color = AiViolet,
+                            modifier = Modifier.semantics { contentDescription = aiCenterLabel })
+                    }
                     IconButton(onClick = { session.searching = true }) {
                         Icon(Sym.search, contentDescription = stringResource(R.string.search), tint = Muted)
                     }
@@ -539,6 +552,8 @@ internal fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onT
         }
 
         SmartListChips(smartCounts(active, openD.size, openP.size, today)) { session.smartList = it }
+        // The one AI moment on this screen, folded until asked (only with the model on the phone)
+        AiRow(session, ua.mandat.ai.LocalAi.Task.MORNING, facts = { session.withOpenDb { todayFacts(it, session) }.orEmpty() })
         DayStrip(db, session)
 
         // Overdue for more than a month is "old": folded into one line to sort out, so the list shows what is current
@@ -664,7 +679,7 @@ private fun AddDialog(db: MandatDb, session: Session) {
                 // A longer text (a letter, meeting notes) can be split into separate items by the on-device AI
                 val aiReady by session.ai.models.ready.collectAsStateWithLifecycle()
                 // What was typed goes along into the split sheet
-                if (aiReady) QuickChip(stringResource(R.string.ai_split_title), false) { session.aiSplitText = text; session.inboxDraft = null; session.showAiSplit = true }
+                if (aiReady && text.isNotBlank()) AiChip(stringResource(R.string.ai_split_go)) { session.aiSplitText = text; session.inboxDraft = null; session.showAiSplit = true }
                 if (hint.kind != ua.mandat.data.NoteKind.NOTE && text.isNotBlank()) {
                     val kindLabel = stringResource(
                         when (hint.kind) {

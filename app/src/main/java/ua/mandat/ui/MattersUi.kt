@@ -388,6 +388,11 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                 placeholder = { Text(stringResource(R.string.matter_next_step_hint)) },
                 modifier = Modifier.fillMaxWidth(),
             )
+            // One step suggested by the AI from the matter's history; it goes into the field only on a tap
+            if (!draft.request.isNew) AiAnswer(session, ua.mandat.ai.LocalAi.Task.NEXT_STEP,
+                facts = { session.withOpenDb { matterFacts(it, session, draft.request.matter.id) }.orEmpty() },
+                onUse = { a -> draft.nextStep = a.lines().first().trim().take(200) }, useText = stringResource(R.string.ai_apply),
+                label = stringResource(R.string.ai_suggest))
             OutlinedTextField(
                 value = draft.goal, onValueChange = { draft.goal = it },
                 label = { Text(stringResource(R.string.matter_goal)) },

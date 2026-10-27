@@ -1,5 +1,10 @@
 package ua.mandat.ui
 
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.foundation.layout.Box
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -211,17 +216,46 @@ fun TextEditor(db: MandatDb, session: Session, draft: TextDraft) {
                 modifier = Modifier.fillMaxWidth().heightIn(min = 280.dp),
             )
             Text(stringResource(R.string.text_marks_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
-            // The on-device AI as an editor: a shorter version, or fields filled from the matter; the result
-            // replaces the text only on a tap, and the old one stays among the versions once saved
+            // The on-device AI as an editor, behind one "✦ Help" button: shorter, more formal, simpler,
+            // fields filled from the matter, a language check. A new version replaces the text only on a
+            // tap, and the old one stays among the versions once saved
             val matterFacts = allMatters.firstOrNull { it.id == draft.matterId }?.title
             // Only a text the model can read whole: otherwise "replace" would lose its end
             val fits = value.text.length <= ua.mandat.ai.LocalAi.MAX_INPUT - 200
-            if (!fits && (words > 400 || fields.isNotEmpty())) Text(stringResource(R.string.ai_text_too_long), style = MaterialTheme.typography.labelSmall, color = Muted)
-            if (fits && words > 400) AiAnswer(session, ua.mandat.ai.LocalAi.Task.SHORTEN, facts = { "Скороти приблизно до 360 слів (3 хвилини вголос).\n\n" + value.text },
-                onUse = { a -> value = TextFieldValue(a); draft.body = a }, useText = stringResource(R.string.ai_replace), key = value.text)
-            if (fits && fields.isNotEmpty()) AiAnswer(session, ua.mandat.ai.LocalAi.Task.FILL,
-                facts = { "Довідка: " + listOfNotNull(draft.title, matterFacts).joinToString("; ") + "\n\nТекст:\n" + value.text },
-                onUse = { a -> value = TextFieldValue(a); draft.body = a }, useText = stringResource(R.string.ai_replace), key = value.text)
+            val aiReady by session.ai.models.ready.collectAsStateWithLifecycle()
+            val run = rememberAiRun(session, value.text)
+            val scope = rememberCoroutineScope()
+            var menu by remember { mutableStateOf(false) }
+            LaunchedEffect(session.aiTextHelp) { if (session.aiTextHelp) { menu = aiReady; session.aiTextHelp = false } }
+            if (aiReady && value.text.isNotBlank()) {
+                if (!fits) Text(stringResource(R.string.ai_text_too_long), style = MaterialTheme.typography.labelSmall, color = Muted)
+                else Box {
+                    if (!run.busy && run.answer == null) AiChip(stringResource(R.string.ai_help)) { menu = true }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        fun ask(task: ua.mandat.ai.LocalAi.Task, label: String, facts: String) {
+                            menu = false
+                            run.start(scope, session, task, label) { facts }
+                        }
+                        val shorten = stringResource(R.string.ai_shorten)
+                        val formal = stringResource(R.string.ai_formal)
+                        val simpler = stringResource(R.string.ai_simpler)
+                        val fill = stringResource(R.string.ai_fill)
+                        val language = stringResource(R.string.ai_language)
+                        DropdownMenuItem(text = { Text(shorten) }, onClick = {
+                            ask(ua.mandat.ai.LocalAi.Task.SHORTEN, shorten, "Скороти приблизно до " + (words * 2 / 3).coerceIn(60, 360) + " слів.\n\n" + value.text)
+                        })
+                        DropdownMenuItem(text = { Text(formal) }, onClick = { ask(ua.mandat.ai.LocalAi.Task.FORMAL, formal, value.text) })
+                        DropdownMenuItem(text = { Text(simpler) }, onClick = { ask(ua.mandat.ai.LocalAi.Task.SIMPLER, simpler, value.text) })
+                        if (fields.isNotEmpty()) DropdownMenuItem(text = { Text(fill) }, onClick = {
+                            ask(ua.mandat.ai.LocalAi.Task.FILL, fill, "Довідка: " + listOfNotNull(draft.title, matterFacts).joinToString("; ") + "\n\nТекст:\n" + value.text)
+                        })
+                        DropdownMenuItem(text = { Text(language) }, onClick = { ask(ua.mandat.ai.LocalAi.Task.LANGUAGE, language, value.text) })
+                    }
+                }
+                // A language check is a list of remarks, not a new text: it is only read or copied
+                val replaces = run.label != stringResource(R.string.ai_language)
+                AiResult(run, onApply = if (replaces) ({ a -> value = TextFieldValue(a); draft.body = a }) else null, applyText = stringResource(R.string.ai_replace))
+            }
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (!draft.isNew) QuickChip(stringResource(R.string.text_versions), false) { versions = true }

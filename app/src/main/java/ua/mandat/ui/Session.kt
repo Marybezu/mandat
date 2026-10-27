@@ -82,7 +82,6 @@ class Session(app: Application) : AndroidViewModel(app) {
     var dynamicColors by mutableStateOf(Appearance.dynamic(app))
 
     init {
-        Space.compact = Appearance.compact(app)
     }
     /** Shown as a visible strip while screenshots are allowed, so the choice is not forgotten. */
     var screenshotsAllowed by mutableStateOf(Appearance.screenshotsAllowed(app))
@@ -139,6 +138,14 @@ class Session(app: Application) : AndroidViewModel(app) {
     /** Pasted text being split by the on-device AI. */
     var showAiSplit by mutableStateOf(false)
     var aiSplitText by mutableStateOf("")
+    /** The AI Center, open over the tab named here (null: closed). */
+    var aiCenter by mutableStateOf<String?>(null)
+    /** Sorting the Inbox with the AI. */
+    var showInboxSort by mutableStateOf(false)
+    /** The text editor opens with its AI help menu shown. */
+    var aiTextHelp by mutableStateOf(false)
+    /** A request from elsewhere (the AI Center) to open the settings. */
+    var optionsRequest by mutableStateOf(false)
     /** A text to export: Export opens with it chosen. */
     var exportText by mutableStateOf<Long?>(null)
     /** A person whose brief to export. */
@@ -368,7 +375,7 @@ class Session(app: Application) : AndroidViewModel(app) {
     }
 
     /** Opens a matter by id in the editor (read under the write lock, shown on the main thread). */
-    fun openMatter(id: Long) {
+    fun openMatter(id: Long, nextStep: String? = null) {
         // Following a link from another editor: what was typed there is saved first
         saveOpenEditors()
         val startedAt = generation
@@ -376,7 +383,10 @@ class Session(app: Application) : AndroidViewModel(app) {
             val m = withOpenDb { db -> db.matters().get(id) }
             withContext(Dispatchers.Main) {
                 // Locked meanwhile: do not bring decrypted data back into memory
-                if (m != null && startedAt == generation && state is LockState.Open) draft = MatterDraft(EditRequest(m, isNew = false))
+                if (m != null && startedAt == generation && state is LockState.Open) draft = MatterDraft(EditRequest(m, isNew = false)).also { d ->
+                    // A suggested next step is put in the field; it is kept only if the owner saves
+                    if (!nextStep.isNullOrBlank()) d.nextStep = nextStep
+                }
             }
         }
     }
@@ -666,6 +676,9 @@ class Session(app: Application) : AndroidViewModel(app) {
         val openSplit = aiSplitText.takeIf { showAiSplit && it.isNotBlank() }
         showAiSplit = false
         aiSplitText = ""
+        aiCenter = null
+        showInboxSort = false
+        aiTextHelp = false
         val current = state
         val wasInUse = current is LockState.Open || current == LockState.Opening
         if (wasInUse) state = LockState.Locked
