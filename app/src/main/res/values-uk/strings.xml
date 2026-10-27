@@ -1031,7 +1031,7 @@
     <string name="text_next_field">Наступне поле [ ]</string>
     <string name="text_marks_hint">«# » на початку рядка — заголовок, «## » — підзаголовок, «- » — пункт списку. Так текст гарно виглядає у Word і PDF.</string>
     <string name="text_versions">Попередні версії</string>
-    <string name="text_no_versions">Ще немає попередніх версій: вони з'являються, коли ви зберігаєте зміни.</string>
+    <string name="text_no_versions">Ще немає попередніх версій: вони з\'являються, коли ви зберігаєте зміни.</string>
     <string name="text_export">Вивантажити (Word, PDF)</string>
     <string name="text_save_as_template">Зберегти як мій шаблон</string>
     <string name="text_kind_letter">Лист, звернення</string>

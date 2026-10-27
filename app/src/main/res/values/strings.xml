@@ -1027,7 +1027,7 @@
     <string name="text_stats">%1$d words · about %2$d min aloud</string>
     <string name="text_fields_left">fields to fill: %1$d</string>
     <string name="text_next_field">Next field [ ]</string>
-    <string name="text_marks_hint">"# " at the start of a line is a heading, "## " a subheading, "- " a list item. This makes the text look right in Word and PDF.</string>
+    <string name="text_marks_hint">\"# \" at the start of a line is a heading, \"## \" a subheading, \"- \" a list item. This makes the text look right in Word and PDF.</string>
     <string name="text_versions">Earlier versions</string>
     <string name="text_no_versions">No earlier versions yet: they appear when you save changes.</string>
     <string name="text_export">Export (Word, PDF)</string>
