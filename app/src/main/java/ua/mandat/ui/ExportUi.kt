@@ -77,8 +77,10 @@ class ExportPlan {
     var pdf by mutableStateOf(true)
     var matterId by mutableStateOf<Long?>(null)
     var everything by mutableStateOf(false)
+    /** One text as Word, PDF and Markdown. */
+    var textId by mutableStateOf<Long?>(null)
 
-    fun any() = people || book || calendar || tables.isNotEmpty() || diary || matterId != null || everything
+    fun any() = people || book || calendar || tables.isNotEmpty() || diary || matterId != null || everything || textId != null
 }
 
 private val TABLES = listOf("matters", "delegations", "promises", "deadlines", "events", "money", "people")
@@ -94,7 +96,10 @@ fun ExportScreen(db: MandatDb, session: Session) {
     BackHandler { session.showExport = false }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val plan = remember { ExportPlan() }
+    val plan = remember { ExportPlan().also { p -> session.exportText?.let { p.textId = it } } }
+    androidx.compose.runtime.LaunchedEffect(Unit) { session.exportText = null }
+    val textTitle by remember(db, plan.textId) { kotlinx.coroutines.flow.flow { emit(plan.textId?.let { id -> session.withOpenDb { it.texts().get(id) }?.title }) } }
+        .collectAsStateWithLifecycle(null)
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val contacts by remember(db) { db.contacts().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
@@ -157,8 +162,8 @@ fun ExportScreen(db: MandatDb, session: Session) {
     }
     fun fileName(): String {
         val date = java.time.LocalDate.now().toString()
-        val single = listOf(plan.people || plan.book, plan.calendar, plan.tables.isNotEmpty(), plan.diary, plan.matterId != null, plan.everything).count { it } == 1 &&
-            plan.tables.size <= 1 && !(plan.people && plan.book)
+        val single = listOf(plan.people || plan.book, plan.calendar, plan.tables.isNotEmpty(), plan.diary, plan.matterId != null, plan.everything, plan.textId != null).count { it } == 1 &&
+            plan.tables.size <= 1 && !(plan.people && plan.book) && plan.textId == null && !((plan.diary || plan.matterId != null) && plan.pdf)
         if (mode == PROTECT_MANDAT) return "mandat-$date.$MANDAT_EXPORT_EXT"
         if (protect || !single) return "mandat-$date.zip"
         return "mandat-$date." + when {
@@ -233,7 +238,8 @@ fun ExportScreen(db: MandatDb, session: Session) {
                         ?: stringResource(R.string.export_matter), style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.clickable { pickingMatter = true })
                 }
-                if (plan.diary || plan.matterId != null) Check(stringResource(R.string.export_pdf), plan.pdf) { plan.pdf = it }
+                plan.textId?.let { Check(stringResource(R.string.export_text_one, textTitle.orEmpty()), true) { on -> if (!on) plan.textId = null } }
+                if (plan.diary || plan.matterId != null || plan.textId != null) Check(stringResource(R.string.export_pdf), plan.pdf) { plan.pdf = it }
                 if (hidden.isEmpty()) Check(stringResource(R.string.export_everything), plan.everything) { plan.everything = it }
                 else Text(stringResource(R.string.export_everything_hidden), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(start = 12.dp))
                 }
@@ -597,6 +603,23 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
         })
     }
     plan.matterId?.takeIf { visible(it) }?.let { id -> db.matters().get(id)?.let { m -> addDoc("matter-$id", matterDossier(context, db, m, nameOf, hidden)) } }
+    plan.textId?.let { id -> db.texts().get(id) }?.takeIf { visible(it.matterId) }?.let { t ->
+        // Word for editing elsewhere; PDF and Markdown as with other documents
+        out += "text.docx" to ua.mandat.data.Docx.build(t.body.ifBlank { t.title })
+        val md = buildString {
+            append("# ").append(Export.md(t.title)).append("\n\n")
+            t.body.lines().forEach { l ->
+                when {
+                    l.startsWith("# ") -> append("# ").append(Export.md(l.removePrefix("# ")))
+                    l.startsWith("## ") -> append("## ").append(Export.md(l.removePrefix("## ")))
+                    l.startsWith("- ") -> append("- ").append(Export.md(l.removePrefix("- ")))
+                    else -> append(Export.md(l))
+                }
+                append("\n")
+            }
+        }
+        addDoc("text", md)
+    }
     if (plan.everything && hidden.isEmpty()) out += "everything.json" to ua.mandat.backup.BackupData.dump(db)
     return out
 }

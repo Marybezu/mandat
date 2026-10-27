@@ -995,4 +995,50 @@
     <string name="matters_dropped">Closed without result</string>
     <string name="matter_closed_line">closed %1$s · took %2$d days</string>
     <string name="matters_closed">Closed</string>
+    <string name="tpl_appeal_title" formatted="false">Letter to an authority</string>
+    <string name="tpl_appeal_body" formatted="false"># Letter\n\n[Position, name of the body]\n[Name of the official]\n\nDear [name],\n\nI have been contacted by [who: residents, an organisation] about [the matter].\n\n[A short account: facts, dates, what has been done.]\n\nI ask you to:\n- [request 1];\n- [request 2].\n\nPlease inform me of the outcome by [reply date].\n\nBasis: [basis — check the current wording of the relevant law].\n\nAttachments: [list or \"none\"].\n\n[Position]\n[Name]\n[Date]</string>
+    <string name="tpl_inquiry_title" formatted="false">Formal inquiry</string>
+    <string name="tpl_inquiry_body" formatted="false"># Formal inquiry\n\n[To: position, name of the body]\n\n[Name of the official]\n\n## The matter\n[What happened and why it matters.]\n\n## Circumstances\n[Facts, documents, dates.]\n\n## Requests\n- [what exactly should be done];\n- [provide information on…].\n\nPlease reply by [reply date].\n\nBasis: [basis — check the current wording of the law and rules of procedure].\n\n[Position]\n[Name]\n[Date]</string>
+    <string name="tpl_reply_title" formatted="false">Reply to a resident</string>
+    <string name="tpl_reply_body" formatted="false">Dear [name],\n\nThank you for your letter about [the matter] of [date].\n\n[What has been done: where the request went, what reply came.]\n\n[What happens next and when.]\n\nIf you have further questions, please contact [office contact].\n\nKind regards,\n[Name]\n[Date]</string>
+    <string name="tpl_invite_title" formatted="false">Invitation to a meeting</string>
+    <string name="tpl_invite_body" formatted="false">Dear [name],\n\nI invite you to a meeting on [date] at [time] at [address].\n\nTopic: [the matter].\n\nPlease bring: [documents, if needed].\n\nIf the time does not suit you, please let us know: [contact].\n\nKind regards,\n[Name]</string>
+    <string name="tpl_cover_title" formatted="false">Cover letter</string>
+    <string name="tpl_cover_body" formatted="false">[To: position, name of the body]\n\nI am forwarding [what: a letter, documents] about [the matter] for consideration within your competence.\n\nPlease inform [whom] and me of the outcome.\n\nAttachments: [list, number of pages].\n\n[Position]\n[Name]\n[Date]</string>
+    <string name="tpl_thanks_title" formatted="false">Thank-you note</string>
+    <string name="tpl_thanks_body" formatted="false">Dear [name],\n\nThank you sincerely for [what exactly].\n\n[What difference it made: for whom, what it achieved.]\n\nI look forward to working together.\n\nKind regards,\n[Name]</string>
+    <string name="tpl_greeting_title" formatted="false">Greeting</string>
+    <string name="tpl_greeting_body" formatted="false">Dear [name],\n\nWarm congratulations on [the occasion]!\n\n[A few warm words: what you value in the person or team.]\n\nI wish you [wishes].\n\n[Name]</string>
+    <string name="tpl_speech_title" formatted="false">Speech</string>
+    <string name="tpl_speech_body" formatted="false"># [Topic]\n\n## Opening\n[Address the audience. Why this matters now, in one sentence.]\n\n## Main point\n[One sentence people should remember.]\n\n## Arguments\n- [argument 1 with a fact];\n- [argument 2 with an example];\n- [argument 3].\n\n## What I propose\n[A concrete proposal or decision.]\n\n## Close\n[Call to action. Thanks.]</string>
+    <string name="tpl_column_title" formatted="false">Column</string>
+    <string name="tpl_column_body" formatted="false"># [Headline]\n\n[First paragraph: an event or a story that hooks.]\n\n## What is happening\n[Facts and figures with sources.]\n\n## Why it matters\n[Consequences for people.]\n\n## What can be done\n[Your proposal.]\n\n[A last sentence that stays with the reader.]</string>
+    <string name="tpl_note_title" formatted="false">Explanatory note</string>
+    <string name="tpl_note_body" formatted="false"># Explanatory note\nto the draft [title of the act]\n\n[Check the structure against the current rules of procedure.]\n\n## Why it is needed\n[What problem the draft solves.]\n\n## Aims\n[What it should achieve.]\n\n## General description and main provisions\n[What changes.]\n\n## Current legislation\n[Which acts apply in this area; check references against current versions.]\n\n## Financial and economic justification\n[Whether money is needed, and how much.]\n\n## Expected consequences\n[What will change once adopted.]</string>
+    <string name="texts_title">Texts</string>
+    <string name="texts_empty">No texts yet. Start a new one or from a template.</string>
+    <string name="texts_own_templates">My templates</string>
+    <string name="text_new">New text</string>
+    <string name="text_from_template">From a template</string>
+    <string name="text_title_one">Text</string>
+    <string name="text_name">Title</string>
+    <string name="text_body">Text</string>
+    <string name="text_words">%1$d words</string>
+    <string name="text_stats">%1$d words · about %2$d min aloud</string>
+    <string name="text_fields_left">fields to fill: %1$d</string>
+    <string name="text_next_field">Next field [ ]</string>
+    <string name="text_marks_hint">"# " at the start of a line is a heading, "## " a subheading, "- " a list item. This makes the text look right in Word and PDF.</string>
+    <string name="text_versions">Earlier versions</string>
+    <string name="text_no_versions">No earlier versions yet: they appear when you save changes.</string>
+    <string name="text_export">Export (Word, PDF)</string>
+    <string name="text_save_as_template">Save as my template</string>
+    <string name="text_kind_letter">Letter</string>
+    <string name="text_kind_speech">Speech</string>
+    <string name="text_kind_column">Column</string>
+    <string name="text_kind_note">Explanatory note</string>
+    <string name="text_kind_draft">Draft act</string>
+    <string name="text_kind_report">Report</string>
+    <string name="text_kind_other">Other</string>
+    <string name="text_kind_template">My template</string>
+    <string name="export_text_one">Text: %1$s (.docx, .md)</string>
 </resources>

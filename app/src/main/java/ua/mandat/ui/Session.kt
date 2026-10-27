@@ -133,6 +133,18 @@ class Session(app: Application) : AndroidViewModel(app) {
         write { d.persist(it) }
     }
 
+    /** The text being written, and whether the list of texts is open. */
+    var textDraft by mutableStateOf<TextDraft?>(null)
+    var showTexts by mutableStateOf(false)
+    /** A text to export: Export opens with it chosen. */
+    var exportText by mutableStateOf<Long?>(null)
+
+    fun saveTextDraft() {
+        val d = textDraft ?: return
+        textDraft = null
+        write { d.persist(it) }
+    }
+
     fun saveCommunityDraft() {
         val d = communityDraft ?: return
         communityDraft = null
@@ -679,6 +691,8 @@ class Session(app: Application) : AndroidViewModel(app) {
         moneyDraft = null
         val openCommunity = communityDraft
         communityDraft = null
+        val openText = textDraft
+        textDraft = null
         // A .vcf being imported is decrypted personal data: it leaves memory with the lock
         vcfImport = null
         vcfDone = null
@@ -717,6 +731,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                             { openAlliance?.persist(current.db) },
                             { openMoney?.persist(current.db) },
                             { openCommunity?.persist(current.db) },
+                            { openText?.persist(current.db) },
                             { openContact?.takeIf { !it.isNew || it.touched }?.persist(current.db) },
                             { persistReview(current.db, openReview) },
                             // Last: only the days on which something is due, for reminders

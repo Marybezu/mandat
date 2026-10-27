@@ -448,3 +448,37 @@ fun newCommunity() = CommunityDraft(
     ua.mandat.data.Community(name = "", kind = ua.mandat.data.CommunityKind.VILLAGE.name, createdAt = 0, updatedAt = 0),
     isNew = true,
 )
+
+/**
+ * A text being written. Saving with a changed body keeps the previous body as a version (the
+ * newest [ua.mandat.data.TEXT_VERSIONS_KEPT]), so nothing written is lost by an edit.
+ */
+class TextDraft(val doc: ua.mandat.data.TextDoc, val isNew: Boolean) {
+    var title by mutableStateOf(doc.title)
+    var kind by mutableStateOf(ua.mandat.data.TextKind.of(doc.kind))
+    var body by mutableStateOf(doc.body)
+    var matterId by mutableStateOf(doc.matterId)
+
+    fun valid() = title.isNotBlank()
+
+    suspend fun persist(db: MandatDb): Long? {
+        val now = System.currentTimeMillis()
+        val edited = ua.mandat.data.cleanText(doc.copy(title = title, kind = kind.name, body = body, matterId = matterId, updatedAt = now)) ?: return null
+        return db.withTransaction {
+            if (isNew) db.texts().insert(edited.copy(id = 0, createdAt = now))
+            else {
+                val saved = db.texts().get(edited.id)
+                if (saved != null && saved.body != edited.body && saved.body.isNotBlank()) {
+                    db.texts().insertVersion(ua.mandat.data.TextVersion(textId = edited.id, body = saved.body, savedAt = saved.updatedAt))
+                    db.texts().trimVersions(edited.id, ua.mandat.data.TEXT_VERSIONS_KEPT)
+                }
+                db.texts().update(edited)
+                edited.id
+            }
+        }
+    }
+}
+
+fun newText(matterId: Long? = null, kind: ua.mandat.data.TextKind = ua.mandat.data.TextKind.OTHER, title: String = "", body: String = "") = TextDraft(
+    ua.mandat.data.TextDoc(title = title, kind = kind.name, body = body, matterId = matterId, createdAt = 0, updatedAt = 0), isNew = true,
+)

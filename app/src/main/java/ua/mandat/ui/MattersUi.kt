@@ -414,6 +414,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                 // A fundraising matter keeps its own ledger, apart from the personal budget
                 if (draft.type == MatterType.AID) SheetGroup { AidLedger(db, session, request.matter.id) }
                 SheetGroup { MatterLinks(db, session, request.matter.id, draft) }
+                SheetGroup { MatterTexts(db, session, request.matter.id) }
             }
             if (!request.isNew) {
                 SheetGroup {
@@ -464,6 +465,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                             db.communities().unlinkRef("matter", id)
                             db.time().clearMatter(id)
                             db.history().deleteFor(id)
+                            db.texts().clearMatter(id)
                             db.matters().delete(id)
                         }
                     }

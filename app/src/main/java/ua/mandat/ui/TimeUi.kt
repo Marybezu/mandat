@@ -310,8 +310,9 @@ fun ReviewScreen(db: MandatDb, session: Session) {
         item(key = "promises") { ReputationTiles(db, session) }
         item(key = "budget") { BudgetCard(db, session) }
         item(key = "diary") {
-            OutlinedButton(onClick = { session.showDiary = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.diary_open))
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
+                OutlinedButton(onClick = { session.showDiary = true }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.diary_open)) }
+                OutlinedButton(onClick = { session.showTexts = true }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.texts_title)) }
             }
         }
     }

@@ -249,6 +249,7 @@ private fun Main(db: MandatDb, session: Session) {
     session.allianceDraft?.let { AllianceDialog(db, session, it) }
     session.moneyDraft?.let { MoneyDialog(db, session, it) }
     session.communityDraft?.let { CommunityDialog(session, it) }
+    session.textDraft?.let { TextEditor(db, session, it) }
     session.vcfDone?.let { (n, uri) -> VcfDoneDialog(session, n, uri) }
 
     session.draft?.let { draft ->
@@ -286,6 +287,10 @@ private fun Main(db: MandatDb, session: Session) {
     }
     if (session.showBudget) {
         BudgetScreen(db, session)
+        return
+    }
+    if (session.showTexts) {
+        TextsScreen(db, session)
         return
     }
     if (session.showDiary) {

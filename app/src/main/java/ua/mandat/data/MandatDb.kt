@@ -40,7 +40,7 @@ interface InboxDao {
         Person::class, MatterPerson::class, Delegation::class, Promise::class,
         Deadline::class, Review::class, Event::class, EventPerson::class, Contact::class,
         InfoItem::class, KeyMessage::class, Alliance::class, MoneyEntry::class, AidRecord::class, ReviewLink::class,
-        Community::class, CommunityLink::class, TimeEntry::class, MatterChange::class,
+        Community::class, CommunityLink::class, TimeEntry::class, MatterChange::class, TextDoc::class, TextVersion::class,
     ],
     version = DB_VERSION,
     exportSchema = true,
@@ -60,6 +60,7 @@ abstract class MandatDb : RoomDatabase() {
     abstract fun contacts(): ContactDao
     abstract fun time(): TimeDao
     abstract fun history(): HistoryDao
+    abstract fun texts(): TextDao
     abstract fun info(): InfoDao
     abstract fun money(): MoneyDao
     abstract fun communities(): CommunityDao
@@ -327,10 +328,25 @@ val MIGRATION_13_14 = object : Migration(13, 14) {
     }
 }
 
+val MIGRATION_14_15 = object : Migration(14, 15) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Texts (speeches, columns, notes, drafts, reports, own templates) and their earlier versions
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `texts` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `kind` TEXT NOT NULL, " +
+                "`body` TEXT NOT NULL, `matterId` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `text_versions` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `textId` INTEGER NOT NULL, " +
+                "`body` TEXT NOT NULL, `savedAt` INTEGER NOT NULL)",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_text_versions_textId` ON `text_versions` (`textId`)")
+    }
+}
+
 val MIGRATIONS = arrayOf(
     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
-    MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
+    MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15,
 )
 
 /** The current database layout version; raise it together with a new migration. */
-const val DB_VERSION = 14
+const val DB_VERSION = 15

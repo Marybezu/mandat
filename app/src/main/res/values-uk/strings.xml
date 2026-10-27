@@ -997,4 +997,50 @@
     <string name="matters_dropped">Закриті без результату</string>
     <string name="matter_closed_line">закрито %1$s · тривала %2$d дн.</string>
     <string name="matters_closed">Закриті</string>
+    <string name="tpl_appeal_title" formatted="false">Звернення до органу влади</string>
+    <string name="tpl_appeal_body" formatted="false"># Звернення\n\n[Посада, назва органу]\n[Ім\'я та прізвище посадової особи]\n\nШановн[ий/а] [ім\'я по батькові]!\n\nДо мене звернул[ися/ася/ся] [хто: громадяни, організація] щодо [суть питання].\n\n[Короткий опис ситуації: факти, дати, що вже зроблено.]\n\nПрошу:\n- [прохання 1];\n- [прохання 2].\n\nПро результати розгляду прошу поінформувати мене у строк [строк відповіді].\n\nПідстава: [підстава — перевірте чинну редакцію відповідного закону].\n\nДодатки: [перелік або «немає»].\n\n[Посада]\n[Ім\'я та прізвище]\n[Дата]</string>
+    <string name="tpl_inquiry_title" formatted="false">Депутатський запит</string>
+    <string name="tpl_inquiry_body" formatted="false"># Депутатський запит\n\n[Кому: посада, назва органу]\n\n[Ім\'я та прізвище посадової особи]\n\n## Суть питання\n[Що сталося і чому це важливо для громади чи держави.]\n\n## Обставини\n[Факти, документи, дати.]\n\n## Вимоги\n- [що саме потрібно зробити];\n- [надати інформацію щодо…].\n\nПрошу надати відповідь у строк [строк відповіді].\n\nПідстава: [підстава — перевірте чинну редакцію закону та регламенту щодо порядку внесення запиту].\n\n[Посада]\n[Ім\'я та прізвище]\n[Дата]</string>
+    <string name="tpl_reply_title" formatted="false">Відповідь громадянину</string>
+    <string name="tpl_reply_body" formatted="false">Шановн[ий/а] [ім\'я]!\n\nДякую за звернення щодо [суть питання] від [дата звернення].\n\n[Що зроблено: куди направлено запит, яку відповідь отримано.]\n\n[Що буде далі і коли.]\n\nЯкщо виникнуть додаткові питання, звертайтеся: [контакт приймальні].\n\nЗ повагою,\n[Ім\'я та прізвище]\n[Дата]</string>
+    <string name="tpl_invite_title" formatted="false">Запрошення на прийом</string>
+    <string name="tpl_invite_body" formatted="false">Шановн[ий/а] [ім\'я]!\n\nЗапрошую вас на особистий прийом [дата] о [час] за адресою: [адреса].\n\nПитання: [суть питання].\n\nПрохання мати з собою: [документи, якщо потрібні].\n\nЯкщо час незручний, повідомте, будь ласка: [контакт].\n\nЗ повагою,\n[Ім\'я та прізвище]</string>
+    <string name="tpl_cover_title" formatted="false">Супровідний лист</string>
+    <string name="tpl_cover_body" formatted="false">[Кому: посада, назва органу]\n\nНаправляю [що саме: звернення, документи] щодо [суть питання] для розгляду відповідно до компетенції.\n\nПрошу про результати розгляду поінформувати [кого] та мене.\n\nДодатки: [перелік, кількість аркушів].\n\n[Посада]\n[Ім\'я та прізвище]\n[Дата]</string>
+    <string name="tpl_thanks_title" formatted="false">Подяка</string>
+    <string name="tpl_thanks_body" formatted="false">Шановн[ий/а] [ім\'я]!\n\nЩиро дякую за [за що саме].\n\n[Яку різницю це зробило: для кого, що вдалося.]\n\nСподіваюся на подальшу співпрацю.\n\nЗ повагою,\n[Ім\'я та прізвище]</string>
+    <string name="tpl_greeting_title" formatted="false">Привітання</string>
+    <string name="tpl_greeting_body" formatted="false">Шановн[ий/а] [ім\'я]!\n\nЩиро вітаю вас з [нагода]!\n\n[Кілька теплих слів: що цінуєте в людині чи колективі.]\n\nБажаю [побажання].\n\n[Ім\'я та прізвище]</string>
+    <string name="tpl_speech_title" formatted="false">Виступ</string>
+    <string name="tpl_speech_body" formatted="false"># [Тема виступу]\n\n## Вступ\n[Звернення до присутніх. Чому ця тема важлива саме зараз — одне речення.]\n\n## Головна думка\n[Одне речення, яке мають запам\'ятати.]\n\n## Аргументи\n- [аргумент 1 і факт до нього];\n- [аргумент 2 і приклад];\n- [аргумент 3].\n\n## Що пропоную\n[Конкретна пропозиція або рішення.]\n\n## Завершення\n[Заклик до дії. Подяка.]</string>
+    <string name="tpl_column_title" formatted="false">Колонка</string>
+    <string name="tpl_column_body" formatted="false"># [Заголовок]\n\n[Перший абзац: подія або історія, що чіпляє.]\n\n## Що відбувається\n[Факти й цифри з джерелами.]\n\n## Чому це важливо\n[Наслідки для людей.]\n\n## Що можна зробити\n[Ваша пропозиція.]\n\n[Останнє речення, що лишається в пам\'яті.]</string>
+    <string name="tpl_note_title" formatted="false">Пояснювальна записка</string>
+    <string name="tpl_note_body" formatted="false"># Пояснювальна записка\nдо проєкту [назва акта]\n\n[Структуру записки звірте з чинними вимогами регламенту.]\n\n## Обґрунтування необхідності\n[Яку проблему розв\'язує проєкт.]\n\n## Мета і завдання\n[Чого досягти.]\n\n## Загальна характеристика і основні положення\n[Що змінюється.]\n\n## Стан нормативно-правової бази\n[Які акти діють у цій сфері; посилання перевірте за чинними редакціями.]\n\n## Фінансово-економічне обґрунтування\n[Чи потрібні кошти і скільки.]\n\n## Прогноз наслідків\n[Що зміниться після ухвалення.]</string>
+    <string name="texts_title">Тексти</string>
+    <string name="texts_empty">Ще немає текстів. Почніть з нового або з шаблону.</string>
+    <string name="texts_own_templates">Мої шаблони</string>
+    <string name="text_new">Новий текст</string>
+    <string name="text_from_template">З шаблону</string>
+    <string name="text_title_one">Текст</string>
+    <string name="text_name">Назва</string>
+    <string name="text_body">Текст</string>
+    <string name="text_words">%1$d сл.</string>
+    <string name="text_stats">%1$d слів · близько %2$d хв уголос</string>
+    <string name="text_fields_left">заповнити полів: %1$d</string>
+    <string name="text_next_field">Наступне поле [ ]</string>
+    <string name="text_marks_hint">«# » на початку рядка — заголовок, «## » — підзаголовок, «- » — пункт списку. Так текст гарно виглядає у Word і PDF.</string>
+    <string name="text_versions">Попередні версії</string>
+    <string name="text_no_versions">Ще немає попередніх версій: вони з'являються, коли ви зберігаєте зміни.</string>
+    <string name="text_export">Вивантажити (Word, PDF)</string>
+    <string name="text_save_as_template">Зберегти як мій шаблон</string>
+    <string name="text_kind_letter">Лист, звернення</string>
+    <string name="text_kind_speech">Виступ</string>
+    <string name="text_kind_column">Колонка</string>
+    <string name="text_kind_note">Пояснювальна записка</string>
+    <string name="text_kind_draft">Чернетка акта</string>
+    <string name="text_kind_report">Звіт</string>
+    <string name="text_kind_other">Інше</string>
+    <string name="text_kind_template">Мій шаблон</string>
+    <string name="export_text_one">Текст: %1$s (.docx, .md)</string>
 </resources>
