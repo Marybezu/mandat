@@ -1,5 +1,6 @@
 package ua.mandat.ui
 
+import androidx.compose.foundation.border
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -74,17 +75,19 @@ fun SmartListChips(counts: Map<SmartList, Int>, onOpen: (SmartList) -> Unit) {
         SmartList.entries.forEach { list ->
             val n = counts[list] ?: 0
             val warn = (list == SmartList.STUCK || list == SmartList.NO_NEXT) && n > 0
+            // Something to look at: a coral outline and number, not a heavy fill
+            val shape = RoundedCornerShape(10.dp)
             Row(
-                Modifier.clip(RoundedCornerShape(10.dp))
-                    .background(if (warn) scheme.errorContainer else scheme.surface)
+                Modifier.clip(shape)
+                    .background(if (warn) ChartColors.coral.copy(alpha = 0.10f) else scheme.surface)
+                    .let { if (warn) it.border(androidx.compose.foundation.BorderStroke(1.dp, ChartColors.coral.copy(alpha = 0.6f)), shape) else it }
                     .clickable { onOpen(list) }
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(n.toString(), style = MaterialTheme.typography.titleSmall, color = if (warn) scheme.onErrorContainer else scheme.primary)
+                Text(n.toString(), style = MaterialTheme.typography.titleSmall, color = if (warn) ChartColors.coral else scheme.primary)
                 Spacer(Modifier.width(6.dp))
-                Text(stringResource(list.title), style = MaterialTheme.typography.labelLarge,
-                    color = if (warn) scheme.onErrorContainer else scheme.onSurface)
+                Text(stringResource(list.title), style = MaterialTheme.typography.labelLarge, color = scheme.onSurface)
             }
         }
     }

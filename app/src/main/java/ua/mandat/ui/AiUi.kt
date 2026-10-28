@@ -531,6 +531,6 @@ suspend fun briefFacts(db: ua.mandat.data.MandatDb, session: Session, personId: 
         if (matters.isNotEmpty()) append("Спільні справи: ").append(matters.joinToString("; ") { it.title + (it.stance?.let { s -> " (позиція: $s)" } ?: "") }).append("\n")
         if (promises.isNotEmpty()) append("Ми обіцяли: ").append(promises.joinToString("; ") { it.what }).append("\n")
         if (asked.isNotEmpty()) append("Ми доручили цій людині: ").append(asked.joinToString("; ") { it.what }).append("\n")
-        if (events.isNotEmpty()) append("Зустрічі: ").append(events.joinToString("; ") { Dates.format(it.day) + " " + it.title + (it.outcome.takeIf { o -> o.isNotBlank() }?.let { o -> " — $o" } ?: "") }).append("\n")
+        if (events.isNotEmpty()) append("Зустрічі: ").append(events.joinToString("; ") { factDate(it.day) + " " + it.title + (it.outcome.takeIf { o -> o.isNotBlank() }?.let { o -> " — $o" } ?: "") }).append("\n")
     }
 }

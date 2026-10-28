@@ -1,5 +1,6 @@
 package ua.mandat.ui
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -81,16 +82,21 @@ fun NeutralTag(text: String) = Tag(text, Tint(MaterialTheme.colorScheme.surfaceV
 
 /** A number with a short label, for the summary at the top of Today. */
 @Composable
-fun RowScope.StatTile(value: Int, label: String, attention: Boolean = false, onClick: (() -> Unit)? = null) {
-    val bg = if (attention && value > 0) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant
-    val fg = if (attention && value > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface
+fun RowScope.StatTile(value: Int, label: String, attention: Boolean = false, accent: Color? = null, onClick: (() -> Unit)? = null) {
+    // Calm by default: a tint of the number's own colour. Something to look at gets a coral outline
+    // and number, not a heavy fill, so warnings keep their weight
+    val warn = attention && value > 0
+    val tone = if (warn) ChartColors.coral else accent
+    val shape = RoundedCornerShape(10.dp)
     Column(
-        Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(bg)
+        Modifier.weight(1f).clip(shape)
+            .background(tone?.copy(alpha = 0.10f) ?: MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+            .let { if (warn) it.border(androidx.compose.foundation.BorderStroke(1.dp, ChartColors.coral.copy(alpha = 0.6f)), shape) else it }
             .let { if (onClick != null) it.clickable(onClick = onClick) else it }
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        Text(value.toString(), style = MaterialTheme.typography.titleLarge, color = fg)
-        Text(label, style = MaterialTheme.typography.labelMedium, color = if (attention && value > 0) fg else MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value.toString(), style = MaterialTheme.typography.titleLarge, color = if (value > 0) tone ?: MaterialTheme.colorScheme.onSurface else Muted)
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

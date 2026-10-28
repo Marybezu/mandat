@@ -2,6 +2,7 @@
 
 package ua.mandat.ui
 
+import androidx.compose.ui.res.pluralStringResource
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -342,7 +343,7 @@ private fun PersonLine(p: Person, openCount: Int, onOpen: () -> Unit) {
                 val meta = listOfNotNull(role ?: who, p.jobTitle.ifBlank { null }, p.organization.ifBlank { null }).joinToString(" · ")
                 if (meta.isNotEmpty()) Text(meta, style = MaterialTheme.typography.labelMedium, color = Muted, maxLines = 2)
             }
-            if (openCount > 0) NeutralTag(stringResource(R.string.open_count, openCount))
+            if (openCount > 0) NeutralTag(pluralStringResource(R.plurals.open_delegations, openCount, openCount))
         }
     }
 }

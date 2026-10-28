@@ -81,7 +81,7 @@
     <string name="attention_FOCUS">Фокус</string>
     <string name="attention_BACKGROUND">Фон</string>
     <string name="attention_SLEEPING">Сплячі</string>
-    <string name="attention_hint_FOCUS">Чим живете цього тижня</string>
+    <string name="attention_hint_FOCUS">Головне зараз, до 5 справ</string>
     <string name="attention_hint_BACKGROUND">Ведеться, але не щодня</string>
     <string name="attention_hint_SLEEPING">Поки відкладено</string>
     <string name="status_ACTIVE">Активна</string>
@@ -221,7 +221,6 @@
     <string name="overdue_title">Прострочене</string>
     <string name="soon_title">Сьогодні й завтра</string>
     <string name="overdue_label">прострочено</string>
-    <string name="open_count">відкрито: %1$d</string>
     <string name="save_matter_first">Збережіть справу, щоб додавати людей, доручення й обіцянки.</string>
 
     <string name="deadlines">Строки</string>
@@ -484,7 +483,7 @@
     <string name="show_by_matter">За справами</string>
     <string name="hide_by_matter">Сховати справи</string>
     <string name="by_matter_map_hint">Торкніться справи, щоб відкрити її карту впливу.</string>
-    <string name="others_n">Інші: %1$d</string>
+    <string name="others_n">ще %1$d</string>
     <string name="fold">Згорнути групу</string>
     <string name="dash_trend">Справи в русі за 12 тижнів</string>
     <string name="days_in_work">днів у роботі: %1$d</string>
@@ -789,7 +788,7 @@
     <string name="district_coming">Прийоми й виїзди на 30 днів</string>
     <string name="district_communities">громад</string>
     <string name="district_coverage">Громади: від останнього візиту</string>
-    <string name="district_coverage_hint">Першими ті, де давно не були. Смужка росте з часом.</string>
+    <string name="district_coverage_hint">Першими ті, де давно не були: що довша смужка, то довше.</string>
     <string name="district_days_ago">%1$d дн. тому</string>
     <string name="district_done_year">зроблено за рік</string>
     <string name="district_empty">Додайте громади округу, щоб бачити картину кожної.</string>
@@ -955,9 +954,8 @@
     <string name="now_next">Зараз %1$s · наступна о %2$s, через %3$s</string>
     <string name="now_done">Зараз %1$s · на сьогодні все</string>
     <string name="lens_all">Усі ролі</string>
-    <string name="time_plan_vs">Як планували → як вийшло</string>
-    <string name="time_plan_line">%1$d %% → %2$d %%</string>
-    <string name="time_plan_far">%1$d %% → %2$d %%, помітно інакше</string>
+    <string name="time_plan_vs">План → факт</string>
+    <string name="time_plan_line">план %1$d %% · факт %2$d %%</string>
     <string name="delegation_group_how">Як зробити</string>
     <string name="delegation_group_when">Справа й строки</string>
     <string name="promise_group_kind">Яка обіцянка</string>
@@ -970,7 +968,7 @@
     <string name="retro_half">Півроку</string>
     <string name="retro_year">Рік</string>
     <string name="retro_cadence">Каденція</string>
-    <string name="retro_approx">≈ — наближено: журнал змін веде Мандат з цієї версії, раніші місяці відновлено з дат створення й завершення.</string>
+    <string name="retro_approx">≈ приблизно: журнал змін ведеться з цієї версії, раніші місяці відновлено з дат створення й завершення.</string>
     <string name="retro_started">нових справ</string>
     <string name="retro_finished">завершено</string>
     <string name="retro_avg_days">днів у середньому до завершення</string>
@@ -1207,4 +1205,18 @@
     <string name="retro_on_time_s">строків вчасно</string>
     <string name="ai_digest_failed">Не вдалося стиснути. Спробуйте ще раз.</string>
     <string name="matter_alike_confirm">Відкрити наявну справу? Набране в новій справі не збережеться.</string>
+    <string name="time_plan_less">▼ менше</string>
+    <string name="time_plan_more">▲ більше</string>
+    <string name="report_make_title">Звіт для виборців</string>
+    <string name="report_period">Період</string>
+    <string name="report_from">З</string>
+    <string name="report_to">По</string>
+    <string name="report_compose">Скласти звіт</string>
+    <string name="report_hint">У звіт потрапляють лише назви справ, публічні обіцянки, кількість прийомів і виїздів та зібрана допомога. Чутливе й робочі нотатки — ні.</string>
+    <plurals name="open_delegations">
+        <item quantity="one">%1$d доручення</item>
+        <item quantity="few">%1$d доручення</item>
+        <item quantity="many">%1$d доручень</item>
+        <item quantity="other">%1$d доручення</item>
+    </plurals>
 </resources>

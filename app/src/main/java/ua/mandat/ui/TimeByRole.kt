@@ -107,7 +107,9 @@ fun TimeBlock(db: MandatDb, session: Session, span: Span, roles: List<Role>) {
                     verticalAlignment = Alignment.CenterVertically) {
                     Text(names[id]?.let(::shortRole) ?: stringResource(R.string.time_no_role), style = MaterialTheme.typography.labelMedium,
                         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    Text(stringResource(if (far) R.string.time_plan_far else R.string.time_plan_line, plan, share) + " →",
+                    // "plan 10 % · fact 2 % ▼ less": the gap in words and a mark, coloured only when it is large
+                    val gap = when { !far -> ""; share < plan -> " " + stringResource(R.string.time_plan_less); else -> " " + stringResource(R.string.time_plan_more) }
+                    Text(stringResource(R.string.time_plan_line, plan, share) + gap + " →",
                         style = MaterialTheme.typography.labelMedium, color = if (far) ChartColors.coral else Muted)
                 }
             }

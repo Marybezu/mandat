@@ -42,6 +42,9 @@ class AiTest {
 1. На що звернути увагу: Перше.
 2. На що звернути увагу: Друге."""
         assertEquals("Зрушило:\n• Завершено перший етап.\n\nНа що звернути увагу:\n• Перше.\n• Друге.", LocalAi.tidy(raw))
+        // Bullets with a label under each item are a format of their own and stay
+        assertEquals("Обіцянка А:\n• Чому: строк минув.\n• Крок: подзвонити.\n\nОбіцянка Б:\n• Чому: близько.\n• Крок: написати.",
+            LocalAi.tidy("Обіцянка А:\n* Чому: строк минув.\n* Крок: подзвонити.\n\nОбіцянка Б:\n* Чому: близько.\n* Крок: написати."))
         // A text that replaces the owner's own keeps its marks
         assertEquals("# Назва\n- пункт", LocalAi.tidy("# Назва\n- пункт", keepMarks = true))
     }

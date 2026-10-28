@@ -252,7 +252,7 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
         /** How every answer reads: no opening line, no markup, each heading once. */
         private const val FMT = "Пиши без вступу (не починай з «Ось») і без підсумкової фрази. Без розмітки: ні зірочок, ні решіток. " +
             "Якщо є розділи, кожен заголовок пиши лише один раз окремим рядком із двокрапкою, а під ним пункти, що починаються з «• »; не повторюй заголовок у пунктах. " +
-            "Пропускай розділ, для якого немає фактів. Імена людей пиши так, як їх подано."
+            "Пропускай розділ, для якого немає фактів. Імена людей пиши так, як їх подано. Дати пиши так, як у фактах, з тим самим роком; не вигадуй інших дат."
 
         /** Whom it speaks to, and what the owner does at an event. */
         private const val ROLE = "Звертайся до власника застосунку на «ви». Про подію пиши «провести», лише якщо у фактах сказано, що власник головує (посада «голова»); " +
@@ -262,7 +262,8 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
             "після кожного твердження вкажи номер запису в квадратних дужках, наприклад [2]. Якщо в записах немає відповіді, так і скажи. Не додавай нічого поза записами. $FMT $UK"
 
         private const val SYSTEM_MORNING = "Ти помічник на початку дня. З наданих фактів склади ранковий огляд із розділів «Головне сьогодні:» (до 3 пунктів), " +
-            "«Ризики:» (строки, обіцянки, зустрічі без підготовки; до 3 пунктів) і «Зустрічі:» (з ким і що ви обіцяли цим людям). Кожен пункт — одне речення. $ROLE $FMT $UK"
+            "«Ризики:» (прострочені й близькі строки та обіцянки; до 3 пунктів) і «Зустрічі:» — лише події з календаря на сьогодні: час, що це, з ким і що ви обіцяли цим людям. " +
+            "Обіцянки й доручення не називай зустрічами. Кожен пункт — одне речення. $ROLE $FMT $UK"
 
         private const val SYSTEM_EVENING = "Ти помічник для запису в щоденник. З наданих фактів про день напиши стислий запис від першої особи без зазначення роду: " +
             "що зроблено, що зрушило, що лишилося. 3–5 речень звичайним текстом, без оцінок. $FMT $UK"
@@ -309,8 +310,9 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
         private const val SYSTEM_REMINDER = "Напиши коротке ввічливе нагадування людині про доручення, для месенджера: 2–3 речення без докору, з проханням повідомити, " +
             "коли буде готово чи що заважає. Звертання на «ви». $UK Відповідай лише текстом повідомлення."
 
-        private const val SYSTEM_RISK = "Ти помічник з обіцянок. Для кожної обіцянки з фактів напиши пункт «• обіцянка — чому під загрозою — один крок, що зробити цього тижня». " +
-            "До 6 пунктів, найризиковіші першими. $FMT $UK"
+        private const val SYSTEM_RISK = "Ти помічник з обіцянок. Для кожної обіцянки з фактів (до 6, найризиковіші першими) напиши три рядки: " +
+            "перший — коротка назва обіцянки з двокрапкою; другий — «• Чому: …» (строк минув чи близько, високий ризик, публічна); третій — «• Крок: …» " +
+            "(одна конкретна дія цього тижня). Між обіцянками порожній рядок. $FMT $UK"
 
         private const val SYSTEM_PLAN = "Ти помічник з планування. З часу за ролями (бажана частка й факт) і справ у фокусі запропонуй, як розподілити увагу наступного тижня: " +
             "розділи «Додати уваги:», «Тримати:», «Відкласти:», у кожному до 3 пунктів із конкретними справами з фактів. $FMT $UK"
@@ -362,10 +364,11 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
                 // An opening line like "Ось короткий бриф…:" says nothing
                 val first = lines.indexOfFirst { it.isNotBlank() }
                 if (first >= 0 && lines[first].trim().let { it.startsWith("Ось") && it.endsWith(":") && it.length < 120 }) lines = lines.drop(first + 1)
-                // "1. Heading: text" repeated in every point: the heading is said once, above its points
+                // "1. Heading: text" repeated in every numbered point: the heading is said once, above its points
+                // (bullets like "• Why: …" under each item are a chosen format and stay as they are)
                 val out = ArrayList<String>()
                 var lastHead: String? = null
-                val numbered = Regex("^\\s*(?:\\d+[.)]|•)\\s*([^:]{2,60}):\\s+(.+)$")
+                val numbered = Regex("^\\s*\\d+[.)]\\s*([^:]{2,60}):\\s+(.+)$")
                 val repeated = lines.mapNotNull { numbered.find(it)?.groupValues?.get(1)?.trim() }.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
                 for (l in lines) {
                     val m = numbered.find(l)?.takeIf { it.groupValues[1].trim() in repeated }

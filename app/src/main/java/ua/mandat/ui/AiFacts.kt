@@ -27,6 +27,23 @@ internal suspend fun MandatDb.namesHidden(session: Session): (String) -> Boolean
     return { text -> val t = text.lowercase(); titles.any { t.contains(it) } }
 }
 
+/**
+ * A date for the model: digits with the year and how far it is from today ("26.10.2026, 2 дні тому"),
+ * so it never has to guess the year or whether the day has passed.
+ */
+fun factDate(day: Long): String {
+    val d = java.time.LocalDate.ofEpochDay(day)
+    val diff = day - Dates.today()
+    val rel = when {
+        diff == 0L -> "сьогодні"
+        diff == 1L -> "завтра"
+        diff == -1L -> "вчора"
+        diff > 0 -> "через $diff дн."
+        else -> "${-diff} дн. тому"
+    }
+    return "%02d.%02d.%d (%s)".format(d.dayOfMonth, d.monthValue, d.year, rel)
+}
+
 /** The owner's post in words for the model; only "голова" means the owner runs that body's meetings. */
 private fun postWord(post: String?): String = when (ua.mandat.data.RolePost.of(post)) {
     ua.mandat.data.RolePost.LEAD -> "голова"
@@ -56,7 +73,7 @@ suspend fun todayFacts(db: MandatDb, session: Session): String {
     val roleOf = db.roleLines()
     val matterRole = db.matters().observeAll().first().associate { it.id to it.roleId }
     return buildString {
-        append("Сьогодні ").append(Dates.format(today)).append(".\n")
+        append("Сьогодні ").append(factDate(today)).append(".\n")
         if (roleOf.isNotEmpty()) append("Ролі власника: ").append(roleOf.values.joinToString("; ")).append("\n")
         if (events.isNotEmpty()) {
             append("Зустрічі сьогодні:\n")
@@ -73,7 +90,7 @@ suspend fun todayFacts(db: MandatDb, session: Session): String {
                 }
             }
         }
-        if (dl.isNotEmpty()) append("Строки (сьогодні, завтра чи прострочені): ").append(dl.take(10).joinToString("; ") { it.title + " — " + Dates.format(it.day) }).append("\n")
+        if (dl.isNotEmpty()) append("Строки (сьогодні, завтра чи прострочені): ").append(dl.take(10).joinToString("; ") { it.title + " — " + factDate(it.day) }).append("\n")
         if (dg.isNotEmpty()) append("Доручення до перевірки: ").append(dg.take(10).joinToString("; ") { it.what + (it.personId?.let { p -> " (" + names[p] + ")" } ?: "") }).append("\n")
         val duePr = pr.filter { it.due != null && it.due <= today + 1 }
         if (duePr.isNotEmpty()) append("Обіцянки зі строком: ").append(duePr.take(10).joinToString("; ") { it.what }).append("\n")
@@ -94,7 +111,7 @@ suspend fun eveningFacts(db: MandatDb, session: Session): String {
     val pr = db.promises().observeAll().first().filter { ok(it.matterId, it.what + " " + it.toWhom) && (closedToday(it.closedAt) || closedToday(it.createdAt)) }
     val moved = db.matters().observeAll().first().filter { okId(it.id) && Dates.dayOf(it.updatedAt) == today }
     return buildString {
-        append("День ").append(Dates.format(today)).append(".\n")
+        append("День ").append(factDate(today)).append(".\n")
         if (events.isNotEmpty()) append("Події: ").append(events.joinToString("; ") { it.title + (it.outcome.takeIf { o -> o.isNotBlank() }?.let { o -> " — $o" } ?: "") }).append("\n")
         if (dl.isNotEmpty()) append("Виконані строки: ").append(dl.joinToString("; ") { it.title }).append("\n")
         if (dg.isNotEmpty()) append("Доручення (дано чи виконано): ").append(dg.joinToString("; ") { it.what }).append("\n")
@@ -121,10 +138,10 @@ suspend fun matterFacts(db: MandatDb, session: Session, matterId: Long): String 
         if (m.description.isNotBlank()) append("Опис: ").append(m.description.take(800)).append("\n")
         append("У роботі днів: ").append((Dates.today() - Dates.dayOf(m.createdAt)).coerceAtLeast(0)).append("\n")
         if (people.isNotEmpty()) append("Люди: ").append(people.joinToString("; ") { it.name + (it.stance?.let { s -> " ($s)" } ?: "") }).append("\n")
-        if (dl.isNotEmpty()) append("Строки: ").append(dl.joinToString("; ") { it.title + " " + Dates.format(it.day) + " " + it.status }).append("\n")
+        if (dl.isNotEmpty()) append("Строки: ").append(dl.joinToString("; ") { it.title + " " + factDate(it.day) + " " + it.status }).append("\n")
         if (dg.isNotEmpty()) append("Доручення: ").append(dg.joinToString("; ") { it.what + (it.personId?.let { p -> " — " + names[p] } ?: "") + " " + it.status }).append("\n")
         if (pr.isNotEmpty()) append("Обіцянки: ").append(pr.joinToString("; ") { it.what + " " + it.status }).append("\n")
-        if (ev.isNotEmpty()) append("Останні події: ").append(ev.joinToString("; ") { Dates.format(it.day) + " " + it.title + (it.outcome.takeIf { o -> o.isNotBlank() }?.let { o -> " — $o" } ?: "") }).append("\n")
+        if (ev.isNotEmpty()) append("Останні події: ").append(ev.joinToString("; ") { factDate(it.day) + " " + it.title + (it.outcome.takeIf { o -> o.isNotBlank() }?.let { o -> " — $o" } ?: "") }).append("\n")
     }
 }
 
@@ -153,7 +170,7 @@ suspend fun weekFacts(db: MandatDb, session: Session): String {
     val named = db.namesHidden(session)
     val due = db.deadlines().observeAll().first().filter { ok(it.matterId) && !(it.matterId == null && named(it.title + " " + it.basis)) && it.day in span }
     return buildString {
-        append("Тиждень ").append(Dates.format(span.from)).append(" – ").append(Dates.format(span.to)).append("\n")
+        append("Тиждень ").append(factDate(span.from)).append(" – ").append(factDate(span.to)).append("\n")
         if (moved.isNotEmpty()) append("Рухались: ").append(moved.take(12).joinToString("; ") { it.title + (it.nextStep.takeIf { n -> n.isNotBlank() }?.let { n -> " (далі: $n)" } ?: "") }).append("\n")
         if (done.isNotEmpty()) append("Завершено: ").append(done.joinToString("; ") { it.title }).append("\n")
         if (stuck.isNotEmpty()) append("Без руху понад місяць: ").append(stuck.take(10).joinToString("; ") { it.title }).append("\n")
@@ -192,7 +209,7 @@ suspend fun meetingFacts(db: MandatDb, session: Session, title: String, day: Lon
     val persons = db.people().all().filter { it.id in people }
     val open = { s: String -> TaskStatus.of(s) == TaskStatus.OPEN }
     return buildString {
-        append("Подія: ").append(title).append(", ").append(Dates.format(day)).append(startMin?.let { " " + timeText(it) } ?: "").append("\n")
+        append("Подія: ").append(title).append(", ").append(factDate(day)).append(startMin?.let { " " + timeText(it) } ?: "").append("\n")
         if (notes.isNotBlank() && !named(notes)) append("Нотатки до події: ").append(notes.take(800)).append("\n")
         matterId?.let { append(matterFacts(db, session, it)) }
         persons.forEach { p ->
@@ -218,12 +235,12 @@ suspend fun riskFacts(db: MandatDb, session: Session): String {
         .sortedWith(compareBy({ it.due == null }, { it.due })).take(10)
     if (risky.isEmpty()) return ""
     return buildString {
-        append("Сьогодні ").append(Dates.format(today)).append(".\nОбіцянки під загрозою:\n")
+        append("Сьогодні ").append(factDate(today)).append(".\nОбіцянки під загрозою:\n")
         risky.forEach { p ->
             append("- ").append(p.what)
             val whom = p.personId?.let(names::get) ?: p.toWhom.takeIf { it.isNotBlank() }
             if (whom != null) append("; кому: ").append(whom)
-            p.due?.let { append("; строк: ").append(Dates.format(it)).append(if (it < today) " (прострочено)" else "") }
+            p.due?.let { append("; строк: ").append(factDate(it)).append(if (it < today) " (прострочено)" else "") }
             append("; публічність: ").append(p.level.name.lowercase())
             if (p.risk == 3) append("; ризик високий")
             if (p.statusNote.isNotBlank()) append("; стан: ").append(p.statusNote.take(200))
@@ -271,7 +288,7 @@ suspend fun reminderFacts(db: MandatDb, session: Session, delegationId: Long): S
 fun reminderText(what: String, due: Long?, name: String?, purpose: String): String = buildString {
     append("Доручення: ").append(what).append("\n")
     if (name != null) append("Кому: ").append(name).append("\n")
-    due?.let { append("Строк: ").append(Dates.format(it)).append(if (it < Dates.today()) " (минув)" else "").append("\n") }
+    due?.let { append("Строк: ").append(factDate(it)).append(if (it < Dates.today()) " (минув)" else "").append("\n") }
     if (purpose.isNotBlank()) append("Навіщо: ").append(purpose.take(300)).append("\n")
 }
 

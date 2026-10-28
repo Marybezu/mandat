@@ -81,7 +81,7 @@
     <string name="attention_FOCUS">Focus</string>
     <string name="attention_BACKGROUND">Background</string>
     <string name="attention_SLEEPING">Sleeping</string>
-    <string name="attention_hint_FOCUS">What you live with this week</string>
+    <string name="attention_hint_FOCUS">What matters now, up to 5</string>
     <string name="attention_hint_BACKGROUND">In progress, not every day</string>
     <string name="attention_hint_SLEEPING">Put aside for now</string>
     <string name="status_ACTIVE">Active</string>
@@ -219,7 +219,6 @@
     <string name="overdue_title">Overdue</string>
     <string name="soon_title">Today and tomorrow</string>
     <string name="overdue_label">overdue</string>
-    <string name="open_count">open: %1$d</string>
     <string name="save_matter_first">Save the matter first to add people, delegations and promises.</string>
 
     <string name="deadlines">Deadlines</string>
@@ -482,7 +481,7 @@
     <string name="show_by_matter">By matter</string>
     <string name="hide_by_matter">Hide matters</string>
     <string name="by_matter_map_hint">Tap a matter to open its influence map.</string>
-    <string name="others_n">%1$d others</string>
+    <string name="others_n">%1$d more</string>
     <string name="fold">Fold</string>
     <string name="dash_trend">Matters in motion, last 12 weeks</string>
     <string name="days_in_work">%1$d days in work</string>
@@ -787,7 +786,7 @@
     <string name="district_coming">Receptions and visits in the next 30 days</string>
     <string name="district_communities">communities</string>
     <string name="district_coverage">Communities: since the last visit</string>
-    <string name="district_coverage_hint">Those not visited longest come first. The bar grows with time.</string>
+    <string name="district_coverage_hint">Those not visited for longest come first: the longer the bar, the longer ago.</string>
     <string name="district_days_ago">%1$d days ago</string>
     <string name="district_done_year">done in a year</string>
     <string name="district_empty">Add the communities of your district to see each one\'s picture.</string>
@@ -953,9 +952,8 @@
     <string name="now_next">Now %1$s · next at %2$s, in %3$s</string>
     <string name="now_done">Now %1$s · nothing more today</string>
     <string name="lens_all">All roles</string>
-    <string name="time_plan_vs">As planned → as it went</string>
-    <string name="time_plan_line">%1$d %% → %2$d %%</string>
-    <string name="time_plan_far">%1$d %% → %2$d %%, noticeably off</string>
+    <string name="time_plan_vs">Plan → fact</string>
+    <string name="time_plan_line">plan %1$d %% · fact %2$d %%</string>
     <string name="delegation_group_how">How to do it</string>
     <string name="delegation_group_when">Matter and dates</string>
     <string name="promise_group_kind">What kind of promise</string>
@@ -968,7 +966,7 @@
     <string name="retro_half">Half a year</string>
     <string name="retro_year">Year</string>
     <string name="retro_cadence">Term</string>
-    <string name="retro_approx">≈ means approximate: Mandat keeps a journal of changes from this version on; earlier months are rebuilt from creation and completion dates.</string>
+    <string name="retro_approx">≈ approximate: the change log starts with this version; earlier months are rebuilt from start and end dates.</string>
     <string name="retro_started">new matters</string>
     <string name="retro_finished">completed</string>
     <string name="retro_avg_days">days on average to completion</string>
@@ -1205,4 +1203,16 @@
     <string name="retro_on_time_s">deadlines on time</string>
     <string name="ai_digest_failed">Could not summarise. Try again.</string>
     <string name="matter_alike_confirm">Open the matter you already have? What was typed in the new one will not be kept.</string>
+    <string name="time_plan_less">▼ less</string>
+    <string name="time_plan_more">▲ more</string>
+    <string name="report_make_title">Report for voters</string>
+    <string name="report_period">Period</string>
+    <string name="report_from">From</string>
+    <string name="report_to">To</string>
+    <string name="report_compose">Make the report</string>
+    <string name="report_hint">The report holds only matter titles, public promises, numbers of receptions and visits, and aid collected. Sensitive matters and working notes stay out.</string>
+    <plurals name="open_delegations">
+        <item quantity="one">%1$d delegation</item>
+        <item quantity="other">%1$d delegations</item>
+    </plurals>
 </resources>

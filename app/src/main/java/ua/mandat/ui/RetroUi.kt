@@ -61,6 +61,14 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 /** How far back the retrospective looks. */
+/** Where a period starts: whole months back from this one, or the cadence start when it is known. */
+private fun spanStart(r: RetroSpan, today: Long, cadence: Long?): Long = when (r) {
+    RetroSpan.QUARTER -> LocalDate.ofEpochDay(today).withDayOfMonth(1).minusMonths(2).toEpochDay()
+    RetroSpan.HALF -> LocalDate.ofEpochDay(today).withDayOfMonth(1).minusMonths(5).toEpochDay()
+    RetroSpan.YEAR -> LocalDate.ofEpochDay(today).withDayOfMonth(1).minusMonths(11).toEpochDay()
+    RetroSpan.CADENCE -> cadence ?: LocalDate.ofEpochDay(today).withDayOfMonth(1).minusMonths(11).toEpochDay()
+}
+
 private enum class RetroSpan(val label: Int) { QUARTER(R.string.retro_quarter), HALF(R.string.retro_half), YEAR(R.string.retro_year), CADENCE(R.string.retro_cadence) }
 
 /**
@@ -91,12 +99,10 @@ fun RetroScreen(db: MandatDb, session: Session) {
     val allMatters by remember(db) { db.matters().observeAll() }.collectAsStateWithLifecycle(emptyList())
     var range by rememberSaveable { mutableStateOf(RetroSpan.HALF) }
     val today = Dates.today()
-    val start = when (range) {
-        RetroSpan.QUARTER -> LocalDate.ofEpochDay(today).withDayOfMonth(1).minusMonths(2).toEpochDay()
-        RetroSpan.HALF -> LocalDate.ofEpochDay(today).withDayOfMonth(1).minusMonths(5).toEpochDay()
-        RetroSpan.YEAR -> LocalDate.ofEpochDay(today).withDayOfMonth(1).minusMonths(11).toEpochDay()
-        RetroSpan.CADENCE -> cadence?.value?.toLongOrNull() ?: LocalDate.ofEpochDay(today).withDayOfMonth(1).minusMonths(11).toEpochDay()
-    }
+    val start = spanStart(range, today, cadence?.value?.toLongOrNull())
+    var reporting by remember { mutableStateOf(false) }
+    var reportFrom by remember { mutableStateOf(start) }
+    var reportTo by remember { mutableStateOf(today) }
     val span = Span(start, today)
     val titleOf = matters.associate { it.id to it.title }
     val nameOf = people.associate { it.id to it.name }
@@ -139,21 +145,40 @@ fun RetroScreen(db: MandatDb, session: Session) {
                     }
                     Text("${Dates.format(span.from)} – ${Dates.format(span.to)}", style = MaterialTheme.typography.labelLarge, color = Muted, modifier = Modifier.padding(top = 6.dp))
                     if (d != null && d.focus.any { it.approximate }) Text(stringResource(R.string.retro_approx), style = MaterialTheme.typography.labelSmall, color = Muted)
-                    // A report for voters, drafted from this period as a text to edit and export
+                    // A report for voters, for a period chosen in its own sheet, drafted as a text to edit and export
                     if (d != null) {
+                        QuickChip(stringResource(R.string.report_make), false, Modifier.padding(top = 8.dp)) { reportFrom = span.from; reportTo = span.to; reporting = true }
+                    }
+                    if (reporting) {
+                        val rs = Span(minOf(reportFrom, reportTo), maxOf(reportFrom, reportTo))
                         val heads = ReportHeads(
-                            title = stringResource(R.string.report_title, Dates.format(span.from), Dates.format(span.to)),
+                            title = stringResource(R.string.report_title, Dates.format(rs.from), Dates.format(rs.to)),
                             done = stringResource(R.string.report_done), kept = stringResource(R.string.report_kept),
                             meetings = stringResource(R.string.report_meetings), aid = stringResource(R.string.report_aid),
                             inWork = stringResource(R.string.report_in_work), receptions = stringResource(R.string.report_receptions),
                             visits = stringResource(R.string.report_visits), collected = stringResource(R.string.report_collected),
                             note = stringResource(R.string.report_note), currency = stringResource(R.string.currency_uah),
                         )
-                        QuickChip(stringResource(R.string.report_make), false, Modifier.padding(top = 8.dp)) {
-                            val body = voterReport(heads, span, matters, d.finishedIds.toSet(), promises, events, aid)
+                        EditSheet(title = stringResource(R.string.report_make_title), onDismiss = { reporting = false }, onSave = {
+                            val byMatter = history.groupBy { it.matterId }
+                            val finished = matters.filter { m -> Retro.finishedOn(m, byMatter[m.id].orEmpty())?.let { it in rs } == true }.map { it.id }.toSet()
+                            val body = voterReport(heads, rs, matters, finished, promises, events, aid)
+                            reporting = false
                             session.showRetro = false
                             session.showTexts = true
                             session.textDraft = newText(null, ua.mandat.data.TextKind.REPORT, heads.title, body)
+                        }, saveText = stringResource(R.string.report_compose)) {
+                            SheetGroup(stringResource(R.string.report_period)) {
+                                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    RetroSpan.entries.forEach { r ->
+                                        val from = spanStart(r, today, cadence?.value?.toLongOrNull())
+                                        QuickChip(stringResource(r.label), reportFrom == from && reportTo == today) { reportFrom = from; reportTo = today }
+                                    }
+                                }
+                                DueField(reportFrom, allowClear = false, label = R.string.report_from) { if (it != null) reportFrom = it }
+                                DueField(reportTo, allowClear = false, label = R.string.report_to) { if (it != null) reportTo = it }
+                                Text(stringResource(R.string.report_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
+                            }
                         }
                     }
                 }
