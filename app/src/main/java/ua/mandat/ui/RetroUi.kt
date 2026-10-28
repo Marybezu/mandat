@@ -1,5 +1,6 @@
 package ua.mandat.ui
 
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
@@ -94,9 +95,15 @@ fun RetroScreen(db: MandatDb, session: Session) {
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val links by remember(db) { db.people().observeLinks() }.collectAsStateWithLifecycle(emptyList())
     val cadence by remember(db) { db.settings().observe(SETTING_CADENCE_START) }.collectAsStateWithLifecycle(null)
-    val reviews by remember(db) { db.reviews().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val allReviews by remember(db) { db.reviews().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val reviewLinks by remember(db) { db.reviews().observeLinks() }.collectAsStateWithLifecycle(emptyList())
     val infoItems by remember(db) { db.info().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val hidden by session.hiddenMatters.collectAsStateWithLifecycle()
+    // Diary entries linked to a hidden matter stay out while it is hidden
+    val reviews = remember(allReviews, reviewLinks, hidden) {
+        val out = reviewLinks.filter { it.kind == "matter" && it.refId in hidden }.map { it.reviewId }.toSet()
+        allReviews.filter { it.id !in out }
+    }
     val allMatters by remember(db) { db.matters().observeAll() }.collectAsStateWithLifecycle(emptyList())
     var range by rememberSaveable { mutableStateOf(RetroSpan.HALF) }
     val today = Dates.today()
@@ -194,9 +201,9 @@ fun RetroScreen(db: MandatDb, session: Session) {
                 // One compact line of four numbers, as on the Review screen
                 MCard {
                     CompactStats(listOf(
-                        CompactStat(d.flow.sumOf { it.started }.toString(), stringResource(R.string.retro_started_s), ChartColors.blue) { session.periodView = PeriodKind.STARTED to span },
+                        CompactStat(d.flow.sumOf { it.started }.toString(), pluralStringResource(R.plurals.dash_started_p, d.flow.sumOf { it.started }), ChartColors.blue) { session.periodView = PeriodKind.STARTED to span },
                         CompactStat(d.finishedIds.size.toString(), stringResource(R.string.retro_finished_s), ChartColors.green) { session.periodView = PeriodKind.FINISHED to span },
-                        CompactStat((avg ?: 0).toString(), stringResource(R.string.retro_avg_s), ChartColors.purple) { session.periodView = PeriodKind.FINISHED to span },
+                        CompactStat((avg ?: 0).toString(), pluralStringResource(R.plurals.retro_avg_p, avg ?: 0), ChartColors.purple) { session.periodView = PeriodKind.FINISHED to span },
                         CompactStat((if (due == 0) 0 else onTime * 100 / due).toString() + " %", stringResource(R.string.retro_on_time_s), ChartColors.teal) { session.periodView = PeriodKind.ON_TIME to span },
                     ))
                 }

@@ -68,9 +68,10 @@ fun GraphScreen(db: MandatDb, session: Session) {
             Graph.build(shown.map { it.id to it.title }, people.associate { it.id to it.name }, links.map { it.matterId to it.personId })
         }
     }
+    // A pick belongs to one layout: when the map is counted again, it is cleared
+    var picked by remember(layout) { mutableStateOf<Int?>(null) }
     var scale by remember { mutableFloatStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
-    var picked by remember { mutableStateOf<Int?>(null) }
     val measurer = rememberTextMeasurer()
     val labelColor = MaterialTheme.colorScheme.onSurface
     val lineColor = MaterialTheme.colorScheme.outline
@@ -141,8 +142,7 @@ fun GraphScreen(db: MandatDb, session: Session) {
                     }
                 }
             }
-            picked?.let { i ->
-                val node = g.nodes[i]
+            picked?.let { i -> g.nodes.getOrNull(i) }?.let { node ->
                 val id = node.key.drop(1).toLong()
                 Row(Modifier.fillMaxWidth().padding(horizontal = Space.screen, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {

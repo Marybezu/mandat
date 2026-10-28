@@ -78,7 +78,7 @@ fun DayMainCard(
         if (shown.isEmpty()) {
             Text(stringResource(R.string.day_main_empty), style = MaterialTheme.typography.bodyMedium, color = Muted)
         } else if (doneCount == shown.size) {
-            Text(stringResource(R.string.day_main_all_done), style = MaterialTheme.typography.titleSmall, color = ChartColors.teal, modifier = Modifier.padding(bottom = 4.dp))
+            Text(stringResource(R.string.day_main_all_done), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 4.dp))
         } else {
             Text(stringResource(R.string.day_main_progress, doneCount, shown.size), style = MaterialTheme.typography.labelMedium, color = Muted, modifier = Modifier.padding(bottom = 4.dp))
         }
@@ -124,7 +124,8 @@ fun DayMainCard(
         }.filter { it.key !in main.items }
         PickSheet(stringResource(R.string.day_main_pick), items, onPick = { ref ->
             picking = false
-            save(main.copy(items = (main.items + ref).distinct().take(DAY_MAIN_LIMIT)))
+            // What is not shown now (hidden, or gone) gives its place to the new choice
+            save(main.copy(items = (main.items.filter { it in shown } + ref).distinct().take(DAY_MAIN_LIMIT), done = main.done.filter { it in shown }.toSet()))
         }, onDismiss = { picking = false }, footer = if (items.isEmpty()) ({
             Text(stringResource(R.string.day_main_nothing), style = MaterialTheme.typography.bodyMedium, color = Muted, modifier = Modifier.padding(12.dp))
         }) else null)

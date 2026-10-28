@@ -2,6 +2,7 @@
 
 package ua.mandat.ui
 
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -242,11 +243,11 @@ private fun MovedBlock(o: Overview, prev: Overview?, weekly: List<Int>, open: (P
         Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
             DeltaTile(o.moved, prev?.moved, stringResource(R.string.dash_moved), ChartColors.blue) { open(PeriodKind.MOVED) }
             StatDivider()
-            DeltaTile(o.started, prev?.started, stringResource(R.string.dash_started_short), ChartColors.teal) { open(PeriodKind.STARTED) }
+            DeltaTile(o.started, prev?.started, pluralStringResource(R.plurals.dash_started_p, o.started), ChartColors.teal) { open(PeriodKind.STARTED) }
             StatDivider()
             DeltaTile(o.finished, prev?.finished, stringResource(R.string.dash_finished), ChartColors.green) { open(PeriodKind.FINISHED) }
             StatDivider()
-            DeltaTile(o.evenings, prev?.evenings, stringResource(R.string.dash_evenings), ChartColors.purple) { open(PeriodKind.EVENINGS) }
+            DeltaTile(o.evenings, prev?.evenings, pluralStringResource(R.plurals.dash_evenings_p, o.evenings), ChartColors.purple) { open(PeriodKind.EVENINGS) }
         }
         if (weekly.any { it > 0 }) {
             Text(stringResource(R.string.dash_trend), style = MaterialTheme.typography.labelSmall, color = Muted)

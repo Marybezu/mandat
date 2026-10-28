@@ -470,20 +470,27 @@ private suspend fun runExport(context: Context, session: Session, plan: ExportPl
             when {
                 sealed != null -> out.write(sealed)
                 password != null -> {
+                    // A ZIP keeps its entry names readable even with a password. Obsidian notes are named after
+                    // people and matters, so they go inside one more archive and only "obsidian-vault.zip" shows
+                    val vault = files.filter { it.first.startsWith(OBSIDIAN_ROOT) }
+                    val vaultZip = if (vault.isEmpty()) null else zipInMemory(vault)
+                    val entries = files.filterNot { it.first.startsWith(OBSIDIAN_ROOT) } + listOfNotNull(vaultZip?.let { "obsidian-vault.zip" to it })
                     // ZIP with AES-256: a standard that 7-Zip, Keka and similar apps open with the password
                     val params = net.lingala.zip4j.model.ZipParameters().apply {
                         isEncryptFiles = true
                         encryptionMethod = net.lingala.zip4j.model.enums.EncryptionMethod.AES
                         aesKeyStrength = net.lingala.zip4j.model.enums.AesKeyStrength.KEY_STRENGTH_256
                     }
-                    net.lingala.zip4j.io.outputstream.ZipOutputStream(out, password).use { zip ->
-                        files.forEach { (name, bytes) ->
-                            params.fileNameInZip = name
-                            zip.putNextEntry(params)
-                            zip.write(bytes)
-                            zip.closeEntry()
+                    try {
+                        net.lingala.zip4j.io.outputstream.ZipOutputStream(out, password).use { zip ->
+                            entries.forEach { (name, bytes) ->
+                                params.fileNameInZip = name
+                                zip.putNextEntry(params)
+                                zip.write(bytes)
+                                zip.closeEntry()
+                            }
                         }
-                    }
+                    } finally { vaultZip?.fill(0) }
                 }
                 files.size == 1 -> out.write(files.first().second)
                 else -> out.write(zipInMemory(files))
@@ -931,3 +938,6 @@ object PdfText {
         return out.toByteArray()
     }
 }
+
+/** The folder Obsidian notes are written under in an export. */
+internal const val OBSIDIAN_ROOT = "Mandat/"

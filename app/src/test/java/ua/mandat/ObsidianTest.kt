@@ -11,4 +11,11 @@ class ObsidianTest {
         assertEquals(mapOf(1 to "Справа", 2 to "Справа (2)", 3 to "Інша"), Obsidian.unique(listOf(1 to "Справа", 2 to "справа".replaceFirstChar { it.uppercase() }, 3 to "Інша")))
         assertEquals("\"Він сказав: \\\"так\\\"\"", Obsidian.yaml("Він сказав: \"так\""))
     }
+
+    @Test fun numberedNamesNeverRepeat() {
+        val u = Obsidian.unique(listOf(1 to "Звіт", 2 to "Звіт", 3 to "Звіт (2)"))
+        assertEquals(3, u.values.map { it.lowercase() }.toSet().size)
+        assertEquals("x", Obsidian.name("...", "x"))
+        assertEquals("Сховане", Obsidian.name(".Сховане", "x"))
+    }
 }

@@ -16,13 +16,13 @@ import ua.mandat.data.TaskStatus
 internal suspend fun obsidianVault(context: Context, db: MandatDb, hidden: Set<Long>, onlyHidden: Set<Long>): List<Pair<String, String>> {
     fun visible(id: Long?) = id == null || id !in hidden
     val today = Dates.today()
-    val root = "Mandat/"
+    val root = OBSIDIAN_ROOT
     val fMatters = context.getString(R.string.obs_matters); val fPeople = context.getString(R.string.obs_people)
     val fEvents = context.getString(R.string.obs_events); val fDiary = context.getString(R.string.obs_diary)
     val roles = db.roles().observeAll().first().associate { it.id to it.name }
     val matters = db.matters().observeAll().first().filter { visible(it.id) }
     val people = db.people().all().filter { it.id !in onlyHidden }
-    val events = db.events().observeAll().first().filter { visible(it.matterId) && it.lastDay >= today - 365 }
+    val events = db.events().observeAll().first().filter { visible(it.matterId) && it.lastDay >= today - 365 && it.day <= today + 365 }
     val eventPeople = db.events().observeLinks().first().groupBy({ it.eventId }, { it.personId })
     val links = db.people().observeLinks().first().filter { visible(it.matterId) }
     val delegations = db.delegations().observeAll().first().filter { visible(it.matterId) }

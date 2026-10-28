@@ -15,7 +15,7 @@ data class DayMain(val day: Long, val items: List<String>, val done: Set<String>
     fun encode(): String = day.toString() + ";" + items.joinToString(",") + ";" + done.joinToString(",")
 
     companion object {
-        private val REF = Regex("^(matter|deadline|delegation|promise):\\d+$")
+        private val REF = Regex("^(matter|deadline|delegation|promise):\\d{1,18}$")
 
         fun decode(raw: String?, today: Long): DayMain {
             val parts = raw?.split(';').orEmpty()

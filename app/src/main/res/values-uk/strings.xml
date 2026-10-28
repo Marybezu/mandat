@@ -1155,7 +1155,6 @@
     <string name="ai_suggest">Запропонувати</string>
     <string name="ai_check">Перевірте перед використанням</string>
     <string name="ai_sort_next">Розібрати наступні</string>
-    <string name="dash_started_short">нових</string>
     <string name="ai_local">На телефоні · без інтернету</string>
     <string name="role_post">Ваша посада</string>
     <string name="role_post_hint">Від посади залежить, як ШІ пише про засідання: «провести» — лише там, де ви голова чи керівник; інакше «взяти участь».</string>
@@ -1199,9 +1198,7 @@
     <string name="ai_hint_keep">Збережіть у «Вхідні»</string>
     <string name="matter_alike">Схоже на справу, що вже є:</string>
     <string name="matter_alike_open">Відкрити</string>
-    <string name="retro_started_s">нових</string>
     <string name="retro_finished_s">завершено</string>
-    <string name="retro_avg_s">днів до кінця</string>
     <string name="retro_on_time_s">строків вчасно</string>
     <string name="ai_digest_failed">Не вдалося стиснути. Спробуйте ще раз.</string>
     <string name="matter_alike_confirm">Відкрити наявну справу? Набране в новій справі не збережеться.</string>
@@ -1219,9 +1216,6 @@
         <item quantity="many">%1$d доручень</item>
         <item quantity="other">%1$d доручення</item>
     </plurals>
-    <string name="district_communities_s">громад</string>
-    <string name="district_visits_s">візитів за рік</string>
-    <string name="district_promises_s">обіцянок відкрито</string>
     <string name="district_long_ago_s">не були 90+ днів</string>
     <string name="day_main_title">Головне сьогодні</string>
     <string name="day_main_empty">Оберіть 1–3 справи, після яких день буде вдалим.</string>
@@ -1253,4 +1247,40 @@
     <string name="obs_events">Події</string>
     <string name="obs_diary">Щоденник</string>
     <string name="obs_matter">Справа</string>
+    <plurals name="district_communities_p">
+        <item quantity="one">громада</item>
+        <item quantity="few">громади</item>
+        <item quantity="many">громад</item>
+        <item quantity="other">громади</item>
+    </plurals>
+    <plurals name="district_visits_p">
+        <item quantity="one">візит за рік</item>
+        <item quantity="few">візити за рік</item>
+        <item quantity="many">візитів за рік</item>
+        <item quantity="other">візиту за рік</item>
+    </plurals>
+    <plurals name="district_promises_p">
+        <item quantity="one">обіцянка відкрита</item>
+        <item quantity="few">обіцянки відкриті</item>
+        <item quantity="many">обіцянок відкрито</item>
+        <item quantity="other">обіцянки відкрито</item>
+    </plurals>
+    <plurals name="dash_started_p">
+        <item quantity="one">нова</item>
+        <item quantity="few">нові</item>
+        <item quantity="many">нових</item>
+        <item quantity="other">нових</item>
+    </plurals>
+    <plurals name="dash_evenings_p">
+        <item quantity="one">вечір</item>
+        <item quantity="few">вечори</item>
+        <item quantity="many">вечорів</item>
+        <item quantity="other">вечора</item>
+    </plurals>
+    <plurals name="retro_avg_p">
+        <item quantity="one">день до кінця</item>
+        <item quantity="few">дні до кінця</item>
+        <item quantity="many">днів до кінця</item>
+        <item quantity="other">дня до кінця</item>
+    </plurals>
 </resources>

@@ -85,7 +85,7 @@ fun SmartListChips(counts: Map<SmartList, Int>, onOpen: (SmartList) -> Unit) {
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(n.toString(), style = MaterialTheme.typography.titleSmall, color = if (warn) ChartColors.coral else scheme.primary)
+                Text(n.toString(), style = MaterialTheme.typography.titleSmall, color = if (warn) scheme.error else scheme.primary)
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(list.title), style = MaterialTheme.typography.labelLarge, color = scheme.onSurface)
             }

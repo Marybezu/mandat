@@ -1,5 +1,6 @@
 package ua.mandat.ui
 
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.graphics.compositeOver
 import android.content.Intent
 import androidx.activity.compose.BackHandler
@@ -168,9 +169,9 @@ fun DistrictScreen(db: MandatDb, session: Session) {
                 // One compact line, each number in the colour of what it counts
                 MCard {
                     CompactStats(listOf(
-                        CompactStat(communities.size.toString(), stringResource(R.string.district_communities_s), Tone.district) { only = 0 },
-                        CompactStat(all.sumOf { it.visitsYear }.toString(), stringResource(R.string.district_visits_s), Tone.plan) { only = if (only == 3) 0 else 3 },
-                        CompactStat(openPromises.toString(), stringResource(R.string.district_promises_s), Tone.promise) { only = if (only == 2) 0 else 2 },
+                        CompactStat(communities.size.toString(), pluralStringResource(R.plurals.district_communities_p, communities.size), Tone.district) { only = 0 },
+                        CompactStat(all.sumOf { it.visitsYear }.toString(), pluralStringResource(R.plurals.district_visits_p, all.sumOf { it.visitsYear }), Tone.plan) { only = if (only == 3) 0 else 3 },
+                        CompactStat(openPromises.toString(), pluralStringResource(R.plurals.district_promises_p, openPromises), Tone.promise) { only = if (only == 2) 0 else 2 },
                         CompactStat(longAgo.toString(), stringResource(R.string.district_long_ago_s), if (longAgo > 0) Tone.risk else Tone.district) { only = if (only == 1) 0 else 1 },
                     ))
                 }
@@ -257,7 +258,7 @@ private fun CommunityLine(s: CommunityStats, today: Long, onOpen: () -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(s.c.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(if (days == null) stringResource(R.string.district_never) else stringResource(R.string.district_days_ago, days),
-                style = MaterialTheme.typography.labelMedium, color = if (days == null || days > 90) ChartColors.coral else Muted)
+                style = MaterialTheme.typography.labelMedium, color = if (days == null || days > 90) MaterialTheme.colorScheme.error else Muted)
         }
         Spacer(Modifier.height(4.dp))
         Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(MaterialTheme.colorScheme.surface)) {

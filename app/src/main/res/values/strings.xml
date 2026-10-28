@@ -1153,7 +1153,6 @@
     <string name="ai_suggest">Suggest</string>
     <string name="ai_check">Check before using</string>
     <string name="ai_sort_next">Sort the next ones</string>
-    <string name="dash_started_short">new</string>
     <string name="ai_local">On the phone · no internet</string>
     <string name="role_post">Your post</string>
     <string name="role_post_hint">The post decides how the AI writes about meetings: "run" only where you chair or lead; otherwise "take part".</string>
@@ -1197,9 +1196,7 @@
     <string name="ai_hint_keep">Save it to the Inbox</string>
     <string name="matter_alike">Looks like a matter you already have:</string>
     <string name="matter_alike_open">Open</string>
-    <string name="retro_started_s">new</string>
     <string name="retro_finished_s">finished</string>
-    <string name="retro_avg_s">days to finish</string>
     <string name="retro_on_time_s">deadlines on time</string>
     <string name="ai_digest_failed">Could not summarise. Try again.</string>
     <string name="matter_alike_confirm">Open the matter you already have? What was typed in the new one will not be kept.</string>
@@ -1215,9 +1212,6 @@
         <item quantity="one">%1$d delegation</item>
         <item quantity="other">%1$d delegations</item>
     </plurals>
-    <string name="district_communities_s">communities</string>
-    <string name="district_visits_s">visits this year</string>
-    <string name="district_promises_s">promises open</string>
     <string name="district_long_ago_s">not visited 90+ days</string>
     <string name="day_main_title">Main today</string>
     <string name="day_main_empty">Pick 1–3 things that would make the day a good one.</string>
@@ -1249,4 +1243,28 @@
     <string name="obs_events">Events</string>
     <string name="obs_diary">Diary</string>
     <string name="obs_matter">Matter</string>
+    <plurals name="district_communities_p">
+        <item quantity="one">community</item>
+        <item quantity="other">communities</item>
+    </plurals>
+    <plurals name="district_visits_p">
+        <item quantity="one">visit this year</item>
+        <item quantity="other">visits this year</item>
+    </plurals>
+    <plurals name="district_promises_p">
+        <item quantity="one">promise open</item>
+        <item quantity="other">promises open</item>
+    </plurals>
+    <plurals name="dash_started_p">
+        <item quantity="one">new</item>
+        <item quantity="other">new</item>
+    </plurals>
+    <plurals name="dash_evenings_p">
+        <item quantity="one">evening</item>
+        <item quantity="other">evenings</item>
+    </plurals>
+    <plurals name="retro_avg_p">
+        <item quantity="one">day to finish</item>
+        <item quantity="other">days to finish</item>
+    </plurals>
 </resources>

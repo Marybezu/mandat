@@ -6,26 +6,30 @@ package ua.mandat.data
  */
 object Obsidian {
     /** Characters a file name or a [[link]] cannot hold, on any system or in Obsidian. */
-    private val BAD = Regex("[\\\\/:*?\"<>|#^\\[\\]\\n\\r\\t]")
+    private val BAD = Regex("[\\\\/:*?\"<>|#^\\[\\]\\p{Cntrl}]")
 
     /** A safe note name: forbidden characters become spaces, at most 80 characters, never empty. */
     fun name(s: String, fallback: String): String {
-        val clean = s.replace(BAD, " ").replace(Regex("\\s+"), " ").trim().trimEnd('.').take(80).trim()
-        return clean.ifEmpty { fallback }
+        // No leading dots (Obsidian hides such files), no trailing ones; cut by whole characters, never inside an emoji
+        val spaced = s.replace(BAD, " ").replace(Regex("\\s+"), " ").trim().trimStart('.').trimEnd('.').trim()
+        val cut = if (spaced.codePointCount(0, spaced.length) > 80) spaced.substring(0, spaced.offsetByCodePoints(0, 80)) else spaced
+        return cut.trim().ifEmpty { fallback }
     }
 
     /** Gives every key a unique note name: a repeated name gets " (2)", " (3)"… */
     fun <K> unique(names: List<Pair<K, String>>): Map<K, String> {
-        val used = HashMap<String, Int>()
+        // Every name given out is taken, the numbered ones too, so "A", "A", "A (2)" never repeat
+        val taken = HashSet<String>()
         return names.associate { (k, n) ->
-            val c = (used[n.lowercase()] ?: 0) + 1
-            used[n.lowercase()] = c
-            k to if (c == 1) n else "$n ($c)"
+            var candidate = n
+            var c = 1
+            while (!taken.add(candidate.lowercase())) { c++; candidate = "$n ($c)" }
+            k to candidate
         }
     }
 
     /** A YAML front matter value, quoted so that colons, quotes and leading signs are safe. */
-    fun yaml(s: String): String = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ") + "\""
+    fun yaml(s: String): String = "\"" + s.replace(Regex("\\p{Cntrl}"), " ").replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
     fun link(name: String) = "[[$name]]"
 }
