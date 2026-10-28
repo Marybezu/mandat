@@ -18,7 +18,6 @@
     <string name="tab_people">Люди</string>
     <string name="tab_time">Час</string>
     <string name="tab_review">Огляд</string>
-    <string name="coming_soon">З\'явиться в наступних версіях.</string>
 
     <string name="inbox">Вхідні</string>
     <string name="inbox_empty">Вхідні порожні. Натисніть +, щоб записати все, що тримаєте в голові.</string>
@@ -49,6 +48,8 @@
     <string name="restore_replace">Замінити</string>
     <string name="notice_saved">Копію збережено й перевірено. Записів: %1$d.</string>
     <string name="notice_save_failed">Не вдалося зберегти копію. Нічого не змінено.</string>
+    <string name="notice_existing_file">Цей файл уже щось містить. Мандат не записує поверх старого файлу: якщо запис зламається, можна втратити обидві копії. Збережіть копію під новою назвою.</string>
+    <string name="notice_too_big">Даних більше, ніж вміщає резервна копія, тому копію не зроблено. Нічого не змінено.</string>
     <string name="notice_wrong_password">Неправильний пароль або файл пошкоджено.</string>
     <string name="notice_not_backup">Це не копія Мандата або її створено новішою версією.</string>
     <string name="notice_incompatible">Ця копія не підходить для цієї версії Мандата. Нічого не змінено.</string>
@@ -101,6 +102,7 @@
     <string name="matter_status">Стан</string>
     <string name="matter_delete">Видалити справу</string>
     <string name="matter_delete_confirm">Видалити цю справу назавжди?</string>
+    <string name="matter_delete_time">Події лишаться в календарі, але їхній час у підсумках за ролями перейде в «без ролі». Записи часу вручну збережуть роль.</string>
     <string name="matter_no_next_step">Наступного кроку ще немає</string>
     <plurals name="focus_too_many">
         <item quantity="one">У фокусі вже %1$d справа. Фокус найкраще працює, коли їх до %2$d.</item>
@@ -115,8 +117,6 @@
     <string name="to_matter">Зробити справою</string>
     <string name="roles_title">Ваші ролі</string>
     <string name="roles_text">Ролі — це ваші «капелюхи»: посади й напрями роботи. Справи групуються за ними, тож жодна роль не випадає. Оберіть орган і посаду (за бажанням додайте назву чи тему) і натисніть «Додати цю роль»; повторіть для кожної. Змінити ролі можна будь-коли в Опціях.</string>
-    <string name="roles_add">Додати роль</string>
-    <string name="roles_add_hint">Своя роль</string>
     <string name="roles_done">Готово</string>
     <string name="roles_skip">Пізніше</string>
     <string name="roles_manage">Ролі</string>
@@ -163,7 +163,6 @@
     <string name="roles_added">Ваші ролі:</string>
 
     <string name="team">Команда</string>
-    <string name="others">Інші</string>
     <string name="team_ASSISTANT">Помічник-консультант (штатний)</string>
     <string name="team_INTERN">Стажер</string>
     <string name="team_SECRETARIAT">Секретаріат комітету чи комісії</string>
@@ -215,12 +214,9 @@
     <string name="due">До коли</string>
     <string name="pick_date">Обрати дату</string>
     <string name="clear_date">Прибрати дату</string>
-    <string name="promise_public">Публічна обіцянка</string>
-    <string name="promise_personal">Особиста обіцянка</string>
     <string name="status">Стан</string>
     <string name="overdue_title">Прострочене</string>
     <string name="soon_title">Сьогодні й завтра</string>
-    <string name="overdue_label">прострочено</string>
     <string name="save_matter_first">Збережіть справу, щоб додавати людей, доручення й обіцянки.</string>
 
     <string name="deadlines">Строки</string>
@@ -242,7 +238,6 @@
     <string name="evening_progress">Просунулося</string>
     <string name="evening_unload">Розвантажити пам\'ять</string>
     <string name="evening_to_inbox">Записати у «Вхідні»</string>
-    <string name="evening_earlier">Попередні дні</string>
     <string name="search_hint">Введіть щонайменше дві літери, щоб шукати у справах, людях, нотатках і строках.</string>
     <string name="search_nothing">Нічого не знайдено.</string>
     <string name="reminders_title">Нагадування</string>
@@ -253,16 +248,12 @@
     <string name="reminders_channel">Нагадування</string>
     <string name="reminder_text">Сьогодні щось має бути зроблено. Відкрийте Мандат, щоб побачити.</string>
     <string name="my_promises">Мої обіцянки за весь час</string>
-    <string name="promises_public">Публічні</string>
-    <string name="promises_personal">Особисті</string>
-    <string name="promises_summary">Обіцянок: %1$d · дотримано %2$d · у процесі %3$d · не вдалося %4$d · знято %5$d</string>
     <string name="promises_empty">Тут поки немає обіцянок.</string>
     <string name="promised_on">обіцяно %1$s</string>
     <string name="p_FAILED">Не вдалося</string>
     <string name="promise_source">Де пообіцяно</string>
     <string name="promise_source_hint">Інтерв\'ю, допис, зустріч; посилання чи дата</string>
     <string name="promise_status_note">Чому (коротко)</string>
-    <string name="all_years">Усі роки</string>
     <string name="team_VOLUNTEER_ASSISTANT">Помічник на громадських засадах</string>
     <string name="team_OFFICE_HEAD">Керівник офісу</string>
     <string name="team_COMMS">Комунікації й соцмережі</string>
@@ -307,7 +298,6 @@
     <string name="dash_finished">завершено</string>
     <string name="dash_roles_title">Рух за ролями</string>
     <string name="dash_no_role">Без ролі</string>
-    <string name="dash_idle">За цей період без жодного кроку: %1$s</string>
     <string name="dash_deadlines_title">Строки й доручення</string>
     <string name="dash_promises_title">Обіцянки</string>
     <string name="dash_years_title">По роках</string>
@@ -316,19 +306,11 @@
     <string name="strip_hide">Сховати підсумок</string>
     <string name="strip_show">Показати підсумок</string>
     <string name="strip_active">у роботі</string>
-    <string name="strip_focus">у фокусі</string>
     <string name="strip_stale">без руху %1$d+ днів</string>
-    <string name="strip_days_in_work">днів у роботі</string>
-    <string name="strip_next_deadline">найближчий строк</string>
     <string name="strip_allies">союзники</string>
     <string name="strip_undecided">вагаються</string>
     <string name="strip_opponents">опоненти</string>
-    <string name="strip_team">у команді</string>
-    <string name="strip_delegations_open">доручень відкрито</string>
     <string name="strip_done_30">виконано за 30 днів</string>
-    <string name="strip_this_week">цього тижня</string>
-    <string name="strip_next_week">наступного тижня</string>
-    <string name="strip_on_time_month">вчасно цього місяця</string>
     <string name="screenshots_allow">Дозволити знімки екрана</string>
     <string name="screenshots_hint">Типово вимкнено. Для показу застосунку тестувальникам.</string>
     <string name="screenshots_confirm_title">Дозволити знімки екрана?</string>
@@ -436,8 +418,6 @@
     <string name="thank_hint">Коротке «дякую» зміцнює команду. Написати подяку — це меню «Поділитися», текст залишає Мандат.</string>
     <string name="thank_text">Дякую за: %1$s</string>
     <string name="thank_write">Написати подяку</string>
-    <string name="thank_done">Подяку вже висловлено</string>
-    <string name="not_now">Не зараз</string>
     <string name="thank_short">Подякувати</string>
     <string name="team_load_title">Команда й навантаження</string>
     <string name="direct_reports">Напряму вам підпорядковуються: %1$d</string>
@@ -532,6 +512,7 @@
     <string name="event_remind">Нагадати в цей день</string>
     <string name="event_to_phone">Додати в календар телефона</string>
     <string name="event_to_phone_warning">Назва, час і місце вийдуть із зашифрованого простору Мандата й будуть видні в календарі телефона (і в хмарі, якщо календар синхронізується). Нотатки, люди й підсумок залишаться в Мандаті. Подію спершу буде збережено.</string>
+    <string name="event_to_phone_sensitive">Ця подія належить до чутливої справи. Її копія в календарі телефона лишиться видимою навіть у режимі поїздки.</string>
     <string name="event_to_phone_go">Продовжити</string>
     <string name="pick_book_hint">Введіть дві літери, щоб шукати і в довіднику.</string>
     <string name="directory">Довідник</string>
@@ -785,7 +766,6 @@
     <string name="district_title">Округ</string>
     <string name="district_open">Округ · громад: %1$d</string>
     <string name="district_coming">Прийоми й виїзди на 30 днів</string>
-    <string name="district_communities">громад</string>
     <string name="district_coverage">Громади: від останнього візиту</string>
     <string name="district_coverage_hint">Першими ті, де давно не були: що довша смужка, то довше.</string>
     <string name="district_days_ago">%1$d дн. тому</string>
@@ -814,7 +794,7 @@
     <string name="mode_title">Де ви працюєте</string>
     <string name="mode_rada">Верховна Рада</string>
     <string name="mode_council">Місцева рада</string>
-    <string name="mode_hint">Змінює органи, посади й деякі назви; решта однакова. Можна змінити в «Налаштуваннях».</string>
+    <string name="mode_hint">Змінює органи, посади й деякі назви; решта однакова. Можна змінити в «Опціях».</string>
     <string name="type_BILL_council">Проєкт рішення</string>
     <string name="type_INVESTIGATION_council">Контрольна перевірка</string>
     <string name="pin_only">Лише PIN</string>
@@ -827,7 +807,8 @@
     <string name="trip_on">Увімкнено.</string>
     <string name="trip_how">Як це працює</string>
     <string name="trip_turn_on">Увімкнути</string>
-    <string name="trip_explain">Що робить: справи, позначені як чутливі, і все, що з ними пов\'язано (доручення, обіцянки, строки, події, записи медіа, меседжі, союзи, гроші, облік допомоги, зв\'язки з людьми), зникають з усіх екранів, списків, графіків і пошуку. Події з календаря телефона теж не показуються. Дані лишаються зашифрованими в телефоні, нічого не видаляється.\n\nЩо лишається видним: люди, громади, записи щоденника, «Вхідні» й назви тем (зникають лише їхні зв\'язки зі схованими справами), сам перемикач і позначка «Чутлива».\n\nЧого не робить: не захищає від того, хто змусить вас відкрити Мандат і знає, де вимкнути режим (один перемикач у «Налаштуваннях»). Резервні копії, зокрема автоматичні на телефоні, містять усе. Копії подій, додані в календар телефона, там і лишаються. Відновлення старої копії знімає позначки.\n\nДля перетину кордону надійніше ще ввімкнути «Лише PIN», зробити резервну копію з паролем, перенести автоматичні копії з телефона й на час поїздки прибрати чутливі справи. У GrapheneOS є також «PIN під примусом», який стирає телефон.\n\nПозначити справу чутливою можна в її картці.</string>
+    <string name="trip_confirm_off">Вимкнути режим поїздки</string>
+    <string name="trip_explain">Що робить: справи, позначені як чутливі, і все, що з ними пов\'язано (доручення, обіцянки, строки, події, записи медіа, меседжі, союзи, гроші, облік допомоги, зв\'язки з людьми), зникають з усіх екранів, списків, графіків, пошуку й підказок ШІ. Разом з ними зникають люди, відомі лише через ці справи, записи щоденника, пов\'язані з ними чи з їхніми назвами, і громади, пов\'язані лише з ними. Події з календаря телефона теж не показуються, а нагадувань про сховане немає. Дані лишаються зашифрованими в телефоні, нічого не видаляється.\n\nЩо лишається видним: решта людей, громад і записів, назви тем, сам перемикач і позначка «Чутлива».\n\nЧого не робить: не захищає від того, хто змусить вас відкрити Мандат і підтвердити вимкнення відбитком чи PIN телефона. Резервні копії, зокрема автоматичні на телефоні, містять усе. Копії подій, додані в календар телефона, там і лишаються. Відновлення старої копії знімає позначки.\n\nДля перетину кордону надійніше ще ввімкнути «Лише PIN», зробити резервну копію з паролем, перенести автоматичні копії з телефона й на час поїздки прибрати чутливі справи. У GrapheneOS є також «PIN під примусом», який стирає телефон.\n\nПозначити справу чутливою можна в її картці.</string>
     <string name="dash_idle_row">Ролей без руху за цей період: %1$d</string>
     <string name="category_suggest">Схоже на: %1$s — вибрати</string>
     <string name="category_own">Своя…</string>
@@ -845,7 +826,6 @@
     <string name="day_strip_open">Відкрити календар</string>
     <string name="now_at">зараз %1$s</string>
     <string name="lens_on">Лінза: %1$s</string>
-    <string name="lens_off">Лінза: усі ролі</string>
     <string name="cal_density">Щільність тижня</string>
     <string name="hours_short">%1$d год</string>
     <string name="free_hours">%1$d год</string>
@@ -860,7 +840,7 @@
     <string name="period_year">Рік</string>
     <string name="export_title">Експорт і імпорт</string>
     <string name="export_options_hint">Контакти, календар, таблиці, щоденник чи справа у відкритих форматах; за замовчуванням з паролем.</string>
-    <string name="export_trip_note">Увімкнено режим поїздки: сховані справи й пов\'язане з ними не вивантажуються, «Усе» недоступне.</string>
+    <string name="export_trip_note">Частину записів зараз сховано: вони й пов\'язане з ними не вивантажуються, «Усе» недоступне.</string>
     <string name="export_what">Що вивантажити</string>
     <string name="export_people">Люди (.vcf)</string>
     <string name="export_book">Довідник (.vcf), %1$d</string>
@@ -874,8 +854,8 @@
     <string name="export_matter_one">Справа: %1$s (.md)</string>
     <string name="export_everything">Усе (.json)</string>
     <string name="export_protection">Захист</string>
-    <string name="export_with_password">З паролем (раджу)</string>
-    <string name="export_with_password_hint">ZIP з AES-256: відкривається з паролем у 7-Zip, Keka, ZArchiver. Захист слабший, ніж у файлі Мандата, а назви файлів усередині видно без пароля.</string>
+    <string name="export_with_password">ZIP з паролем (для інших застосунків)</string>
+    <string name="export_with_password_hint">Відкривається з паролем у 7-Zip, Keka, ZArchiver. Захист слабший, ніж у файлі Мандата, тому пароль довший; найкраще взяти запропонований. Назви файлів усередині видно без пароля.</string>
     <string name="export_password">Пароль, щонайменше %1$d символів</string>
     <string name="export_password_repeat">Пароль ще раз</string>
     <string name="export_open">Відкритий файл, без пароля</string>
@@ -886,6 +866,7 @@
     <string name="export_go">Вивантажити</string>
     <string name="export_done">Готово. Файл там, де ви його зберегли.</string>
     <string name="export_failed">Не вдалося записати файл.</string>
+    <string name="export_existing_file">Цей файл уже щось містить. Мандат не записує поверх старого файлу: збережіть під новою назвою.</string>
     <string name="import_title">Імпорт</string>
     <string name="import_hint">Файли читаються лише після підтвердження; нічого не виходить з Мандата.</string>
     <string name="import_ics">Календар (.ics)</string>
@@ -898,10 +879,11 @@
     <string name="import_go">Імпортувати</string>
     <string name="import_done">Імпортовано: %1$d</string>
     <string name="export_pdf">Документи також у PDF</string>
-    <string name="export_mandat">Файл Мандата з паролем (найнадійніше)</string>
-    <string name="export_mandat_hint">Лише контакти й календар. Зашифровано так само, як резервну копію, назви файлів теж приховано. Відкривається тільки в Мандаті (наприклад, на іншому телефоні).</string>
+    <string name="export_mandat">Файл Мандата з паролем (раджу)</string>
+    <string name="export_mandat_hint">Контакти, календар і пакет для колеги. Зашифровано так само, як резервну копію, назви файлів теж приховано. Відкривається тільки в Мандаті (наприклад, на іншому телефоні).</string>
     <string name="export_suggested_note">Запишіть цей пароль зараз і зберігайте окремо від файлу:</string>
     <string name="export_password_weak">Надто простий: щонайменше 16 символів, без поширених слів. Або натисніть «Запропонувати пароль».</string>
+    <string name="export_zip_password_weak">Для ZIP потрібен довший пароль. Візьміть запропонований із шести слів.</string>
     <string name="export_everything_hidden">«Усе (.json)» недоступне, поки лінза чи режим поїздки щось ховають.</string>
     <string name="import_mandat">Файл Мандата (.mandatx)</string>
     <string name="import_mandat_wrong">Неправильний пароль або пошкоджений файл.</string>
@@ -909,11 +891,11 @@
     <string name="import_mandat_summary">Подій: %1$d, контактів: %2$d. Інших файлів (таблиці, документи) не імпортується: %3$d.</string>
     <string name="import_done_short">Імпортовано</string>
     <string name="import_delete_offer">Вихідний файл на телефоні не зашифрований. Видалити його зараз? Дані вже надійно в Мандаті.</string>
-    <string name="export_mandat_only">У файл Мандата йдуть лише контакти й календар. Таблиці, щоденник і документи — через ZIP з паролем.</string>
+    <string name="export_mandat_only">У файл Мандата йдуть лише контакти, календар і пакет. Таблиці, щоденник, документи й сховище Obsidian — через ZIP з паролем.</string>
     <string name="export_lens_note">Лінза ховає справи інших ролей: вони й пов\'язане з ними не вивантажуються.</string>
     <string name="export_too_big">Файл вийшов більшим за 16 МБ, і Мандат потім не зміг би його відкрити. Нічого не записано: виберіть менше або ZIP.</string>
     <string name="import_mandat_not">Це не файл експорту Мандата.</string>
-    <string name="import_mandat_is_backup">Це резервна копія, а не файл експорту. Відновіть її в «Налаштуваннях», розділ «Резервна копія».</string>
+    <string name="import_mandat_is_backup">Це резервна копія, а не файл експорту. Відновіть її в «Опціях», розділ «Резервна копія».</string>
     <string name="notice_is_export">Це файл експорту (.mandatx), а не резервна копія. Відкрийте його в «Експорт і імпорт». Нічого не змінено.</string>
     <string name="brief_title">Бриф перед зустріччю</string>
     <string name="brief_meetings">Зустрічі</string>
@@ -930,7 +912,6 @@
     <string name="votes_change">Змінити потрібну кількість</string>
     <string name="votes_needed">Скільки потрібно «за»</string>
     <string name="votes_needed_hint">Наприклад, більшість у комітеті чи раді. Рахуються люди з позицією в цій справі.</string>
-    <string name="votes_clear">Не рахувати</string>
     <string name="minutes_short">%1$d хв</string>
     <string name="time_matter">Час за 30 днів: %1$s</string>
     <string name="time_by_role">Час за ролями</string>
@@ -970,8 +951,6 @@
     <string name="retro_approx">≈ приблизно: журнал змін ведеться з цієї версії, раніші місяці відновлено з дат створення й завершення.</string>
     <string name="retro_started">нових справ</string>
     <string name="retro_finished">завершено</string>
-    <string name="retro_avg_days">днів у середньому до завершення</string>
-    <string name="retro_on_time_pct">строків вчасно, у відсотках</string>
     <string name="retro_directions">Напрямки: час за місяцями</string>
     <string name="retro_directions_hint">Скільки годин ішло на кожну роль: події календаря через справу й додане в справах.</string>
     <string name="retro_focus">Пріоритети минулого</string>
@@ -1331,4 +1310,22 @@
     <string name="packet_as_new">Нова</string>
     <string name="packet_same_as">Та сама: %1$s</string>
     <string name="packet_failed">Пакет не вдалося додати. Нічого не змінено.</string>
+    <string name="discard_title">Відкинути зміни?</string>
+    <string name="discard_text">Написане тут не збережеться.</string>
+    <string name="discard_go">Відкинути</string>
+    <string name="opt_privacy">Приватність і безпека</string>
+    <string name="opt_privacy_hint">Режим поїздки, вхід лише з PIN, знімки екрана.</string>
+    <string name="opt_data">Дані та копії</string>
+    <string name="opt_data_hint">Резервна копія з паролем, автокопії, експорт та імпорт.</string>
+    <string name="opt_work">Робота: ролі й округ</string>
+    <string name="opt_work_hint">Парламент чи місцева рада, округ, ваші ролі й посади.</string>
+    <string name="opt_look">Вигляд і нагадування</string>
+    <string name="opt_look_hint">Тема й кольори, нагадування, календар телефона.</string>
+    <string name="opt_ai_hint">Необов'язковий ШІ, що працює лише в телефоні.</string>
+    <string name="opt_about_hint">Версія та ліцензія.</string>
+    <string name="opt_open">Розгорнуто</string>
+    <string name="opt_closed">Згорнуто</string>
+    <string name="opt_fold">Згорнути</string>
+    <string name="opt_unfold">Розгорнути</string>
+    <string name="unlink">Прибрати зв'язок</string>
 </resources>

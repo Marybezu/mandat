@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
@@ -313,7 +314,7 @@ private fun StatusChips(current: TaskStatus, options: List<TaskStatus>, label: (
 /** The delegation dialog; its content lives in the Session and is saved on lock. */
 @Composable
 fun DelegationDialog(db: MandatDb, session: Session, draft: DelegationDraft) {
-    val peopleFlow = remember(db) { db.people().observeAll() }
+    val peopleFlow = remember(db) { db.people().observeAll().hidingPeople(session) }
     val mattersFlow = remember(db) { db.matters().observeActiveTitles().hiding(session) { it.id } }
     val allFlow = remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }
     val allMatters by allFlow.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -324,6 +325,7 @@ fun DelegationDialog(db: MandatDb, session: Session, draft: DelegationDraft) {
     EditSheet(
         title = stringResource(R.string.delegation_new),
         onDismiss = { session.delegationDraft = null },
+        changed = draft.changed(),
         onSave = { session.saveDelegationDraft() },
         saveEnabled = draft.what.isNotBlank(),
     ) {
@@ -399,7 +401,7 @@ fun FreedomPicker(current: ua.mandat.data.Freedom?, onPick: (ua.mandat.data.Free
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PromiseDialog(db: MandatDb, session: Session, draft: PromiseDraft) {
-    val peopleFlow = remember(db) { db.people().observeAll() }
+    val peopleFlow = remember(db) { db.people().observeAll().hidingPeople(session) }
     val mattersFlow = remember(db) { db.matters().observeActiveTitles().hiding(session) { it.id } }
     val allFlow = remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }
     val allMatters by allFlow.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -410,6 +412,7 @@ fun PromiseDialog(db: MandatDb, session: Session, draft: PromiseDraft) {
     EditSheet(
         title = stringResource(R.string.promise_new),
         onDismiss = { session.promiseDraft = null },
+        changed = draft.changed(),
         onSave = { session.savePromiseDraft() },
         saveEnabled = draft.what.isNotBlank(),
     ) {
@@ -491,6 +494,17 @@ fun PromiseDimensions(draft: PromiseDraft) {
 @Composable
 fun ConfirmDelete(onConfirm: () -> Unit, onCancel: () -> Unit) =
     ConfirmDialog(null, stringResource(R.string.delete_question), stringResource(R.string.delete), danger = true, onConfirm = onConfirm, onCancel = onCancel)
+
+/** A small "✕" in a row that deletes it, only after "Delete?"; named for screen readers. */
+@Composable
+fun DeleteButton(onDelete: () -> Unit) {
+    var asking by remember { mutableStateOf(false) }
+    androidx.compose.material3.IconButton(onClick = { asking = true }) {
+        androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Close, contentDescription = stringResource(R.string.delete),
+            tint = Muted, modifier = Modifier.size(18.dp))
+    }
+    if (asking) ConfirmDelete(onConfirm = { asking = false; onDelete() }, onCancel = { asking = false })
+}
 
 /** Pick a person to add to a matter, with a search box (useful with many people). */
 @Composable

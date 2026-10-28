@@ -34,6 +34,21 @@ sealed interface BackupNotice {
     data object AutoOff : BackupNotice
     data object AutoSaved : BackupNotice
     data object AutoTooBig : BackupNotice
+    /** The chosen file already holds something: Mandat writes a backup only into a new file. */
+    data object ExistingFile : BackupNotice
+    /** The data is larger than a backup file can hold. */
+    data object TooBig : BackupNotice
+}
+
+/**
+ * True when the chosen file is empty: a new file just made by the save dialog. A file that already
+ * holds something (an older copy picked to "replace") is never written over, so a failure halfway
+ * can never cost both the new copy and the old one.
+ */
+fun isNewDocument(context: Context, uri: Uri): Boolean = try {
+    context.contentResolver.openInputStream(uri)?.use { it.read() < 0 } ?: false
+} catch (e: Exception) {
+    false
 }
 
 /** A decrypted backup waiting for the owner's "Replace" confirmation. Kept in memory only. */
@@ -122,16 +137,22 @@ class Backups(private val context: Context, private val session: Session) {
 
     /** Writes an encrypted copy of everything to [uri], then reads it back to check it. */
     fun save(uri: Uri, password: String) {
-        // Delete the file after a failure only if we already started writing into it:
-        // the owner may have chosen an existing file to replace, which must stay intact.
+        // Only a new, empty file is written; a file Mandat started writing into is removed after a failure
         var touched = false
         run(onCrash = { if (touched) deleteQuietly(uri); BackupNotice.SaveFailed }) {
+        if (!isNewDocument(context, uri)) return@run BackupNotice.ExistingFile
         val json = try {
             session.withRealDb { BackupData.dump(it) }
         } catch (e: Exception) {
             null
         }
         if (json == null) return@run BackupNotice.SaveFailed
+        // Said plainly before anything is written, rather than a copy that could not be opened again
+        if (json.size > BackupCrypto.MAX_FILE_BYTES - 64) {
+            json.fill(0)
+            deleteQuietly(uri)
+            return@run BackupNotice.TooBig
+        }
         try {
             val rows = BackupData.summary(json).rows
             val file = BackupCrypto.encrypt(json, password)

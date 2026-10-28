@@ -54,6 +54,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import ua.mandat.R
 import ua.mandat.backup.BackupCrypto
 import java.text.DateFormat
@@ -124,127 +129,127 @@ fun Options(session: Session, onBack: () -> Unit) {
         ) {
             // In the demo, nothing that reaches beyond it: no backups, reminders, phone calendar or security switches
             if (session.demo) Text(stringResource(R.string.demo_options_note), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
-            if (!session.demo) {
-            Section(stringResource(R.string.backup_title))
-            Text(stringResource(R.string.backup_text), style = MaterialTheme.typography.bodyLarge)
-            if (backups.busy) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    CircularProgressIndicator()
-                    Spacer(Modifier.height(8.dp))
-                    Text(stringResource(R.string.backup_working))
+            val openDb = (session.state as? LockState.Open)?.db
+
+            // Grouped and folded, the most used first: trip mode heads privacy and security
+            OptionGroup(stringResource(R.string.opt_privacy), stringResource(R.string.opt_privacy_hint), Sym.lock) {
+                Text(stringResource(R.string.security_text), style = MaterialTheme.typography.bodyMedium)
+                openDb?.let { TripSwitch(it, session) }
+                if (!session.demo) {
+                    PinOnlySwitch()
+                    ScreenshotsSwitch(session)
                 }
-            } else {
-                Button(onClick = { askNewPassword = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.backup_make))
-                }
-                OutlinedButton(
-                    onClick = {
-                        session.pickingFile = true
-                        pickedAt = session.generationNow()
-                        try {
-                            openFile.launch(arrayOf("*/*"))
-                        } catch (e: Exception) {
-                            session.pickingFile = false
+            }
+
+            OptionGroup(stringResource(R.string.opt_data), stringResource(R.string.opt_data_hint), Sym.save) {
+                if (!session.demo) {
+                    Section(stringResource(R.string.backup_title))
+                    Text(stringResource(R.string.backup_text), style = MaterialTheme.typography.bodyLarge)
+                    if (backups.busy) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                            CircularProgressIndicator()
+                            Spacer(Modifier.height(8.dp))
+                            Text(stringResource(R.string.backup_working))
                         }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.backup_restore)) }
-            }
-
-            // Automatic backups (optional)
-            val auto = backups.auto
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.auto_title), style = MaterialTheme.typography.bodyLarge)
-                    Text(stringResource(R.string.auto_hint, ua.mandat.backup.AutoBackup.KEEP), style = MaterialTheme.typography.labelMedium, color = Muted)
-                }
-                androidx.compose.material3.Switch(
-                    checked = auto?.enabled == true,
-                    enabled = !backups.busy && auto != null,
-                    onCheckedChange = { on ->
-                        if (on) {
-                            session.pickingFile = true
-                            pickedAt = session.generationNow()
-                            try {
-                                pickFolder.launch(null)
-                            } catch (e: Exception) {
-                                session.pickingFile = false
-                            }
-                        } else confirmAutoOff = true
-                    },
-                )
-            }
-            if (auto?.enabled == true) {
-                val fmt = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
-                Text(
-                    auto.lastOk?.let { stringResource(R.string.auto_last_ok, fmt.format(Date(it))) } ?: stringResource(R.string.auto_none_yet),
-                    style = MaterialTheme.typography.labelMedium, color = Muted,
-                )
-                if (auto.lastFail != null && (auto.lastOk == null || auto.lastFail > auto.lastOk)) {
-                    val reason = when (auto.failReason) {
-                        ua.mandat.backup.AutoBackup.REASON_TOO_BIG -> R.string.auto_fail_too_big
-                        ua.mandat.backup.AutoBackup.REASON_STUCK -> R.string.auto_fail_stuck
-                        else -> R.string.auto_last_fail
+                    } else {
+                        Button(onClick = { askNewPassword = true }, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.backup_make))
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                session.pickingFile = true
+                                pickedAt = session.generationNow()
+                                try {
+                                    openFile.launch(arrayOf("*/*"))
+                                } catch (e: Exception) {
+                                    session.pickingFile = false
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(stringResource(R.string.backup_restore)) }
                     }
-                    Text(stringResource(reason, fmt.format(Date(auto.lastFail))), style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.error)
+
+                    // Automatic backups (optional)
+                    val auto = backups.auto
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.auto_title), style = MaterialTheme.typography.bodyLarge)
+                            Text(stringResource(R.string.auto_hint, ua.mandat.backup.AutoBackup.KEEP), style = MaterialTheme.typography.labelMedium, color = Muted)
+                        }
+                        androidx.compose.material3.Switch(
+                            checked = auto?.enabled == true,
+                            enabled = !backups.busy && auto != null,
+                            onCheckedChange = { on ->
+                                if (on) {
+                                    session.pickingFile = true
+                                    pickedAt = session.generationNow()
+                                    try {
+                                        pickFolder.launch(null)
+                                    } catch (e: Exception) {
+                                        session.pickingFile = false
+                                    }
+                                } else confirmAutoOff = true
+                            },
+                        )
+                    }
+                    if (auto?.enabled == true) {
+                        val fmt = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+                        Text(
+                            auto.lastOk?.let { stringResource(R.string.auto_last_ok, fmt.format(Date(it))) } ?: stringResource(R.string.auto_none_yet),
+                            style = MaterialTheme.typography.labelMedium, color = Muted,
+                        )
+                        if (auto.lastFail != null && (auto.lastOk == null || auto.lastFail > auto.lastOk)) {
+                            val reason = when (auto.failReason) {
+                                ua.mandat.backup.AutoBackup.REASON_TOO_BIG -> R.string.auto_fail_too_big
+                                ua.mandat.backup.AutoBackup.REASON_STUCK -> R.string.auto_fail_stuck
+                                else -> R.string.auto_last_fail
+                            }
+                            Text(stringResource(reason, fmt.format(Date(auto.lastFail))), style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.error)
+                        }
+                        if (auto.folder?.let { ua.mandat.backup.AutoBackup.maySync(it) } == true) {
+                            Text(stringResource(R.string.auto_may_sync), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                        }
+                        TextButton(onClick = { backups.autoNow() }, enabled = !backups.busy) { Text(stringResource(R.string.auto_now)) }
+                    }
+
+                    Spacer(Modifier.height(8.dp))
                 }
-                if (auto.folder?.let { ua.mandat.backup.AutoBackup.maySync(it) } == true) {
-                    Text(stringResource(R.string.auto_may_sync), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                Section(stringResource(R.string.export_title))
+                Text(stringResource(R.string.export_options_hint), style = MaterialTheme.typography.bodyMedium)
+                androidx.compose.material3.OutlinedButton(onClick = { session.showExport = true; onBack() }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.export_title))
                 }
-                TextButton(onClick = { backups.autoNow() }, enabled = !backups.busy) { Text(stringResource(R.string.auto_now)) }
-            }
             }
 
-            (session.state as? LockState.Open)?.db?.let { db ->
-                Spacer(Modifier.height(8.dp))
-                Section(stringResource(R.string.roles_manage))
-                ModePicker(session)
-                DistrictSwitch(db, session)
-                RolesManager(db, session)
+            openDb?.let { db ->
+                OptionGroup(stringResource(R.string.opt_work), stringResource(R.string.opt_work_hint), Sym.badge) {
+                    ModePicker(session)
+                    DistrictSwitch(db, session)
+                    RolesManager(db, session)
+                }
             }
 
-            Spacer(Modifier.height(8.dp))
-            Section(stringResource(R.string.export_title))
-            Text(stringResource(R.string.export_options_hint), style = MaterialTheme.typography.bodyMedium)
-            androidx.compose.material3.OutlinedButton(onClick = { session.showExport = true; onBack() }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.export_title))
-            }
-
-            Spacer(Modifier.height(8.dp))
             if (!session.demo) {
-                Section(stringResource(R.string.ai_title))
-                AiSection(session)
+                OptionGroup(stringResource(R.string.opt_look), stringResource(R.string.opt_look_hint), Sym.palette) {
+                    Section(stringResource(R.string.look_title))
+                    LookSection(session)
+                    Spacer(Modifier.height(8.dp))
+                    Section(stringResource(R.string.reminders_title))
+                    RemindersSection(session)
+                    Spacer(Modifier.height(8.dp))
+                    Section(stringResource(R.string.phone_cal_title))
+                    PhoneCalendarSwitch(session)
+                }
+
+                OptionGroup(stringResource(R.string.ai_title), stringResource(R.string.opt_ai_hint), Sym.info) {
+                    AiSection(session)
+                }
             }
 
-            Spacer(Modifier.height(8.dp))
-            if (!session.demo) {
-                Section(stringResource(R.string.look_title))
-                LookSection(session)
+            OptionGroup(stringResource(R.string.about_title), stringResource(R.string.opt_about_hint), Sym.info) {
+                Text(stringResource(R.string.about_text, appVersion()), style = MaterialTheme.typography.bodyMedium)
             }
-
-            Spacer(Modifier.height(8.dp))
-            if (!session.demo) {
-            Section(stringResource(R.string.reminders_title))
-            RemindersSection(session)
-
-            Spacer(Modifier.height(8.dp))
-            Section(stringResource(R.string.phone_cal_title))
-            PhoneCalendarSwitch(session)
-
-            Spacer(Modifier.height(8.dp))
-            }
-            Section(stringResource(R.string.security_title))
-            Text(stringResource(R.string.security_text), style = MaterialTheme.typography.bodyLarge)
-            if (!session.demo) {
-                ScreenshotsSwitch(session)
-                PinOnlySwitch()
-            }
-            (session.state as? LockState.Open)?.db?.let { TripSwitch(it, session) }
-
-            Spacer(Modifier.height(8.dp))
-            Section(stringResource(R.string.about_title))
-            Text(stringResource(R.string.about_text, appVersion()), style = MaterialTheme.typography.bodyLarge)
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -324,6 +329,8 @@ fun Options(session: Session, onBack: () -> Unit) {
             BackupNotice.AutoOff -> stringResource(R.string.notice_auto_off)
             BackupNotice.AutoSaved -> stringResource(R.string.notice_auto_saved)
             BackupNotice.AutoTooBig -> stringResource(R.string.notice_auto_too_big)
+            BackupNotice.ExistingFile -> stringResource(R.string.notice_existing_file)
+            BackupNotice.TooBig -> stringResource(R.string.notice_too_big)
         }
         AlertDialog(
             onDismissRequest = { backups.notice = null },
@@ -360,6 +367,31 @@ fun Options(session: Session, onBack: () -> Unit) {
         )
     }
 }
+
+@Composable
+private fun OptionGroup(title: String, hint: String, icon: androidx.compose.ui.graphics.vector.ImageVector, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    // Folded by default, so the whole list fits on a screen; the choice survives turning the phone
+    var open by androidx.compose.runtime.saveable.rememberSaveable(title) { mutableStateOf(false) }
+    val stateText = stringResource(if (open) R.string.opt_open else R.string.opt_closed)
+    MCard {
+        Row(
+            Modifier.fillMaxWidth().clickable(onClickLabel = stringResource(if (open) R.string.opt_fold else R.string.opt_unfold)) { open = !open }
+                .groupState(stateText).padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(hint, style = MaterialTheme.typography.labelMedium, color = Muted)
+            }
+            Icon(if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, contentDescription = null, tint = Muted)
+        }
+        if (open) Column(Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
+    }
+}
+
+/** Tells a screen reader whether a group is open. */
+private fun Modifier.groupState(state: String): Modifier = semantics(mergeDescendants = true) { stateDescription = state }
 
 @Composable
 private fun Section(title: String) {
@@ -686,7 +718,13 @@ private fun TripSwitch(db: ua.mandat.data.MandatDb, session: Session) {
             Text(stringResource(if (on) R.string.trip_on else R.string.trip_hint), style = MaterialTheme.typography.labelMedium, color = Muted)
             TextButton(onClick = { explain = true }) { Text(stringResource(R.string.trip_how)) }
         }
-        androidx.compose.material3.Switch(checked = on, onCheckedChange = { v -> if (v) explain = true else set(false) })
+        val context = LocalContext.current
+        val confirmTitle = stringResource(R.string.trip_confirm_off)
+        // Turning it off needs the phone's own fingerprint or PIN, not just a tap
+        androidx.compose.material3.Switch(checked = on, onCheckedChange = { v ->
+            if (v) explain = true
+            else context.findActivity()?.let { a -> confirmWithPhoneLock(a, session, confirmTitle) { set(false) } }
+        })
     }
     if (explain) {
         EditSheet(

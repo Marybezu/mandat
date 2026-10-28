@@ -96,7 +96,7 @@ object Packet {
             }.distinctBy { it.id },
             links = arr("links").mapNotNull { l ->
                 MatterPerson(matterId = l.l("matter") ?: return@mapNotNull null, personId = l.l("person") ?: return@mapNotNull null,
-                    stance = l.optString("stance").takeIf { s -> Stance.of(s) != null }, note = "", raci = l.optString("raci").takeIf { it.isNotBlank() }?.take(20))
+                    stance = l.optString("stance").takeIf { s -> Stance.of(s) != null }, note = "", raci = Raci.of(l.optString("raci"))?.name)
             },
             delegations = arr("delegations").mapNotNull { d ->
                 Delegation(what = d.s("what", 2000), personId = d.l("person"), matterId = d.l("matter"), due = d.d("due"),
@@ -186,10 +186,13 @@ object Packet {
                 db.matters().insert(clean).also { id -> db.history().insertAll(changesOf(null, clean, id, now, java.time.LocalDate.now().toEpochDay())) }
             }
         }
+        // Only one person leads a matter: a lead from the packet is kept only where none is set yet
+        val led = db.people().observeLinks().first().filter { it.raci == Raci.LEAD.name }.map { it.matterId }.toHashSet()
         p.links.forEach { l ->
             val m = matterId[l.matterId] ?: return@forEach
             val pp = personId[l.personId] ?: return@forEach
-            db.people().link(l.copy(matterId = m, personId = pp))
+            val raci = Raci.of(l.raci)?.takeIf { it != Raci.LEAD || led.add(m) }?.name
+            db.people().link(l.copy(matterId = m, personId = pp, raci = raci))
         }
         var tasks = 0
         var skipped = 0

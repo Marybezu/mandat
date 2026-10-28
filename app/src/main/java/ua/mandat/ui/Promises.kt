@@ -74,7 +74,7 @@ private val STATUS_ORDER = listOf(TaskStatus.OPEN, TaskStatus.DONE, TaskStatus.F
 fun PromisesScreen(db: MandatDb, session: Session) {
     BackHandler { session.showPromises = false }
     val all by remember(db) { db.promises().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val nameOf = people.associate { it.id to it.name }
     val titleOf = titles.associate { it.id to it.title }

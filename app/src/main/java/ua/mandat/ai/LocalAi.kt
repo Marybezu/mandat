@@ -44,7 +44,7 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
     fun ready() = models.ready.value
 
     /** The conversation being answered, so locking can ask it to stop. */
-    @Volatile private var current: Any? = null
+    @Volatile private var current: com.google.ai.edge.litertlm.Conversation? = null
 
     /** Set by lock: an answer still being written is thrown away and the engine closed right after. */
     @Volatile private var abandoned = false
@@ -93,7 +93,8 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
     /** On lock: asks a running answer to stop (when the runtime allows it), then frees the engine. */
     suspend fun stopAndRelease() {
         abandoned = true
-        current?.let { c -> runCatching { c.javaClass.getMethod("cancelProcess").invoke(c) } }
+        // Called directly, so a runtime without it fails the build instead of silently not stopping
+        current?.let { c -> runCatching { c.cancelProcess() } }
         release()
         // What the engine may have cached from the last answers goes with the lock
         withContext(Dispatchers.IO) { runCatching { java.io.File(context.cacheDir, "ai").deleteRecursively() } }

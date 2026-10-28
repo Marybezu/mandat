@@ -92,19 +92,13 @@ fun RetroScreen(db: MandatDb, session: Session) {
     val delegations by remember(db) { db.delegations().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val aid by remember(db) { db.money().observeAid().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val links by remember(db) { db.people().observeLinks() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
+    val links by remember(db) { db.people().observeLinks().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val cadence by remember(db) { db.settings().observe(SETTING_CADENCE_START) }.collectAsStateWithLifecycle(null)
-    val allReviews by remember(db) { db.reviews().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val reviewLinks by remember(db) { db.reviews().observeLinks() }.collectAsStateWithLifecycle(emptyList())
+    // Diary entries tied to something hidden, or naming it, stay out while it is hidden
+    val reviews by remember(db) { db.reviews().observeAll().hidingReviews(session) }.collectAsStateWithLifecycle(emptyList())
     val infoItems by remember(db) { db.info().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
-    val hidden by session.hiddenMatters.collectAsStateWithLifecycle()
-    // Diary entries linked to a hidden matter stay out while it is hidden
-    val reviews = remember(allReviews, reviewLinks, hidden) {
-        val out = reviewLinks.filter { it.kind == "matter" && it.refId in hidden }.map { it.reviewId }.toSet()
-        allReviews.filter { it.id !in out }
-    }
-    val allMatters by remember(db) { db.matters().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val hidden by session.hidden.collectAsStateWithLifecycle()
     var range by rememberSaveable { mutableStateOf(RetroSpan.HALF) }
     val today = Dates.today()
     val start = spanStart(range, today, cadence?.value?.toLongOrNull())
@@ -301,9 +295,9 @@ fun RetroScreen(db: MandatDb, session: Session) {
 
             // What the work was about: the words that came up most in matters, events, the diary and media
             item(key = "words") {
-                val words = remember(span, matters, events, reviews, infoItems, hidden, allMatters) {
-                    // The diary is free text: an entry naming a hidden matter is left out while it is hidden
-                    val hiddenTitles = allMatters.filter { it.id in hidden }.map { it.title.lowercase() }.filter { it.length >= 3 }
+                val words = remember(span, matters, events, reviews, infoItems, hidden) {
+                    // Free text naming a hidden matter is left out while it is hidden
+                    val hiddenTitles = hidden.names
                     val texts = matters.filter { Dates.dayOf(it.updatedAt) in span || Dates.dayOf(it.createdAt) in span }.map { it.title + " " + it.goal } +
                         events.filter { it.day in span && !(it.matterId == null && namesAny(it.title + " " + it.outcome, hiddenTitles)) }.map { it.title + " " + it.outcome } +
                         reviews.filter { it.day in span }.map { it.progress }.filter { p -> !namesAny(p, hiddenTitles) } +

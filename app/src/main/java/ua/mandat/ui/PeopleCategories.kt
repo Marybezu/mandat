@@ -117,7 +117,7 @@ fun CategoryFields(db: MandatDb, draft: PersonDraft) {
 @Composable
 fun CategorizeScreen(db: MandatDb, session: Session) {
     BackHandler { session.showCategorize = false }
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     var skipped by remember { mutableStateOf(setOf<Long>()) }
     val todo = people.filter { it.teamRole == null && it.category == null && it.id !in skipped }
     val p = todo.firstOrNull()

@@ -67,7 +67,7 @@ import ua.mandat.data.isOverdue
  */
 @Composable
 fun PeopleList(db: MandatDb, session: Session) {
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val delegations by remember(db) { db.delegations().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val links by remember(db) { db.people().observeLinks().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     var query by remember { mutableStateOf("") }
@@ -355,7 +355,7 @@ fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
     BackHandler(onBack = onBack)
     var confirmDelete by remember { mutableStateOf(false) }
     val id = draft.person.id
-    val allPeople by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val allPeople by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
 
     Scaffold(
         topBar = {
@@ -474,7 +474,7 @@ fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
                             db.people().delete(id)
                         }
                     }
-                }) { Text(stringResource(R.string.delete)) }
+                }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
         )

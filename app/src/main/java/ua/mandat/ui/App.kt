@@ -24,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import ua.mandat.data.Matter
 import ua.mandat.data.SETTING_ROLES_ASKED
 import ua.mandat.data.matterFromNote
@@ -247,10 +248,10 @@ private fun Main(db: MandatDb, session: Session) {
         kotlinx.coroutines.flow.combine(db.settings().observe(SETTING_TRIP), db.matters().observeSensitiveIds(), lensHidden) { trip, ids, lens ->
             val on = trip?.value == "1"
             on to ((if (on) ids.toSet() else emptySet()) + lens)
-        }.collect { (on, hidden) ->
-            session.tripOn.value = on
-            session.hiddenMatters.value = hidden
-        }
+        }.distinctUntilChanged().flatMapLatest { (on, matters) ->
+            // People, diary days and communities tied only to them are worked out before anything shows
+            observeHidden(db, matters).map { on to it }
+        }.collect { (on, hidden) -> session.setHidden(on, hidden) }
     }
 
     when {
@@ -513,10 +514,11 @@ private fun Main(db: MandatDb, session: Session) {
  */
 @Composable
 internal fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onToMatter: (InboxItem) -> Unit) {
-    val items by remember(db) { db.inbox().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    // A note naming a hidden matter stays out while it is hidden
+    val items by remember(db) { db.inbox().observeAll().hidingNamed(session, { null }) { it.text } }.collectAsStateWithLifecycle(emptyList())
     val focus by remember(db) { db.matters().observeFocus().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val deadlines by remember(db) { db.deadlines().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val delegations by remember(db) { db.delegations().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
@@ -670,7 +672,7 @@ internal fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onT
 
 @Composable
 private fun AddDialog(db: MandatDb, session: Session) {
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val matters by remember(db) { db.matters().observeActiveTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val text = session.inboxDraft.orEmpty()
     // Smart input: what the note looks like (rules only); the owner decides
@@ -715,6 +717,7 @@ private fun AddDialog(db: MandatDb, session: Session) {
     EditSheet(
         title = stringResource(R.string.inbox),
         onDismiss = { session.inboxDraft = null },
+        changed = !session.inboxDraft.isNullOrBlank(),
         onSave = { session.saveInboxDraft() },
         saveText = stringResource(R.string.save_to_inbox),
     ) {

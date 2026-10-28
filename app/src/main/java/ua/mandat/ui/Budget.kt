@@ -398,6 +398,7 @@ fun MoneyDialog(db: MandatDb, session: Session, d: MoneyDraft) {
     EditSheet(
         title = stringResource(if (income) R.string.money_income else R.string.money_expense),
         onDismiss = { session.moneyDraft = null },
+        changed = d.changed(),
         onSave = { session.saveMoneyDraft() },
         saveEnabled = d.valid(),
     ) {
@@ -450,7 +451,7 @@ fun MoneyDialog(db: MandatDb, session: Session, d: MoneyDraft) {
                         Text(stringResource(R.string.money_refunded), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
-                if (!d.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
+                if (!d.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
         }
     }
     if (confirmDelete) {
@@ -558,7 +559,7 @@ fun AidLedger(db: MandatDb, session: Session, matterId: Long) {
                 Text(listOf(Dates.short(r.day), r.party).filter { it.isNotBlank() }.joinToString(" · "), style = MaterialTheme.typography.labelSmall, color = Muted)
             }
             if (r.amount > 0) Text(hryvnias(r.uah), style = MaterialTheme.typography.labelLarge)
-            TextButton(onClick = { session.write { it.money().deleteAid(r.id) } }) { Text("✕") }
+            DeleteButton { session.write { it.money().deleteAid(r.id) } }
         }
     }
     Row {

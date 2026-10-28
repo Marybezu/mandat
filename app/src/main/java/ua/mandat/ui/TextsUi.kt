@@ -190,6 +190,7 @@ fun TextEditor(db: MandatDb, session: Session, draft: TextDraft) {
     EditSheet(
         title = stringResource(if (draft.kind == TextKind.TEMPLATE) R.string.text_kind_template else R.string.text_title_one),
         onDismiss = { session.textDraft = null },
+        changed = draft.changed(),
         onSave = { session.saveTextDraft() },
         saveEnabled = draft.valid(),
     ) {

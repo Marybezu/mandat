@@ -57,7 +57,7 @@ const val SPAN_OF_CONTROL = 7
 /** After a delegation is done: a gentle offer to thank the person. Writing it leaves Mandat. */
 @Composable
 fun ThankDialog(db: MandatDb, session: Session, d: Delegation) {
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val name = people.firstOrNull { it.id == d.personId }?.name ?: return
     val context = LocalContext.current
     val text = stringResource(R.string.thank_text, d.what)
@@ -130,7 +130,7 @@ fun TeamCard(people: List<Person>, delegations: List<Delegation>, session: Sessi
 @Composable
 fun OneOnOneScreen(db: MandatDb, session: Session, personId: Long) {
     BackHandler { session.oneOnOne = null }
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val delegations by remember(db, personId) { db.delegations().observeForPerson(personId).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val promises by remember(db, personId) { db.promises().observeForPerson(personId).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val matters by remember(db, personId) { db.people().observeMattersOf(personId).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
@@ -139,7 +139,7 @@ fun OneOnOneScreen(db: MandatDb, session: Session, personId: Long) {
     val allMatters by remember(db) { db.matters().observeAll().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val nextOf = allMatters.associate { it.id to it.nextStep }
     val events by remember(db, personId) { db.events().observeForPerson(personId).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
-    val reviews by remember(db) { db.reviews().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val reviews by remember(db) { db.reviews().observeAll().hidingReviews(session) }.collectAsStateWithLifecycle(emptyList())
     val reviewLinks by remember(db) { db.reviews().observeLinks() }.collectAsStateWithLifecycle(emptyList())
     val hidden by session.hiddenMatters.collectAsStateWithLifecycle()
     val p = people.firstOrNull { it.id == personId }
@@ -276,7 +276,7 @@ private enum class Cell { RELY, PERSUADE, WATCH, INFORM }
 @Composable
 fun InfluenceMapScreen(db: MandatDb, session: Session, matterId: Long?) {
     BackHandler { session.influenceFor = null }
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val links by remember(db) { db.people().observeLinks().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val today = Dates.today()

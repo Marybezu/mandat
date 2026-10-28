@@ -32,4 +32,22 @@ object Obsidian {
     fun yaml(s: String): String = "\"" + s.replace(Regex("\\p{Cntrl}"), " ").replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
     fun link(name: String) = "[[$name]]"
+
+    private val TILDE_FENCE = Regex("(?m)^([ \\t]*)~~~")
+
+    /**
+     * Makes a note's text inert before it reaches Obsidian: text that came from elsewhere (a shared
+     * note, a calendar file, a colleague's packet) could hold a picture loaded from the internet
+     * when the vault opens, HTML, or a code block that a plugin such as Dataview would run. Mandat's
+     * own markup uses none of these, so the whole body is treated; the front matter is quoted already.
+     */
+    fun neutralize(note: String): String {
+        val bodyStart = if (note.startsWith("---\n")) note.indexOf("\n---\n", 3).let { if (it < 0) 0 else it + 5 } else 0
+        val body = note.substring(bodyStart)
+            .replace("`", "\\`")
+            .replace("<", "&lt;")
+            .replace("![", "!\\[")
+            .replace(TILDE_FENCE, "$1\\\\~~~")
+        return note.substring(0, bodyStart) + body
+    }
 }

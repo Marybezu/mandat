@@ -124,8 +124,10 @@ fun DayMainCard(
         }.filter { it.key !in main.items }
         PickSheet(stringResource(R.string.day_main_pick), items, onPick = { ref ->
             picking = false
-            // What is not shown now (hidden, or gone) gives its place to the new choice
-            save(main.copy(items = (main.items.filter { it in shown } + ref).distinct().take(DAY_MAIN_LIMIT), done = main.done.filter { it in shown }.toSet()))
+            // While there is room everything stays (what is hidden now comes back with it); only when
+            // the list is full does what is not shown (hidden, or gone) give its place to the new choice
+            val keep = if (main.items.size < DAY_MAIN_LIMIT) main.items else main.items.filter { it in shown }
+            save(main.copy(items = (keep + ref).distinct().take(DAY_MAIN_LIMIT), done = main.done.filter { it in keep }.toSet()))
         }, onDismiss = { picking = false }, footer = if (items.isEmpty()) ({
             Text(stringResource(R.string.day_main_nothing), style = MaterialTheme.typography.bodyMedium, color = Muted, modifier = Modifier.padding(12.dp))
         }) else null)

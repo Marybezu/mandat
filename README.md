@@ -11,25 +11,26 @@
 - 👥 **Люди.** Свої категорії, позиції в справах, команда, розмова віч-на-віч, довідник контактів з імпортом .vcf і CSV.
 - 📅 **Календар і час.** Місяць, тиждень із сіткою годин, список; щільність тижня з вільними вікнами; строки, доручення й обіцянки на одній стрічці.
 - 📊 **Наочність.** Зведення за тиждень, місяць, рік; кожне число відкриває записи, з яких воно складається. Кольори завжди з підписом чи відсотком.
-- 🧳 **Режим поїздки й лінза.** Позначені справи й усе пов'язане з ними зникають з екранів, пошуку й експорту одним перемикачем.
-- 📤 **Експорт і імпорт.** .vcf, .ics, CSV, Markdown, PDF; за замовчуванням із паролем.
+- 🧳 **Режим поїздки й лінза.** Позначені справи й усе пов'язане з ними (люди, записи щоденника, громади) зникають з екранів, пошуку, ШІ й експорту. Вимкнути режим можна лише відбитком чи PIN телефона.
+- 📤 **Експорт і імпорт.** .vcf, .ics, CSV, Markdown, PDF, сховище для Obsidian, пакет справ для колеги; за будь-який період. За замовчуванням зашифрований файл Мандата, ZIP з паролем — для інших застосунків.
 - 🔭 **Ретроспектива.** Напрямки, пріоритети минулого й динаміка за місяцями з журналу змін.
 - ✍️ **Тексти.** Листи, виступи, колонки, записки з шаблонами, версіями й експортом у Word і PDF.
 - 📓 **Щоденник, бюджет, вхідні.**
+- 🎭 **Демо.** Вигаданий депутат із великою базою, щоб спробувати все без своїх даних; нічого не зберігається.
 - 🤖 **Локальний ШІ (Gemma), за бажанням:** розкладає вставлений текст на справи й доручення, пише бриф і підсумок, скорочує виступ. Усе на телефоні, лише пропозиції.
 
 ## Встановлення
 
 Завантажте `.apk` з [Releases](../../releases/latest). Для автооновлень — [Obtainium](https://obtainium.imranr.dev/). Перед оновленням радимо зробити резервну копію.
 
-ШІ (необов'язково): Налаштування → «ШІ на телефоні» → «Завантажити модель» (≈2,6 ГБ) → «Обрати файл моделі». Файл перевіряється за контрольною сумою.
+ШІ (необов'язково): Опції → «ШІ» → «Завантажити модель» (≈2,6 ГБ) → «Обрати файл моделі». Файл перевіряється за контрольною сумою.
 
 ## Прозорість
 
 - **Дозволи:** сповіщення й перезапуск нагадувань після ввімкнення телефона; читання календаря телефона — лише якщо ви ввімкнете його показ. Збірка зупиняється, якщо з'являється дозвіл на інтернет.
-- **Шифрування:** не шифруються лише налаштування вигляду, вмикачі нагадувань і дати, на які є нагадування (щоб сповіщення приходили без розблокування; у тексті сповіщення нічого немає). Відкритий файл експорту — лише за вашим вибором і з попередженням.
+- **Шифрування:** не шифруються лише налаштування вигляду, вмикачі нагадувань, позначка «Мандат щось скопіював у буфер» (без тексту) і дати, на які є нагадування (щоб сповіщення приходили без розблокування; у тексті сповіщення нічого немає). Відкритий файл експорту — лише за вашим вибором і з попередженням.
 - **Збірка:** APK збирається з цього коду в GitHub Actions і підписується лише після схвалення автора. Контрольні суми залежностей перевіряються.
-- **Межі:** не призначено для відомостей з грифом — для них потрібні спеціально захищені системи, а не застосунок на особистому телефоні. Режим поїздки не захищає від того, хто змусить відкрити Мандат; резервні копії містять усе.
+- **Межі:** не призначено для відомостей з грифом — для них потрібні спеціально захищені системи, а не застосунок на особистому телефоні. Режим поїздки не захищає від того, хто змусить відкрити Мандат і підтвердити вимкнення; резервні копії містять усе.
 - **Як створено:** код написано за допомогою ШІ (Claude, Anthropic) під керівництвом і з тестуванням автора.
 
 Kotlin · Jetpack Compose · Room · SQLCipher · [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM). Сторонні матеріали — [NOTICE.md](NOTICE.md). Ліцензія GPL-3.0.
@@ -49,25 +50,26 @@ A private, offline organiser for Android: matters, people, calendar, delegations
 - 👥 **People.** Your own categories, stances in matters, a team, one-to-one talks, an address book with .vcf and CSV import.
 - 📅 **Calendar and time.** Month, week with an hour grid, list; week density with free windows; deadlines, delegations and promises on one strip.
 - 📊 **At a glance.** Week, month and year overviews; every number opens the records it counts. Colours always come with a label or a percentage.
-- 🧳 **Trip mode and lens.** Marked matters and everything linked to them disappear from screens, search and export with one switch.
-- 📤 **Export and import.** .vcf, .ics, CSV, Markdown, PDF; with a password by default.
+- 🧳 **Trip mode and lens.** Marked matters and everything linked to them (people, diary entries, communities) disappear from screens, search, AI and export. Turning trip mode off needs the phone's fingerprint or PIN.
+- 📤 **Export and import.** .vcf, .ics, CSV, Markdown, PDF, an Obsidian vault, a packet of matters for a colleague; for any period. By default an encrypted Mandat file; a ZIP with a password for other apps.
 - 🔭 **Retrospective.** Directions, past priorities and month-by-month movement from a journal of changes.
 - ✍️ **Texts.** Letters, speeches, columns, notes with templates, versions and export to Word and PDF.
 - 📓 **Diary, budget, inbox.**
+- 🎭 **Demo.** An invented MP with a large base, to try everything without your own data; nothing is kept.
 - 🤖 **On-device AI (Gemma), optional:** splits pasted text into matters and delegations, writes a brief and a summary, shortens a speech. Everything stays on the phone; only suggestions.
 
 ## Install
 
 Download the `.apk` from [Releases](../../releases/latest). For updates, use [Obtainium](https://obtainium.imranr.dev/). Make a backup before updating.
 
-AI (optional): Settings → On-device AI → Download the model (≈2.6 GB) → Choose the model file. The file is checked by its checksum.
+AI (optional): Options → AI → Download the model (≈2.6 GB) → Choose the model file. The file is checked by its checksum.
 
 ## Transparency
 
 - **Permissions:** notifications and restoring reminders after a restart; reading the phone's calendar only if you turn on showing it. The build stops if an internet permission appears.
-- **Encryption:** the only things not encrypted are appearance settings, reminder switches and the dates that have reminders (so notifications arrive without unlocking; the notification text says nothing). An open export file only by your choice and after a warning.
+- **Encryption:** the only things not encrypted are appearance settings, reminder switches, a mark that Mandat copied something to the clipboard (without the text) and the dates that have reminders (so notifications arrive without unlocking; the notification text says nothing). An open export file only by your choice and after a warning.
 - **Build:** the APK is built from this code in GitHub Actions and signed only after the author's approval. Dependency checksums are verified.
-- **Limits:** not for classified information, which needs specially protected systems rather than an app on a personal phone. Trip mode does not protect against someone who forces you to open Mandat; backups contain everything.
+- **Limits:** not for classified information, which needs specially protected systems rather than an app on a personal phone. Trip mode does not protect against someone who forces you to open Mandat and confirm turning it off; backups contain everything.
 - **How it was made:** written with AI assistance (Claude, Anthropic), directed and tested by the author.
 
 Kotlin · Jetpack Compose · Room · SQLCipher · [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM). Third-party material: [NOTICE.md](NOTICE.md). GPL-3.0 licence.

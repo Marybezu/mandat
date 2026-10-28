@@ -27,6 +27,27 @@ object BackupCrypto {
     /** Settings tried when opening a file, newest first. Only fixed values: nothing is read from the file. */
     internal val PROFILES = listOf(DEFAULT)
 
+    /**
+     * The password as UTF-8 in NFC form, the same bytes as before for any password. Already in NFC
+     * (nearly always), it is encoded straight from the characters, so no text copy is made.
+     */
+    internal fun utf8Nfc(password: CharArray): ByteArray {
+        val seq = java.nio.CharBuffer.wrap(password)
+        if (!java.text.Normalizer.isNormalized(seq, java.text.Normalizer.Form.NFC)) {
+            return java.text.Normalizer.normalize(seq, java.text.Normalizer.Form.NFC).toByteArray(Charsets.UTF_8)
+        }
+        val bb = Charsets.UTF_8.newEncoder()
+            // A broken character becomes "?", exactly as when the text form was encoded
+            .onMalformedInput(java.nio.charset.CodingErrorAction.REPLACE)
+            .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPLACE)
+            .encode(java.nio.CharBuffer.wrap(password))
+        val out = ByteArray(bb.remaining())
+        bb.get(out)
+        // The encoder's own buffer is cleared too
+        if (bb.hasArray()) bb.array().fill(0)
+        return out
+    }
+
     const val MIN_PASSWORD_LENGTH = 16
     const val MAX_FILE_BYTES = 16L * 1024 * 1024
 
@@ -50,6 +71,12 @@ object BackupCrypto {
     class NotABackup : Exception()
 
     fun encrypt(plain: ByteArray, password: String, params: KdfParams = DEFAULT): ByteArray {
+        val chars = password.toCharArray()
+        try { return encrypt(plain, chars, params) } finally { chars.fill(' ') }
+    }
+
+    /** The same with the password as characters, which the caller clears afterwards (no copy is kept as text). */
+    fun encrypt(plain: ByteArray, password: CharArray, params: KdfParams = DEFAULT): ByteArray {
         val random = SecureRandom()
         val salt = ByteArray(SALT_BYTES).also { random.nextBytes(it) }
         val nonce = ByteArray(NONCE_BYTES).also { random.nextBytes(it) }
@@ -122,8 +149,12 @@ object BackupCrypto {
     }
 
     internal fun deriveKey(password: String, salt: ByteArray, params: KdfParams): ByteArray {
-        val passwordBytes = java.text.Normalizer.normalize(password, java.text.Normalizer.Form.NFC)
-            .toByteArray(Charsets.UTF_8)
+        val chars = password.toCharArray()
+        try { return deriveKey(chars, salt, params) } finally { chars.fill(' ') }
+    }
+
+    internal fun deriveKey(password: CharArray, salt: ByteArray, params: KdfParams): ByteArray {
+        val passwordBytes = utf8Nfc(password)
         val generator = Argon2BytesGenerator()
         generator.init(
             Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)

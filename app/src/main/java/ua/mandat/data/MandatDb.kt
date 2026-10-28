@@ -64,6 +64,7 @@ abstract class MandatDb : RoomDatabase() {
     abstract fun info(): InfoDao
     abstract fun money(): MoneyDao
     abstract fun communities(): CommunityDao
+    abstract fun hiding(): HidingDao
 
     companion object {
         const val FILE_NAME = "mandat.db"
@@ -72,7 +73,7 @@ abstract class MandatDb : RoomDatabase() {
         fun open(context: Context, passphrase: ByteArray): MandatDb {
             System.loadLibrary("sqlcipher")
             val db = Room.databaseBuilder(context.applicationContext, MandatDb::class.java, FILE_NAME)
-                .openHelperFactory(SupportOpenHelperFactory(passphrase))
+                .openHelperFactory(SupportOpenHelperFactory(passphrase, Hardening, false))
                 .addMigrations(*MIGRATIONS)
                 .build()
             // Open now, so a wrong key fails here and not later in the interface
@@ -87,10 +88,22 @@ abstract class MandatDb : RoomDatabase() {
         fun openDemo(context: Context, passphrase: ByteArray): MandatDb {
             System.loadLibrary("sqlcipher")
             val db = Room.inMemoryDatabaseBuilder(context.applicationContext, MandatDb::class.java)
-                .openHelperFactory(SupportOpenHelperFactory(passphrase))
+                .openHelperFactory(SupportOpenHelperFactory(passphrase, Hardening, false))
                 .build()
             db.openHelper.writableDatabase
             return db
+        }
+
+        /**
+         * Before closing: the write-ahead log is folded back into the database and emptied, so no
+         * second file with recent pages stays next to it.
+         */
+        fun checkpoint(db: MandatDb) {
+            try {
+                db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
+            } catch (e: Exception) {
+                // Not in WAL mode or already closing: closing folds it in anyway
+            }
         }
 
         /** Deletes the database files; only after the owner explicitly confirmed a fresh start. */
@@ -100,6 +113,27 @@ abstract class MandatDb : RoomDatabase() {
 
         /** True if a database file exists on the phone. */
         fun exists(context: Context): Boolean = context.getDatabasePath(FILE_NAME).exists()
+    }
+}
+
+/**
+ * Settings SQLCipher applies to every connection. Before the key: decrypted pages and keys in freed
+ * native memory are wiped (process-wide). After it: temporary tables and indexes stay in memory,
+ * never in a file, and deleted records are overwritten instead of lingering in free pages.
+ */
+internal object Hardening : net.zetetic.database.sqlcipher.SQLiteDatabaseHook {
+    override fun preKey(connection: net.zetetic.database.sqlcipher.SQLiteConnection) {
+        apply(connection, "PRAGMA cipher_memory_security = ON")
+    }
+
+    override fun postKey(connection: net.zetetic.database.sqlcipher.SQLiteConnection) {
+        apply(connection, "PRAGMA temp_store = MEMORY")
+        apply(connection, "PRAGMA secure_delete = ON")
+    }
+
+    // A setting that cannot be applied never keeps Mandat from opening
+    private fun apply(connection: net.zetetic.database.sqlcipher.SQLiteConnection, sql: String) {
+        try { connection.executeRaw(sql, null, null) } catch (e: RuntimeException) { }
     }
 }
 

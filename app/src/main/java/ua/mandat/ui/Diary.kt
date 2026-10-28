@@ -106,7 +106,7 @@ fun TodayFeel(db: MandatDb, session: Session) {
     val today = Dates.today()
     val review by remember(db, today) { db.reviews().observeDay(today) }.collectAsStateWithLifecycle(null)
     val links by remember(db) { db.reviews().observeLinks() }.collectAsStateWithLifecycle(emptyList())
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     var picking by remember { mutableStateOf<String?>(null) }
     val r = review
@@ -146,9 +146,9 @@ private fun LinkPickDialog(options: List<Pair<Long, String>>, onPick: (Long) -> 
 @Composable
 fun DiaryScreen(db: MandatDb, session: Session) {
     BackHandler { session.showDiary = false }
-    val reviews by remember(db) { db.reviews().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val reviews by remember(db) { db.reviews().observeAll().hidingReviews(session) }.collectAsStateWithLifecycle(emptyList())
     val links by remember(db) { db.reviews().observeLinks() }.collectAsStateWithLifecycle(emptyList())
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val nameOf = people.associate { it.id to it.name }
     val titleOf = titles.associate { it.id to it.title }

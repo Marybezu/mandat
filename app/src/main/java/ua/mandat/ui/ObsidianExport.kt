@@ -26,6 +26,7 @@ enum class VaultScope { BASIC, FULL }
 internal suspend fun obsidianVault(
     context: Context, db: MandatDb, hidden: Set<Long>, onlyHidden: Set<Long>,
     scope: VaultScope = VaultScope.BASIC, span: Span? = null, allPeople: Boolean = false,
+    names: ua.mandat.data.HiddenNames? = null,
 ): List<Pair<String, String>> {
     fun visible(id: Long?) = id == null || id !in hidden
     fun s(id: Int) = context.getString(id)
@@ -36,8 +37,8 @@ internal suspend fun obsidianVault(
     val root = OBSIDIAN_ROOT
 
     // Free text not tied to a matter that names a hidden one stays out while it is hidden
-    val hiddenTitles = if (hidden.isEmpty()) emptyList() else db.matters().observeAll().first().filter { it.id in hidden }.map { it.title.trim().lowercase() }.filter { it.length >= 3 }
-    fun free(matterId: Long?, vararg text: String) = matterId != null || hiddenTitles.isEmpty() || text.none { t -> hiddenTitles.any { t.lowercase().contains(it) } }
+    val hiddenNames = names ?: if (hidden.isEmpty()) ua.mandat.data.HiddenNames.NONE else ua.mandat.data.HiddenNames(db.matters().observeAll().first().filter { it.id in hidden }.map { it.title })
+    fun free(matterId: Long?, vararg text: String) = matterId != null || !hiddenNames.namedAny(*text)
 
     // Everything visible, then narrowed to the period
     val roles = db.roles().observeAll().first().associate { it.id to it.name }
@@ -306,5 +307,6 @@ internal suspend fun obsidianVault(
         line(fMatters, matters.size); line(fPeople, people.size); line(fEvents, events.size)
         if (full) { line(fDeleg, delegations.size); line(fProm, promises.size); line(fDead, deadlines.size); line(fComm, communities.size); line(fTexts, texts.size) }
     }
-    return out
+    // Nothing in a note may load from the internet or run when the vault opens
+    return out.map { (name, text) -> name to Obsidian.neutralize(text) }
 }

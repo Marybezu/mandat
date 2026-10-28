@@ -96,6 +96,9 @@ class PersonDraft(val person: ua.mandat.data.Person, val isNew: Boolean) {
 
 /** A delegation being edited in its dialog. */
 class DelegationDraft(val delegation: ua.mandat.data.Delegation, val isNew: Boolean) {
+    /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
+    fun changed(): Boolean = what != delegation.what || purpose != delegation.purpose || doneMeans != delegation.doneMeans || personId != delegation.personId || matterId != delegation.matterId || due != delegation.due
+
     var what by mutableStateOf(delegation.what)
     var personId by mutableStateOf(delegation.personId)
     var matterId by mutableStateOf(delegation.matterId)
@@ -123,6 +126,9 @@ class DelegationDraft(val delegation: ua.mandat.data.Delegation, val isNew: Bool
 
 /** A promise being edited in its dialog. */
 class PromiseDraft(val promise: ua.mandat.data.Promise, val isNew: Boolean) {
+    /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
+    fun changed(): Boolean = what != promise.what || toWhom != promise.toWhom || source != promise.source || statusNote != promise.statusNote || personId != promise.personId || matterId != promise.matterId || due != promise.due
+
     var what by mutableStateOf(promise.what)
     var personId by mutableStateOf(promise.personId)
     var toWhom by mutableStateOf(promise.toWhom)
@@ -182,6 +188,9 @@ fun newPerson() = PersonDraft(
 
 /** A deadline being edited in its dialog. */
 class DeadlineDraft(val deadline: ua.mandat.data.Deadline, val isNew: Boolean) {
+    /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
+    fun changed(): Boolean = title != deadline.title || basis != deadline.basis || day != deadline.day || matterId != deadline.matterId
+
     var title by mutableStateOf(deadline.title)
     var day by mutableStateOf(deadline.day)
     var kind by mutableStateOf(ua.mandat.data.DeadlineKind.of(deadline.kind))
@@ -216,20 +225,27 @@ fun newDeadline(matterId: Long? = null) = DeadlineDraft(
     isNew = true,
 )
 
-/** Saves today's answer to the evening question (one entry per day). */
-suspend fun persistReview(db: MandatDb, text: String?) {
+/**
+ * Saves today's answer to the evening question (one entry per day). With [append] (tonight's entry
+ * was hidden when typing began) the text goes under what is there, so nothing hidden is overwritten.
+ */
+suspend fun persistReview(db: MandatDb, text: String?, append: Boolean = false) {
     val clean = text?.trim()?.take(ua.mandat.data.MAX_NOTE_LENGTH)?.ifEmpty { null } ?: return
     val today = Dates.today()
     val existing = db.reviews().forDay(today)
     if (existing == null) {
         db.reviews().insert(ua.mandat.data.Review(day = today, progress = clean, createdAt = System.currentTimeMillis()))
     } else {
-        db.reviews().update(existing.copy(progress = clean))
+        val joined = if (append && existing.progress.isNotBlank()) (existing.progress.trimEnd() + "\n\n" + clean).take(ua.mandat.data.MAX_NOTE_LENGTH) else clean
+        db.reviews().update(existing.copy(progress = joined))
     }
 }
 
 /** An event being edited in its dialog; the people taking part are saved with it. */
 class EventDraft(val event: ua.mandat.data.Event, val isNew: Boolean, people: Set<Long> = emptySet(), val communityId: Long? = null) {
+    /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
+    fun changed(): Boolean = title != event.title || notes != event.notes || outcome != event.outcome || place != event.place || day != event.day || startMin != event.startMin || matterId != event.matterId
+
     var title by mutableStateOf(event.title)
     var day by mutableStateOf(event.day)
     var endDay by mutableStateOf(event.endDay)
@@ -302,6 +318,9 @@ class ContactDraft(val contact: ua.mandat.data.Contact) {
 
 /** A media or information item being edited. */
 class InfoDraft(val item: ua.mandat.data.InfoItem, val isNew: Boolean) {
+    /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
+    fun changed(): Boolean = title != item.title || notes != item.notes || result != item.result || source != item.source || matterId != item.matterId
+
     var kind by mutableStateOf(ua.mandat.data.InfoKind.of(item.kind))
     var title by mutableStateOf(item.title)
     var day by mutableStateOf(item.day)
@@ -336,6 +355,9 @@ fun newInfo(kind: ua.mandat.data.InfoKind = ua.mandat.data.InfoKind.DISCUSSION, 
 
 /** A key message being edited. */
 class MessageDraft(val message: ua.mandat.data.KeyMessage, val isNew: Boolean) {
+    /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
+    fun changed(): Boolean = text != message.text || proof != message.proof || audience != message.audience || matterId != message.matterId
+
     var text by mutableStateOf(message.text)
     var proof by mutableStateOf(message.proof)
     var audience by mutableStateOf(message.audience)
@@ -352,6 +374,9 @@ fun newMessage(matterId: Long? = null) = MessageDraft(ua.mandat.data.KeyMessage(
 
 /** A situational alliance being edited. */
 class AllianceDraft(val alliance: ua.mandat.data.Alliance, val isNew: Boolean) {
+    /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
+    fun changed(): Boolean = withWhom != alliance.withWhom || about != alliance.about || gives != alliance.gives || gets != alliance.gets || notes != alliance.notes || matterId != alliance.matterId
+
     var withWhom by mutableStateOf(alliance.withWhom)
     var personId by mutableStateOf(alliance.personId)
     var about by mutableStateOf(alliance.about)
@@ -383,6 +408,9 @@ fun newAlliance(matterId: Long? = null) = AllianceDraft(
 
 /** A money entry being edited: the amount is kept as typed until it is saved. */
 class MoneyDraft(val entry: ua.mandat.data.MoneyEntry, val isNew: Boolean) {
+    /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
+    fun changed(): Boolean = note != entry.note || category != entry.category || toWhom != entry.toWhom || matterId != entry.matterId || (amountText.isNotBlank() && amountText != (if (entry.amount > 0) ua.mandat.data.formatAmount(entry.amount).replace(" ", "") else ""))
+
     var kind by mutableStateOf(entry.kind)
     var day by mutableStateOf(entry.day)
     var category by mutableStateOf(entry.category)
@@ -429,6 +457,9 @@ fun newMoney(kind: ua.mandat.data.MoneyKind, category: String? = null) = MoneyDr
 
 /** A community being edited. */
 class CommunityDraft(val community: ua.mandat.data.Community, val isNew: Boolean) {
+    /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
+    fun changed(): Boolean = name != community.name || head != community.head || notes != community.notes || population != community.population?.toString().orEmpty()
+
     var name by mutableStateOf(community.name)
     var kind by mutableStateOf(ua.mandat.data.CommunityKind.of(community.kind))
     var population by mutableStateOf(community.population?.toString().orEmpty())
@@ -454,6 +485,9 @@ fun newCommunity() = CommunityDraft(
  * newest [ua.mandat.data.TEXT_VERSIONS_KEPT]), so nothing written is lost by an edit.
  */
 class TextDraft(val doc: ua.mandat.data.TextDoc, val isNew: Boolean) {
+    /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
+    fun changed(): Boolean = title != doc.title || body != doc.body || kind.name != doc.kind || matterId != doc.matterId
+
     var title by mutableStateOf(doc.title)
     var kind by mutableStateOf(ua.mandat.data.TextKind.of(doc.kind))
     var body by mutableStateOf(doc.body)

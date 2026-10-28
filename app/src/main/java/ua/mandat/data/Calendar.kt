@@ -121,13 +121,20 @@ interface EventDao {
     }
 }
 
-/** Trims an event before saving; null when there is no title. The end never comes before the start. */
+/** 1900-01-01 and 2200-01-01 as calendar days: an event outside them (a broken file) is not saved. */
+const val EVENT_MIN_DAY = -25_567L
+const val EVENT_MAX_DAY = 84_006L
+/** The longest event in days; a longer one keeps only its first day, so no screen walks thousands of years. */
+const val EVENT_MAX_SPAN = 366L
+
+/** Trims an event before saving; null when there is no title or the day is impossible. The end never comes before the start. */
 fun cleanEvent(e: Event): Event? {
     val title = e.title.trim().take(500)
     if (title.isEmpty()) return null
+    if (e.day !in EVENT_MIN_DAY..EVENT_MAX_DAY) return null
     val start = e.startMin?.coerceIn(0, 24 * 60 - 1)
     val end = if (start == null) null else e.endMin?.coerceIn(0, 24 * 60)
-    val endDay = e.endDay?.takeIf { it > e.day }
+    val endDay = e.endDay?.takeIf { it > e.day && it - e.day <= EVENT_MAX_SPAN }
     return e.copy(
         title = title, place = e.place.trim().take(500), notes = e.notes.trim().take(MAX_NOTE_LENGTH),
         outcome = e.outcome.trim().take(MAX_NOTE_LENGTH), startMin = start,

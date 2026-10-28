@@ -90,7 +90,7 @@ fun InfoScreen(db: MandatDb, session: Session) {
     BackHandler { session.showInfo = false }
     val items by remember(db) { db.info().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val messages by remember(db) { db.info().observeMessages().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val nameOf = people.associate { it.id to it.name }
     val titleOf = titles.associate { it.id to it.title }
@@ -272,7 +272,7 @@ private fun MessageRow(m: KeyMessage, matterTitle: String?, session: Session) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun InfoDialog(db: MandatDb, session: Session, d: InfoDraft) {
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val matters by remember(db) { db.matters().observeActiveTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val allMatters by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     var confirmDelete by remember { mutableStateOf(false) }
@@ -281,6 +281,7 @@ fun InfoDialog(db: MandatDb, session: Session, d: InfoDraft) {
     EditSheet(
         title = stringResource(d.kind.label()),
         onDismiss = { session.infoDraft = null },
+        changed = d.changed(),
         onSave = { session.saveInfoDraft() },
         saveEnabled = d.title.isNotBlank(),
     ) {
@@ -340,7 +341,7 @@ fun InfoDialog(db: MandatDb, session: Session, d: InfoDraft) {
                     Checkbox(checked = d.closed, onCheckedChange = { d.closed = it })
                     Text(stringResource(R.string.info_closed_mark), style = MaterialTheme.typography.bodyMedium)
                 }
-                if (!d.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
+                if (!d.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
         }
     }
     if (confirmDelete) {
@@ -381,6 +382,7 @@ fun MessageDialog(db: MandatDb, session: Session, d: MessageDraft) {
     EditSheet(
         title = stringResource(R.string.message_new),
         onDismiss = { session.messageDraft = null },
+        changed = d.changed(),
         onSave = { session.saveMessageDraft() },
         saveEnabled = d.text.isNotBlank(),
     ) {
@@ -391,7 +393,7 @@ fun MessageDialog(db: MandatDb, session: Session, d: MessageDraft) {
                     supportingText = { Text(stringResource(R.string.message_proof_hint)) }, minLines = 2, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(d.audience, { d.audience = it }, label = { Text(stringResource(R.string.message_audience)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 MatterPicker(matters, allMatters, d.matterId) { d.matterId = it }
-                if (!d.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
+                if (!d.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
         }
     }
     if (confirmDelete) {
@@ -412,7 +414,7 @@ fun MessageDialog(db: MandatDb, session: Session, d: MessageDraft) {
 fun AlliancesScreen(db: MandatDb, session: Session) {
     BackHandler { session.showAlliances = false }
     val all by remember(db) { db.info().observeAlliances().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val nameOf = people.associate { it.id to it.name }
     val titleOf = titles.associate { it.id to it.title }
@@ -500,7 +502,7 @@ fun AllianceRow(a: Alliance, personName: String?, matterTitle: String?, session:
 
 @Composable
 fun AllianceDialog(db: MandatDb, session: Session, d: AllianceDraft) {
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val matters by remember(db) { db.matters().observeActiveTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val allMatters by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     var confirmDelete by remember { mutableStateOf(false) }
@@ -508,6 +510,7 @@ fun AllianceDialog(db: MandatDb, session: Session, d: AllianceDraft) {
     EditSheet(
         title = stringResource(R.string.alliance_new),
         onDismiss = { session.allianceDraft = null },
+        changed = d.changed(),
         onSave = { session.saveAllianceDraft() },
         saveEnabled = d.valid(),
     ) {
@@ -529,7 +532,7 @@ fun AllianceDialog(db: MandatDb, session: Session, d: AllianceDraft) {
                     AllianceStatus.entries.forEach { s -> QuickChip(stringResource(s.label()), d.status == s) { d.status = s } }
                 }
                 OutlinedTextField(d.notes, { d.notes = it }, label = { Text(stringResource(R.string.person_notes)) }, minLines = 2, modifier = Modifier.fillMaxWidth())
-                if (!d.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
+                if (!d.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
         }
     }
     if (confirmDelete) {

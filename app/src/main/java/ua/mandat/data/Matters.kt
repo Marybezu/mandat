@@ -186,6 +186,9 @@ interface MatterDao {
     /** A deleted role leaves its matters without a role, never deletes them. */
     @Query("UPDATE matters SET roleId = NULL WHERE roleId = :roleId")
     suspend fun clearRole(roleId: Long)
+
+    @Query("SELECT id FROM matters WHERE roleId = :roleId")
+    suspend fun idsOfRole(roleId: Long): List<Long>
 }
 
 @Dao
@@ -202,6 +205,9 @@ interface SettingDao {
 
     @Query("SELECT * FROM settings WHERE `key` = :key")
     suspend fun get(key: String): Setting?
+
+    @Query("DELETE FROM settings WHERE `key` = :key")
+    suspend fun delete(key: String)
 
     /** Removes all settings whose key starts with [prefix] (for example turning a feature off). */
     @Query("DELETE FROM settings WHERE substr(`key`, 1, length(:prefix)) = :prefix")

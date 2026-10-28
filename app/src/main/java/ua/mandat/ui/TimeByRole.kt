@@ -204,7 +204,7 @@ fun RoleTimeScreen(db: MandatDb, session: Session, roleId: Long, span: Span) {
                                 Text(t.matterId?.let(titleOf::get) ?: "—", style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(Dates.format(t.day) + " · " + hoursText(t.minutes), style = MaterialTheme.typography.labelMedium, color = Muted)
                             }
-                            TextButton(onClick = { session.write { it.time().delete(t.id) } }) { Text("✕") }
+                            DeleteButton { session.write { it.time().delete(t.id) } }
                         }
                     }
                 }

@@ -1,5 +1,7 @@
 package ua.mandat.ui
 
+import androidx.compose.ui.graphics.luminance
+import kotlinx.coroutines.flow.map
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -117,6 +119,9 @@ fun EventKind.icon(): androidx.compose.ui.graphics.vector.ImageVector = when (th
     EventKind.OTHER -> androidx.compose.material.icons.Icons.Outlined.MoreVert
 }
 
+/** Text that stays readable on a coloured block: dark on light colours, white on dark ones (contrast 4.5:1 or more). */
+fun textOn(bg: Color): Color = if (bg.luminance() > 0.179f) Color(0xFF1B1B1F) else Color.White
+
 fun EventKind.color(): Color = when (this) {
     EventKind.MEETING -> ChartColors.blue
     EventKind.SESSION -> ChartColors.purple
@@ -171,7 +176,7 @@ fun CalendarScreenForTest(db: MandatDb, session: Session, view0: Int) {
     val deadlines by remember(db) { db.deadlines().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val delegations by remember(db) { db.delegations().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val promises by remember(db) { db.promises().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val nameOf = people.associate { it.id to it.name }
     val titleOf = titles.associate { it.id to it.title }
@@ -416,7 +421,7 @@ private fun PhoneEventRow(p: PhoneEvent) {
 fun EventDialog(db: MandatDb, session: Session, draft: EventDraft) {
     val matters by remember(db) { db.matters().observeActiveTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val allMatters by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     var confirmDelete by remember { mutableStateOf(false) }
     var pickingPerson by remember { mutableStateOf(false) }
     var pickingTime by remember { mutableStateOf<Int?>(null) } // 0 start, 1 end
@@ -426,6 +431,7 @@ fun EventDialog(db: MandatDb, session: Session, draft: EventDraft) {
     EditSheet(
         title = stringResource(if (draft.isNew) R.string.event_new else R.string.event),
         onDismiss = { session.eventDraft = null },
+        changed = draft.changed(),
         onSave = { session.saveEventDraft() },
         saveEnabled = draft.valid(),
     ) {
@@ -514,7 +520,12 @@ fun EventDialog(db: MandatDb, session: Session, draft: EventDraft) {
         }, onCancel = { pickingTime = null })
     }
     if (toPhone) {
-        ConfirmDialog(stringResource(R.string.event_to_phone), stringResource(R.string.event_to_phone_warning), stringResource(R.string.event_to_phone_go),
+        // A sensitive matter gets its own warning: the copy stays in the phone's calendar even in trip mode
+        val sensitive by remember(db, draft.matterId) {
+            draft.matterId?.let { id -> db.matters().observeSensitiveIds().map { id in it } } ?: kotlinx.coroutines.flow.flowOf(false)
+        }.collectAsStateWithLifecycle(false)
+        val warning = stringResource(R.string.event_to_phone_warning) + if (sensitive) "\n\n" + stringResource(R.string.event_to_phone_sensitive) else ""
+        ConfirmDialog(stringResource(R.string.event_to_phone), warning, stringResource(R.string.event_to_phone_go),
             onConfirm = {
                 toPhone = false
                 val e = ua.mandat.data.cleanEvent(draft.current(0))
@@ -552,7 +563,7 @@ private fun TimeDialog(initialMin: Int, onPick: (Int) -> Unit, onCancel: () -> U
  */
 @Composable
 fun PersonOrContactDialog(db: MandatDb, session: Session, exclude: Set<Long>, onPick: (Long) -> Unit, onCancel: () -> Unit) {
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val contacts by remember(db) { db.contacts().observeAll() }.collectAsStateWithLifecycle(emptyList())
     var query by remember { mutableStateOf("") }
     val q = query.trim().lowercase()
@@ -675,7 +686,7 @@ private fun WeekGrid(
                     if (n > 0) Text("• $n", style = MaterialTheme.typography.labelSmall, color = if (hardOn(d)) ChartColors.coral else ChartColors.amber)
                     events.filter { it.covers(d) && (it.startMin == null || it.lastDay > it.day) }.take(2).forEach { e ->
                         Text(e.title, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            color = Color.White,
+                            color = textOn(EventKind.of(e.kind).color()),
                             modifier = Modifier.padding(top = 2.dp).fillMaxWidth().padding(horizontal = 1.dp).clip(RoundedCornerShape(4.dp))
                                 .background(EventKind.of(e.kind).color()).clickable { session.openEvent(e.id) }.padding(horizontal = 3.dp, vertical = 1.dp))
                     }
@@ -725,7 +736,8 @@ private fun WeekGrid(
                                     .let { m -> if (item is Event) m.clickable { session.openEvent(item.id) } else m }
                                     .padding(2.dp),
                             ) {
-                                Text(title.ifBlank { "—" }, style = MaterialTheme.typography.labelSmall, color = Color.White, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                                val shown = color.copy(alpha = if (item is Event) 0.9f else 0.5f).compositeOver(MaterialTheme.colorScheme.background)
+                                Text(title.ifBlank { "—" }, style = MaterialTheme.typography.labelSmall, color = textOn(shown), maxLines = 3, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }

@@ -184,7 +184,11 @@ fun AiCenter(db: MandatDb, session: Session) {
                             // Added under what is already written tonight, in the field; saved like typing
                             val typed = session.reviewDraft
                             if (typed != null) { session.reviewDraft = listOf(typed, a).filter { it.isNotBlank() }.joinToString("\n\n"); session.tabRequest = "Review"; close() }
-                            else session.readThenShow({ d -> d.reviews().forDay(Dates.today())?.progress.orEmpty() }) { before ->
+                            else session.readThenShow({ d -> d.reviews().forDay(Dates.today())?.let { r -> r.id to r.progress } ?: (0L to "") }) { (rid, text) ->
+                                // Tonight's entry hidden: not shown in the field; the answer is added under it on saving
+                                val hiddenNow = rid in session.hidden.value.reviews
+                                val before = if (hiddenNow) "" else text
+                                session.reviewAppend = hiddenNow
                                 session.reviewDraft = listOf(before, a).filter { it.isNotBlank() }.joinToString("\n\n")
                                 session.tabRequest = "Review"
                                 close()
@@ -254,7 +258,7 @@ private fun AiPicker(db: MandatDb, session: Session, act: AiAct, onDismiss: () -
     val items by remember(db, act) {
         when (act.pick) {
             AiPick.MATTER -> db.matters().observeActiveTitles().hiding(session) { it.id }.map { l -> l.map { PickItem(it.id, it.title) } }
-            AiPick.PERSON -> db.people().observeAll().map { l -> l.filter { it.name.isNotBlank() }.map { PickItem(it.id, it.name, it.organization) } }
+            AiPick.PERSON -> db.people().observeAll().hidingPeople(session).map { l -> l.filter { it.name.isNotBlank() }.map { PickItem(it.id, it.name, it.organization) } }
             AiPick.TEXT -> db.texts().observeAll().hiding(session) { it.matterId }.map { l -> l.map { PickItem(it.id, it.title) } }
             AiPick.ATTACK -> db.info().observeAll().hiding(session) { it.matterId }.map { l ->
                 l.filter { !it.closed && (it.kind == InfoKind.ATTACK.name || it.kind == InfoKind.CRITIQUE.name) }.map { PickItem(it.id, it.title, it.source) }
@@ -264,7 +268,7 @@ private fun AiPicker(db: MandatDb, session: Session, act: AiAct, onDismiss: () -
                 l.filterNot { it.matterId == null && namesAny(it.title + " " + it.notes, ht) }.sortedWith(compareBy({ it.day }, { it.startMin ?: -1 })).map { PickItem(it.id, it.title, Dates.format(it.day) + (it.startMin?.let { m -> " " + timeText(m) } ?: "")) }
             }
             // Open delegations to someone: a reminder needs a person to write to
-            AiPick.DELEGATION -> kotlinx.coroutines.flow.combine(db.delegations().observeOpen().hiding(session) { it.matterId }, db.people().observeAll(), hiddenTitles(db, session)) { ds, ps, ht ->
+            AiPick.DELEGATION -> kotlinx.coroutines.flow.combine(db.delegations().observeOpen().hiding(session) { it.matterId }, db.people().observeAll().hidingPeople(session), hiddenTitles(db, session)) { ds, ps, ht ->
                 val names = ps.associate { it.id to it.name }
                 ds.filter { it.personId != null && !(it.matterId == null && namesAny(it.what + " " + it.purpose, ht)) }.map { PickItem(it.id, it.what, names[it.personId].orEmpty() + (it.due?.let { d -> " · " + Dates.format(d) } ?: "")) }
             }

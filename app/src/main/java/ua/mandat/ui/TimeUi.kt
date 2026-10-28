@@ -2,6 +2,7 @@
 
 package ua.mandat.ui
 
+import kotlinx.coroutines.flow.flowOn
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -98,6 +99,7 @@ fun DeadlineDialog(db: MandatDb, session: Session, draft: DeadlineDraft) {
     EditSheet(
         title = stringResource(R.string.deadline),
         onDismiss = { session.deadlineDraft = null },
+        changed = draft.changed(),
         onSave = { session.saveDeadlineDraft() },
         saveEnabled = draft.valid(),
     ) {
@@ -159,7 +161,7 @@ fun TimeScreen(db: MandatDb, session: Session) {
     val deadlines by remember(db) { db.deadlines().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val delegations by remember(db) { db.delegations().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val promises by remember(db) { db.promises().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val allDeadlines by remember(db) { db.deadlines().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val nameOf = people.associate { it.id to it.name }
@@ -269,6 +271,9 @@ fun ReviewScreen(db: MandatDb, session: Session) {
     val recent by recentFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val today = Dates.today()
     val todays = recent.firstOrNull { it.day == today }
+    // Tonight's entry tied to something hidden is not shown; what is typed now is added under it
+    val hidden by session.hidden.collectAsStateWithLifecycle()
+    val todayHidden = todays != null && todays.id in hidden.reviews
     var unload by remember { mutableStateOf("") }
 
     LazyColumn(
@@ -283,8 +288,8 @@ fun ReviewScreen(db: MandatDb, session: Session) {
                     Text(stringResource(R.string.evening_hint), style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.secondary)
                     OutlinedTextField(
-                        value = session.reviewDraft ?: todays?.progress.orEmpty(),
-                        onValueChange = { session.reviewDraft = it },
+                        value = session.reviewDraft ?: (if (todayHidden) "" else todays?.progress.orEmpty()),
+                        onValueChange = { if (session.reviewDraft == null) session.reviewAppend = todayHidden; session.reviewDraft = it },
                         label = { Text(stringResource(R.string.evening_progress)) },
                         minLines = 3, modifier = Modifier.fillMaxWidth(),
                     )
@@ -335,7 +340,12 @@ fun SearchScreen(db: MandatDb, session: Session) {
     var query by remember { mutableStateOf(session.searchSeed.orEmpty()) }
     androidx.compose.runtime.LaunchedEffect(Unit) { session.searchSeed = null }
     val trimmed = query.trim()
-    val flow = remember(db) { db.search().everything().hiding(session) { it.matterId } }
+    // Hidden matters and what is tied to them (people, diary days, communities, notes naming them) stay out
+    val flow = remember(db) {
+        kotlinx.coroutines.flow.combine(db.search().everything().hiding(session) { it.matterId }, session.hidden) { rows, h ->
+            visibleRows(rows, h)
+        }.flowOn(kotlinx.coroutines.Dispatchers.Default)
+    }
     val rows by flow.collectAsStateWithLifecycle(initialValue = emptyList())
     val hits = remember(rows, trimmed) { ua.mandat.data.search(rows, trimmed) }
 

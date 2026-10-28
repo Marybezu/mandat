@@ -222,13 +222,22 @@ OutlinedTextField(value = name, onValueChange = { name = it }, singleLine = true
                 TextButton(onClick = {
                     session.write { db ->
                         db.withTransaction {
+                            // Each matter's move out of the role is kept in its history, like any change of role
+                            val now = System.currentTimeMillis()
+                            val day = Dates.today()
+                            val moved = db.matters().idsOfRole(role.id)
+                            if (moved.isNotEmpty()) db.history().insertAll(moved.map { id ->
+                                ua.mandat.data.MatterChange(matterId = id, day = day, at = now, field = ua.mandat.data.FIELD_ROLE, oldValue = role.id.toString(), newValue = null)
+                            })
                             db.matters().clearRole(role.id)
                             db.time().clearRole(role.id)
+                            // The wished share of time for this role goes with it
+                            db.settings().delete(ua.mandat.data.TIME_SHARE_PREFIX + role.id)
                             db.roles().delete(role.id)
                         }
                     }
                     deleting = null
-                }) { Text(stringResource(R.string.delete)) }
+                }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { deleting = null }) { Text(stringResource(R.string.cancel)) } },
         )

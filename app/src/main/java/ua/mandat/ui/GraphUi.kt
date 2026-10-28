@@ -58,8 +58,8 @@ import kotlin.math.sqrt
 fun GraphScreen(db: MandatDb, session: Session) {
     BackHandler { session.showGraph = false }
     val active by remember(db) { db.matters().observeActive().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val links by remember(db) { db.people().observeLinks() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
+    val links by remember(db) { db.people().observeLinks().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     var focusOnly by remember { mutableStateOf(true) }
     val shown = if (focusOnly) active.filter { Attention.of(it.attention) == Attention.FOCUS } else active.filter { Attention.of(it.attention) != Attention.SLEEPING }
     val typeOf = active.associate { it.id to MatterType.of(it.type) }

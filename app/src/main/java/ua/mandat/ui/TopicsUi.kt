@@ -67,8 +67,8 @@ private class TopicItems(db: MandatDb, session: Session) {
     val delegations = db.delegations().observeAll().hiding(session) { it.matterId }
     val promises = db.promises().observeAll().hiding(session) { it.matterId }
     val deadlines = db.deadlines().observeAll().hiding(session) { it.matterId }
-    val inbox = db.inbox().observeAll()
-    val reviews = db.reviews().observeAll()
+    val inbox = db.inbox().observeAll().hidingNamed(session, { null }) { it.text }
+    val reviews = db.reviews().observeAll().hidingReviews(session)
 }
 
 /** All topics with how much each one gathers, suggested topics, and adding a topic. */
@@ -192,7 +192,7 @@ private fun TopicDialog(topic: Topic, isNew: Boolean, onDismiss: () -> Unit, onD
                 OutlinedTextField(value = keys, onValueChange = { keys = it },
                     label = { Text(stringResource(R.string.topic_keys)) },
                     supportingText = { Text(stringResource(R.string.topic_keys_hint)) }, modifier = Modifier.fillMaxWidth())
-                if (onDelete != null) TextButton(onClick = onDelete) { Text(stringResource(R.string.delete)) }
+                if (onDelete != null) TextButton(onClick = onDelete) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
         }
     }
 }
@@ -211,7 +211,7 @@ private fun TopicDetail(db: MandatDb, session: Session, name: String) {
     val deadlines by src.deadlines.collectAsStateWithLifecycle(emptyList())
     val inbox by src.inbox.collectAsStateWithLifecycle(emptyList())
     val reviews by src.reviews.collectAsStateWithLifecycle(emptyList())
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val nameOf = people.associate { it.id to it.name }
     val roleNames = roles.associate { it.id to it.name }

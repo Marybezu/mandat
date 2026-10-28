@@ -30,6 +30,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         // No screenshots, no screen recording, no preview in the recent apps list (unless allowed)
         Appearance.applyScreenGuard(this)
+        // No autofill service (a password manager or the keyboard's) is shown Mandat's fields
+        window.decorView.importantForAutofill = android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
 
         // Only a fresh share: not after turning the phone or reopening from recent apps
         val fromHistory = intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0

@@ -72,6 +72,8 @@ class ModelStore(private val context: Context) {
                         out.write(buf, 0, n)
                         sha.update(buf, 0, n)
                         copied += n
+                        // A source that did not tell the size still stops at the model's size, never fills the phone
+                        if (copied > E2B_SIZE) error(context.getString(ua.mandat.R.string.ai_wrong_file, E2B_FILE))
                         if (total > 0) onProgress(copied.toFloat() / total)
                     }
                 }

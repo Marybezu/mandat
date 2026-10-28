@@ -1,0 +1,95 @@
+package ua.mandat.ui
+
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
+import ua.mandat.data.Hiding
+import ua.mandat.data.HiddenNames
+import ua.mandat.data.MandatDb
+
+/**
+ * Everything kept off the screen while something is hidden (trip mode, lens), worked out once
+ * and used by every screen: the matters, the people known only through them, the diary days
+ * linked to them or naming them, the communities tied only to them, and their titles for
+ * recognising free text that names them.
+ */
+class Hidden(
+    val matters: Set<Long>,
+    val people: Set<Long>,
+    val reviews: Set<Long>,
+    val communities: Set<Long>,
+    val names: HiddenNames,
+) {
+    val isEmpty: Boolean get() = matters.isEmpty()
+
+    /** True for an item tied to a hidden matter. */
+    fun matter(id: Long?): Boolean = id != null && id in matters
+
+    /** True for an item tied to a hidden matter, or not tied to one but naming it in its text. */
+    fun item(matterId: Long?, vararg text: String): Boolean = matter(matterId) || (matterId == null && names.namedAny(*text))
+
+    companion object {
+        val NONE = Hidden(emptySet(), emptySet(), emptySet(), emptySet(), HiddenNames.NONE)
+    }
+}
+
+/** Follows the database: what is hidden along with [matters]. */
+fun observeHidden(db: MandatDb, matters: Set<Long>): Flow<Hidden> {
+    if (matters.isEmpty()) return flowOf(Hidden.NONE)
+    val h = db.hiding()
+    val sources: List<Flow<List<Any>>> = listOf(
+        db.matters().observeAllTitles(), h.personMatter(), db.reviews().observeAll(), db.reviews().observeLinks(),
+        db.communities().observeLinks(), h.eventMatter(), h.promiseMatter(),
+    )
+    return combine(sources) { arr ->
+        @Suppress("UNCHECKED_CAST") val titles = arr[0] as List<ua.mandat.data.MatterTitle>
+        @Suppress("UNCHECKED_CAST") val personMatter = arr[1] as List<ua.mandat.data.IdRef>
+        @Suppress("UNCHECKED_CAST") val reviews = arr[2] as List<ua.mandat.data.Review>
+        @Suppress("UNCHECKED_CAST") val reviewLinks = arr[3] as List<ua.mandat.data.ReviewLink>
+        @Suppress("UNCHECKED_CAST") val commLinks = arr[4] as List<ua.mandat.data.CommunityLink>
+        @Suppress("UNCHECKED_CAST") val eventMatter = (arr[5] as List<ua.mandat.data.IdRef>).associate { it.a to it.b }
+        @Suppress("UNCHECKED_CAST") val promiseMatter = (arr[6] as List<ua.mandat.data.IdRef>).associate { it.a to it.b }
+        val names = HiddenNames(titles.filter { it.id in matters }.map { it.title })
+        val people = Hiding.people(matters, personMatter)
+        Hidden(
+            matters = matters,
+            people = people,
+            reviews = Hiding.reviews(matters, people, names, reviews, reviewLinks),
+            communities = Hiding.communities(matters, people, commLinks, eventMatter, promiseMatter),
+            names = names,
+        )
+    }.flowOn(kotlinx.coroutines.Dispatchers.Default) // worked out away from the screen thread, also with years of records
+}
+
+/** Search rows that may be shown now: nothing hidden and nothing tied to it or naming it. */
+fun visibleRows(rows: List<ua.mandat.data.SearchRow>, h: Hidden): List<ua.mandat.data.SearchRow> =
+    if (h.isEmpty) rows else rows.filter { r ->
+        when (r.kind) {
+            "person" -> r.id !in h.people
+            "review" -> r.id !in h.reviews
+            "community" -> r.id !in h.communities
+            "contact" -> true
+            else -> !h.item(r.matterId, r.haystack)
+        }
+    }
+
+/** Leaves out people known only through hidden matters. */
+fun Flow<List<ua.mandat.data.Person>>.hidingPeople(session: Session?): Flow<List<ua.mandat.data.Person>> =
+    if (session == null) this
+    else combine(session.hidden) { list, h -> if (h.people.isEmpty()) list else list.filter { it.id !in h.people } }
+
+/** Leaves out diary days tied to hidden matters or naming them. */
+fun Flow<List<ua.mandat.data.Review>>.hidingReviews(session: Session?): Flow<List<ua.mandat.data.Review>> =
+    if (session == null) this
+    else combine(session.hidden) { list, h -> if (h.reviews.isEmpty()) list else list.filter { it.id !in h.reviews } }
+
+/** Leaves out communities tied only to hidden things. */
+fun Flow<List<ua.mandat.data.Community>>.hidingCommunities(session: Session?): Flow<List<ua.mandat.data.Community>> =
+    if (session == null) this
+    else combine(session.hidden) { list, h -> if (h.communities.isEmpty()) list else list.filter { it.id !in h.communities } }
+
+/** Leaves out free text (not tied to a matter) that names a hidden matter. */
+fun <T> Flow<List<T>>.hidingNamed(session: Session?, matterOf: (T) -> Long?, text: (T) -> String): Flow<List<T>> =
+    if (session == null) this
+    else combine(session.hidden) { list, h -> if (h.isEmpty) list else list.filter { !h.item(matterOf(it), text(it)) } }

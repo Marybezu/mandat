@@ -224,7 +224,10 @@ object IcsReader {
             start.second == null -> (end.first - 1).takeIf { it > start.first } to null // DTEND of a date is exclusive
             else -> end.first.takeIf { it > start.first } to end.second
         }
-        return Item(title, start.first, endDay, start.second, if (start.second == null) null else endMin,
+        // Days beyond reason (a broken or hostile file) are not taken: no event, or only its first day
+        if (start.first !in EVENT_MIN_DAY..EVENT_MAX_DAY) return null
+        val span = endDay?.takeIf { it - start.first <= EVENT_MAX_SPAN }
+        return Item(title, start.first, span, start.second, if (start.second == null || span == null && endDay != null) null else endMin,
             unescape(p["LOCATION"]?.second.orEmpty()).take(500), unescape(p["DESCRIPTION"]?.second.orEmpty()))
     }
 }

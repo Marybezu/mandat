@@ -1,6 +1,7 @@
 package ua.mandat.ui
 
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import ua.mandat.data.MandatDb
 import ua.mandat.data.MatterStatus
 import ua.mandat.data.TaskStatus
@@ -20,11 +21,9 @@ private fun MandatDb.hiddenOk(session: Session): (Long?) -> Boolean {
  * For free text not tied to a matter (the diary, the Inbox, notes on people): true when it names a
  * hidden matter, so it is left out too while something is hidden.
  */
-internal suspend fun MandatDb.namesHidden(session: Session): (String) -> Boolean {
-    val hidden = session.hiddenMatters.value
-    if (hidden.isEmpty()) return { false }
-    val titles = matters().observeAll().first().filter { it.id in hidden }.map { it.title.trim().lowercase() }.filter { it.length >= 3 }
-    return { text -> val t = text.lowercase(); titles.any { t.contains(it) } }
+internal fun MandatDb.namesHidden(session: Session): (String) -> Boolean {
+    val names = session.hidden.value.names
+    return if (names.isEmpty) { _ -> false } else names::named
 }
 
 /**
@@ -184,8 +183,8 @@ suspend fun askFacts(db: MandatDb, session: Session, question: String): Pair<Str
     val stems = Regex("[\\p{L}\\p{N}'’ʼ]{3,}").findAll(question.lowercase()).map { it.value.take(5) }
         .filter { it !in STOP }.distinct().toList()
     if (stems.isEmpty()) return "" to emptyList()
-    val named = db.namesHidden(session)
-    val rows = db.search().everything().first().filter { ok(it.matterId) && !(it.matterId == null && named(it.haystack)) }
+    // Diary days, people and communities tied to something hidden stay out too, as on every screen
+    val rows = visibleRows(db.search().everything().first().filter { ok(it.matterId) }, session.hidden.value)
     val ranked = rows.map { r -> r to stems.count { r.haystack.lowercase().contains(it) } }.filter { it.second > 0 }
         .sortedByDescending { it.second }.take(25).map { it.first }
     val facts = buildString {
@@ -292,11 +291,9 @@ fun reminderText(what: String, due: Long?, name: String?, purpose: String): Stri
     if (purpose.isNotBlank()) append("Навіщо: ").append(purpose.take(300)).append("\n")
 }
 
-/** Titles of the matters hidden now, kept current; for lists that must not offer what names them. */
-fun hiddenTitles(db: MandatDb, session: Session): kotlinx.coroutines.flow.Flow<List<String>> =
-    kotlinx.coroutines.flow.combine(db.matters().observeAll(), session.hiddenMatters) { ms, hidden ->
-        ms.filter { it.id in hidden }.map { it.title.trim().lowercase() }.filter { it.length >= 3 }
-    }
+/** The titles of the matters hidden now, kept current; for lists that must not offer what names them. */
+fun hiddenTitles(@Suppress("UNUSED_PARAMETER") db: MandatDb, session: Session): kotlinx.coroutines.flow.Flow<ua.mandat.data.HiddenNames> =
+    session.hidden.map { it.names }
 
-/** True when free text names one of [titles]. */
-fun namesAny(text: String, titles: List<String>): Boolean { val t = text.lowercase(); return titles.any { t.contains(it) } }
+/** True when free text names one of the hidden titles (also in other word forms). */
+fun namesAny(text: String, titles: ua.mandat.data.HiddenNames): Boolean = titles.named(text)

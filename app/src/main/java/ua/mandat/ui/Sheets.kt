@@ -74,10 +74,18 @@ fun EditSheet(
     onSave: (() -> Unit)?,
     saveEnabled: Boolean = true,
     saveText: String = stringResource(R.string.save),
+    changed: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    // With something typed, the cross and Back first ask: nothing written is thrown away by one tap
+    var askDiscard by remember { mutableStateOf(false) }
+    val close: () -> Unit = if (changed) ({ askDiscard = true }) else onDismiss
+    if (askDiscard) ConfirmDialog(
+        stringResource(R.string.discard_title), stringResource(R.string.discard_text), stringResource(R.string.discard_go), danger = true,
+        onConfirm = { askDiscard = false; onDismiss() }, onCancel = { askDiscard = false },
+    )
     val frame = @Composable {
-        SheetFrame(title, onDismiss, bottom = onSave?.let { save ->
+        SheetFrame(title, close, bottom = onSave?.let { save ->
             {
                 Button(onClick = save, enabled = saveEnabled, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
                     Text(saveText, style = MaterialTheme.typography.titleSmall)
@@ -93,7 +101,7 @@ fun EditSheet(
     }
     if (LocalInlineSheets.current) frame()
     else Dialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = close,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false, dismissOnClickOutside = false),
     ) { frame() }
 }

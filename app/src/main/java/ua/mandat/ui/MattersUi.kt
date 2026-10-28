@@ -468,6 +468,9 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
             text = {
                 Column {
                     Text(stringResource(R.string.matter_delete_confirm))
+                    // Events keep their time, but without the matter it counts as "no role" in the time by roles
+                    if (request.matter.roleId != null) Text(stringResource(R.string.matter_delete_time), style = MaterialTheme.typography.bodySmall,
+                        color = Muted, modifier = Modifier.padding(top = 8.dp))
                     // The aid ledger belongs to the matter and goes with it: say so plainly
                     if (aidRecords.isNotEmpty()) Text(stringResource(R.string.matter_delete_aid, aidRecords.size),
                         color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
@@ -506,7 +509,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                             db.matters().delete(id)
                         }
                     }
-                }) { Text(stringResource(R.string.delete)) }
+                }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
         )
@@ -536,7 +539,7 @@ fun <T> Picker(label: String, current: String, options: List<Pair<T, String>>, o
 @Composable
 private fun MatterLinks(db: MandatDb, session: Session, matterId: Long, draft: MatterDraft) {
     val linkedFlow = remember(db, matterId) { db.people().observeForMatter(matterId) }
-    val peopleFlow = remember(db) { db.people().observeAll() }
+    val peopleFlow = remember(db) { db.people().observeAll().hidingPeople(session) }
     val delegationsFlow = remember(db, matterId) { db.delegations().observeForMatter(matterId).hiding(session) { it.matterId } }
     val promisesFlow = remember(db, matterId) { db.promises().observeForMatter(matterId).hiding(session) { it.matterId } }
     val linked by linkedFlow.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -707,7 +710,7 @@ private fun MatterStrip(db: MandatDb, matter: Matter, session: Session) {
                 Slice("l", stringResource(R.string.stat_overdue), late, MaterialTheme.colorScheme.error),
             ), selected = delegPick, onPick = { delegPick = it })
             delegPick?.let { k ->
-                val names by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+                val names by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
                 val nameOf = names.associate { it.id to it.name }
                 Column(Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     openD.filter { (k == "l") == ua.mandat.data.isOverdue(it.due, it.status, today) }

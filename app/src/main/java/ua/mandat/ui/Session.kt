@@ -21,6 +21,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
 import androidx.room.withTransaction
 import ua.mandat.R
 import ua.mandat.data.MandatDb
@@ -77,6 +78,8 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     /** Today's answer to the evening question while it is being typed; null when not editing. */
     var reviewDraft by mutableStateOf<String?>(null)
+    /** Tonight's entry was hidden when typing began: the new text is added under it, never over it. */
+    var reviewAppend = false
 
     /** Material You colours on or off; changing it recolours the app right away. */
     var dynamicColors by mutableStateOf(Appearance.dynamic(app))
@@ -190,8 +193,8 @@ class Session(app: Application) : AndroidViewModel(app) {
             withContext(Dispatchers.Main) {
                 if (startedAt != generation || state !is LockState.Open) return@withContext
                 when (found) {
-                    is ua.mandat.data.InfoItem -> infoDraft = InfoDraft(found, isNew = false)
-                    is ua.mandat.data.Alliance -> allianceDraft = AllianceDraft(found, isNew = false)
+                    is ua.mandat.data.InfoItem -> if (!isHidden(found.matterId)) infoDraft = InfoDraft(found, isNew = false)
+                    is ua.mandat.data.Alliance -> if (!isHidden(found.matterId)) allianceDraft = AllianceDraft(found, isNew = false)
                 }
             }
         }
@@ -209,24 +212,36 @@ class Session(app: Application) : AndroidViewModel(app) {
         background.launch {
             val found = withOpenDb { db -> db.events().get(id)?.let { it to db.events().peopleOf(id).toSet() } }
             withContext(Dispatchers.Main) {
-                if (found != null && startedAt == generation && state is LockState.Open) eventDraft = EventDraft(found.first, isNew = false, found.second)
+                if (found != null && startedAt == generation && state is LockState.Open && !isHidden(found.first.matterId)) eventDraft = EventDraft(found.first, isNew = false, found.second)
             }
         }
     }
 
     /** Matters kept off the screen in trip mode (ids only); worked out before the screens open. */
     val hiddenMatters = kotlinx.coroutines.flow.MutableStateFlow<Set<Long>>(emptySet())
+    /** Everything hidden along with those matters (people, diary days, communities, titles); set together with them. */
+    val hidden = kotlinx.coroutines.flow.MutableStateFlow(Hidden.NONE)
     /** Trip mode is on (also keeps the phone's calendar events off the screen). */
     val tripOn = kotlinx.coroutines.flow.MutableStateFlow(false)
     /** The lens: look at everything through one role (0 = matters without a role), or null for all. */
     val lensRole = kotlinx.coroutines.flow.MutableStateFlow<Long?>(null)
 
-    private suspend fun computeHidden(db: MandatDb): Pair<Boolean, Set<Long>> {
+    private suspend fun computeHidden(db: MandatDb): Pair<Boolean, Hidden> {
         val on = db.settings().get(ua.mandat.ui.SETTING_TRIP)?.value == "1"
         val trip = if (on) db.matters().sensitiveIds().toSet() else emptySet()
         val lens = lensRole.value?.let { db.matters().outsideRole(it).toSet() } ?: emptySet()
-        return on to (trip + lens)
+        return on to observeHidden(db, trip + lens).first()
     }
+
+    /** Sets what is hidden: the matters and everything worked out from them, in one step. */
+    fun setHidden(on: Boolean, h: Hidden) {
+        tripOn.value = on
+        hidden.value = h
+        hiddenMatters.value = h.matters
+    }
+
+    /** True when a record tied to [matterId] must not open now (hidden by trip mode or the lens). */
+    private fun isHidden(matterId: Long?): Boolean = hidden.value.matter(matterId) || (matterId != null && matterId in hiddenMatters.value)
 
     /** Sorting out people without a category. */
     var showCategorize by mutableStateOf(false)
@@ -235,8 +250,46 @@ class Session(app: Application) : AndroidViewModel(app) {
     var lastTab by mutableStateOf<String?>(null)
 
     /** Where the owner was when Mandat locked: numbers only. Used once, within a quarter of an hour. */
-    class Resume(val at: Long, val matterId: Long?, val personId: Long?, val eventId: Long?, val contactId: Long?, val directory: Boolean, val task: Pair<String, Long>?)
+    class Resume(val at: Long, val matterId: Long?, val personId: Long?, val eventId: Long?, val contactId: Long?, val directory: Boolean, val task: Pair<String, Long>?, val screens: Screens)
     private var resume: Resume? = null
+
+    /** Which full screens were open (flags and ids, never text); reopened only within the resume window. */
+    class Screens(
+        val diary: Boolean, val retro: Boolean, val budget: Boolean, val info: Boolean, val texts: Boolean,
+        val triage: Boolean, val topics: Boolean, val promises: Boolean, val district: Boolean, val alliances: Boolean,
+        val graph: Boolean, val categorize: Boolean, val export: Boolean, val oneOnOne: Long?, val smartList: SmartList?,
+        val periodView: Pair<PeriodKind, ua.mandat.data.Span>?, val roleTime: Pair<Long, ua.mandat.data.Span>?,
+        val influenceFor: Long?, val communityOpen: Long?,
+    )
+
+    /** Notes which full screens are open and closes them all (on lock). */
+    private fun closeScreens(): Screens {
+        val sc = Screens(
+            showDiary, showRetro, showBudget, showInfo, showTexts, showTriage, showTopics, showPromises, showDistrict, showAlliances,
+            showGraph, showCategorize, showExport, oneOnOne, smartList, periodView, roleTime, influenceFor, communityOpen,
+        )
+        showDiary = false; showRetro = false; showBudget = false; showInfo = false; showTexts = false
+        showTriage = false; showTopics = false; showPromises = false; showDistrict = false; showAlliances = false
+        showGraph = false; showCategorize = false; showExport = false; oneOnOne = null; smartList = null
+        periodView = null; roleTime = null; influenceFor = null; communityOpen = null
+        // A topic's name is content: never kept while locked
+        topicOpen = null
+        packetResult = null
+        exportText = null; exportBrief = null
+        tabRequest = null; mattersRequest = null; optionsRequest = false
+        return sc
+    }
+
+    private fun reopenScreens(sc: Screens) {
+        val h = hidden.value
+        showDiary = sc.diary; showRetro = sc.retro; showBudget = sc.budget; showInfo = sc.info; showTexts = sc.texts
+        showTriage = sc.triage; showTopics = sc.topics; showPromises = sc.promises; showDistrict = sc.district; showAlliances = sc.alliances
+        showGraph = sc.graph; showCategorize = sc.categorize; showExport = sc.export
+        oneOnOne = sc.oneOnOne?.takeIf { it !in h.people }
+        smartList = sc.smartList; periodView = sc.periodView; roleTime = sc.roleTime
+        influenceFor = sc.influenceFor?.takeIf { it == 0L || it !in h.matters }
+        communityOpen = sc.communityOpen?.takeIf { it !in h.communities }
+    }
 
     private fun applyResume() {
         val r = resume ?: return
@@ -245,6 +298,7 @@ class Session(app: Application) : AndroidViewModel(app) {
             lastTab = null
             return
         }
+        reopenScreens(r.screens)
         if (r.directory) showDirectory = true
         r.matterId?.let { openMatter(it) }
         r.personId?.let { openPerson(it) }
@@ -345,8 +399,10 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     fun saveReviewDraft() {
         val text = reviewDraft
+        val append = reviewAppend
         reviewDraft = null
-        write { persistReview(it, text) }
+        reviewAppend = false
+        write { persistReview(it, text, append) }
     }
 
     /** Recomputes the reminder days now (for example right after reminders are switched on). */
@@ -356,10 +412,17 @@ class Session(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private suspend fun storeReminderDays(db: MandatDb) {
+    private suspend fun storeReminderDays(db: MandatDb, h: Hidden = hidden.value) {
         if (!Reminders.isOn(getApplication())) return
         val today = Dates.today()
-        val days = reminderDays(db.deadlines().open(), db.delegations().open(), db.promises().open(), today, db.events().withReminder(today))
+        // What is hidden (trip mode) gives no reminder either: a reminder with nothing to show would tell
+        val days = reminderDays(
+            db.deadlines().open().filterNot { h.item(it.matterId, it.title, it.basis) },
+            db.delegations().open().filterNot { h.item(it.matterId, it.what, it.purpose) },
+            db.promises().open().filterNot { h.item(it.matterId, it.what, it.toWhom) },
+            today,
+            db.events().withReminder(today).filterNot { h.item(it.matterId, it.title, it.notes) },
+        )
         Reminders.storeDays(getApplication(), days)
     }
 
@@ -399,7 +462,8 @@ class Session(app: Application) : AndroidViewModel(app) {
             val m = withOpenDb { db -> db.matters().get(id) }
             withContext(Dispatchers.Main) {
                 // Locked meanwhile: do not bring decrypted data back into memory
-                if (m != null && startedAt == generation && state is LockState.Open) draft = MatterDraft(EditRequest(m, isNew = false)).also { d ->
+                // Hidden (trip mode, lens): never opened, whatever link led here
+                if (m != null && startedAt == generation && state is LockState.Open && !isHidden(m.id)) draft = MatterDraft(EditRequest(m, isNew = false)).also { d ->
                     // A suggested next step is put in the field, like typing: it is saved with the matter (also on lock)
                     if (!nextStep.isNullOrBlank()) d.nextStep = nextStep
                 }
@@ -422,9 +486,9 @@ class Session(app: Application) : AndroidViewModel(app) {
             withContext(Dispatchers.Main) {
                 if (startedAt != generation || state !is LockState.Open) return@withContext
                 when (item) {
-                    is ua.mandat.data.Delegation -> delegationDraft = DelegationDraft(item, isNew = false)
-                    is ua.mandat.data.Promise -> promiseDraft = PromiseDraft(item, isNew = false)
-                    is ua.mandat.data.Deadline -> deadlineDraft = DeadlineDraft(item, isNew = false)
+                    is ua.mandat.data.Delegation -> if (!isHidden(item.matterId)) delegationDraft = DelegationDraft(item, isNew = false)
+                    is ua.mandat.data.Promise -> if (!isHidden(item.matterId)) promiseDraft = PromiseDraft(item, isNew = false)
+                    is ua.mandat.data.Deadline -> if (!isHidden(item.matterId)) deadlineDraft = DeadlineDraft(item, isNew = false)
                 }
             }
         }
@@ -443,7 +507,7 @@ class Session(app: Application) : AndroidViewModel(app) {
         background.launch {
             val p = withOpenDb { db -> db.people().get(id) }
             withContext(Dispatchers.Main) {
-                if (p != null && startedAt == generation && state is LockState.Open) personDraft = PersonDraft(p, isNew = false)
+                if (p != null && startedAt == generation && state is LockState.Open && p.id !in hidden.value.people) personDraft = PersonDraft(p, isNew = false)
             }
         }
     }
@@ -583,6 +647,8 @@ class Session(app: Application) : AndroidViewModel(app) {
             if (intent.action == Intent.ACTION_SCREEN_OFF) {
                 picking = false
                 pickerTimeout?.cancel()
+                // Mandat's own copy does not wait on the clipboard until the next unlock
+                AiClipboard.clearIfOurs(context, screenOff = true)
                 if (lock()) autoPrompt = true
             }
         }
@@ -628,11 +694,11 @@ class Session(app: Application) : AndroidViewModel(app) {
             // If it cannot be read, Mandat does not open at all rather than show everything.
             var db2 = opened
             val hidden = try {
-                opened?.let { computeHidden(it) } ?: (false to emptySet())
+                opened?.let { computeHidden(it) } ?: (false to Hidden.NONE)
             } catch (e: Exception) {
                 try { opened?.close() } catch (x: Exception) { }
                 db2 = null
-                false to emptySet()
+                false to Hidden.NONE
             }
             val db = db2
             withContext(Dispatchers.Main) {
@@ -652,8 +718,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                         // Kept only while open: the database may open extra connections with it
                         key = passphrase
                         lastError = false
-                        tripOn.value = hidden.first
-                        hiddenMatters.value = hidden.second
+                        setHidden(hidden.first, hidden.second)
                         state = LockState.Open(db)
                         // Back in the foreground: Mandat's own copy left on the clipboard is taken off
                         AiClipboard.clearIfOurs(getApplication())
@@ -736,8 +801,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                         demoDb = db
                         demoOpening = false
                         demo = true
-                        tripOn.value = false
-                        hiddenMatters.value = emptySet()
+                        setHidden(false, Hidden.NONE)
                         state = LockState.Open(db)
                     }
                 }
@@ -769,6 +833,11 @@ class Session(app: Application) : AndroidViewModel(app) {
         // Anything still being typed is saved first, in the same step as closing,
         // so leaving the app for a moment never loses it
         val openDraft = draft
+        // Full screens close too; they come back only within the resume window
+        val screens = closeScreens()
+        // Titles of hidden matters are content: only the numbers stay while locked (worked out again on unlock)
+        val hiddenAtLock = hidden.value
+        hidden.value = Hidden(hiddenAtLock.matters, hiddenAtLock.people, hiddenAtLock.reviews, hiddenAtLock.communities, ua.mandat.data.HiddenNames.NONE)
         // Where the owner was: only the tab and the numbers of open cards (never their content),
         // so the same card opens again after unlocking
         // The demo never leaves a resume point: its numbers belong to invented records
@@ -782,6 +851,7 @@ class Session(app: Application) : AndroidViewModel(app) {
             task = delegationDraft?.takeIf { !it.isNew }?.let { "delegation" to it.delegation.id }
                 ?: promiseDraft?.takeIf { !it.isNew }?.let { "promise" to it.promise.id }
                 ?: deadlineDraft?.takeIf { !it.isNew }?.let { "deadline" to it.deadline.id },
+            screens = screens,
         ).takeIf { current is LockState.Open }
         val openInbox = inboxDraft
         val openPerson = personDraft
@@ -811,6 +881,8 @@ class Session(app: Application) : AndroidViewModel(app) {
         vcfError = null
         showDirectory = false
         val openReview = reviewDraft
+        val openReviewAppend = reviewAppend
+        reviewAppend = false
         deadlineDraft = null
         reviewDraft = null
         searching = false
@@ -845,9 +917,9 @@ class Session(app: Application) : AndroidViewModel(app) {
                             { openText?.persist(current.db) },
                             { persistInboxDraft(current.db, openSplit) },
                             { openContact?.takeIf { !it.isNew || it.touched }?.persist(current.db) },
-                            { persistReview(current.db, openReview) },
+                            { persistReview(current.db, openReview, openReviewAppend) },
                             // Last: only the days on which something is due, for reminders (never from the demo)
-                            { if (!wasDemo) storeReminderDays(current.db) },
+                            { if (!wasDemo) storeReminderDays(current.db, hiddenAtLock) },
                         ).forEach { save ->
                             try {
                                 save()
@@ -864,6 +936,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                         // Registered before the lock is released, so the next unlock always waits for it
                         prepared?.let { autoWrite = startAutoWrite(it, lazy = true) }
                     }
+                    if (current.db.isOpen) MandatDb.checkpoint(current.db)
                     current.db.close()
                     if (current.db === demoDb) demoDb = null
                     oldKey?.fill(0)

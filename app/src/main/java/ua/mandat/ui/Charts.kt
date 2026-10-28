@@ -66,6 +66,9 @@ object ChartColors {
     val salmon = Color(0xFFF0997B)
     /** Focus: amber-yellow, readable on light and dark backgrounds. */
     val focus = Color(0xFFF2B300)
+    /** The on-device AI (✦): violet, a lighter one on dark backgrounds. */
+    val aiLight = Color(0xFF6A4FD8)
+    val aiDark = Color(0xFFB9A8FF)
 }
 
 /**

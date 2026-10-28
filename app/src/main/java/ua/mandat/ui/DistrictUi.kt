@@ -26,6 +26,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -133,7 +135,7 @@ fun DistrictEntry(db: MandatDb, session: Session) {
 @Composable
 fun DistrictScreen(db: MandatDb, session: Session) {
     BackHandler { session.showDistrict = false }
-    val communities by remember(db) { db.communities().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val communities by remember(db) { db.communities().observeAll().hidingCommunities(session) }.collectAsStateWithLifecycle(emptyList())
     val links by remember(db) { db.communities().observeLinks() }.collectAsStateWithLifecycle(emptyList())
     val matters by remember(db) { db.matters().observeAll().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val events by remember(db) { db.events().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
@@ -277,12 +279,12 @@ private fun CommunityLine(s: CommunityStats, today: Long, onOpen: () -> Unit) {
 @Composable
 fun CommunityScreen(db: MandatDb, session: Session, id: Long) {
     BackHandler { session.communityOpen = null }
-    val communities by remember(db) { db.communities().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val communities by remember(db) { db.communities().observeAll().hidingCommunities(session) }.collectAsStateWithLifecycle(emptyList())
     val links by remember(db) { db.communities().observeLinks() }.collectAsStateWithLifecycle(emptyList())
     val matters by remember(db) { db.matters().observeAll().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val events by remember(db) { db.events().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val promises by remember(db) { db.promises().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val c = communities.firstOrNull { it.id == id }
     // Deleted meanwhile (or not loaded yet): go back once the list is known
@@ -303,7 +305,7 @@ fun CommunityScreen(db: MandatDb, session: Session, id: Long) {
     fun Removable(kind: String, ref: Long, content: @Composable () -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) { content() }
-            TextButton(onClick = { unlink(kind, ref) }) { Text("✕") }
+            IconButton(onClick = { unlink(kind, ref) }) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.unlink), tint = Muted, modifier = Modifier.size(18.dp)) }
         }
     }
 
@@ -383,7 +385,7 @@ fun CommunityScreen(db: MandatDb, session: Session, id: Long) {
                         linkedPeople.forEach { p ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 MiniChip(p.name, onClick = { session.openPerson(p.id) })
-                                TextButton(onClick = { unlink(LinkKind.PERSON, p.id) }) { Text("✕") }
+                                IconButton(onClick = { unlink(LinkKind.PERSON, p.id) }) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.unlink), tint = Muted, modifier = Modifier.size(18.dp)) }
                             }
                         }
                     }
@@ -432,6 +434,7 @@ fun CommunityDialog(session: Session, d: CommunityDraft) {
     EditSheet(
         title = stringResource(R.string.community_new),
         onDismiss = { session.communityDraft = null },
+        changed = d.changed(),
         onSave = { session.saveCommunityDraft() },
         saveEnabled = d.name.isNotBlank(),
     ) {

@@ -18,7 +18,6 @@
     <string name="tab_people">People</string>
     <string name="tab_time">Time</string>
     <string name="tab_review">Review</string>
-    <string name="coming_soon">Coming in the next versions.</string>
 
     <string name="inbox">Inbox</string>
     <string name="inbox_empty">Inbox is empty. Tap + to note anything that is on your mind.</string>
@@ -49,6 +48,8 @@
     <string name="restore_replace">Replace</string>
     <string name="notice_saved">Backup saved and checked. Records: %1$d.</string>
     <string name="notice_save_failed">The backup could not be saved. Nothing was changed.</string>
+    <string name="notice_existing_file">This file already holds something. Mandat does not write over an existing file: if writing failed, both copies could be lost. Save the backup under a new name.</string>
+    <string name="notice_too_big">There is more data than a backup can hold, so no copy was made. Nothing was changed.</string>
     <string name="notice_wrong_password">Wrong password, or the file is damaged.</string>
     <string name="notice_not_backup">This is not a Mandat backup, or it was made by a newer version.</string>
     <string name="notice_incompatible">This backup does not fit this version of Mandat. Nothing was changed.</string>
@@ -101,6 +102,7 @@
     <string name="matter_status">Status</string>
     <string name="matter_delete">Delete matter</string>
     <string name="matter_delete_confirm">Delete this matter for good?</string>
+    <string name="matter_delete_time">Events stay in the calendar, but their time in the time by roles moves to "no role". Time entries added by hand keep their role.</string>
     <string name="matter_no_next_step">No next step yet</string>
     <plurals name="focus_too_many">
         <item quantity="one">There is already %1$d matter in focus. Focus works best with up to %2$d.</item>
@@ -113,8 +115,6 @@
     <string name="to_matter">Make a matter</string>
     <string name="roles_title">Your roles</string>
     <string name="roles_text">Roles are your "hats": positions and lines of work. Matters are grouped by them, so no role is forgotten. Pick a body and a position (optionally a name or topic) and tap \"Add this role\"; repeat for each. You can change roles any time in Options.</string>
-    <string name="roles_add">Add a role</string>
-    <string name="roles_add_hint">Your own role</string>
     <string name="roles_done">Done</string>
     <string name="roles_skip">Later</string>
     <string name="roles_manage">Roles</string>
@@ -161,7 +161,6 @@
     <string name="roles_added">Your roles:</string>
 
     <string name="team">Team</string>
-    <string name="others">Others</string>
     <string name="team_ASSISTANT">Assistant-consultant (staff)</string>
     <string name="team_INTERN">Intern</string>
     <string name="team_SECRETARIAT">Secretariat of a committee or commission</string>
@@ -213,12 +212,9 @@
     <string name="due">By when</string>
     <string name="pick_date">Choose a date</string>
     <string name="clear_date">Remove date</string>
-    <string name="promise_public">Public promise</string>
-    <string name="promise_personal">Personal promise</string>
     <string name="status">Status</string>
     <string name="overdue_title">Overdue</string>
     <string name="soon_title">Today and tomorrow</string>
-    <string name="overdue_label">overdue</string>
     <string name="save_matter_first">Save the matter first to add people, delegations and promises.</string>
 
     <string name="deadlines">Deadlines</string>
@@ -240,7 +236,6 @@
     <string name="evening_progress">Moved forward</string>
     <string name="evening_unload">Clear your mind</string>
     <string name="evening_to_inbox">Save to Inbox</string>
-    <string name="evening_earlier">Earlier days</string>
     <string name="search_hint">Type at least two letters to search matters, people, notes and deadlines.</string>
     <string name="search_nothing">Nothing found.</string>
     <string name="reminders_title">Reminders</string>
@@ -251,16 +246,12 @@
     <string name="reminders_channel">Reminders</string>
     <string name="reminder_text">Something is due today. Open Mandat to see.</string>
     <string name="my_promises">My promises, all time</string>
-    <string name="promises_public">Public</string>
-    <string name="promises_personal">Personal</string>
-    <string name="promises_summary">Promises: %1$d · kept %2$d · in progress %3$d · did not work out %4$d · dropped %5$d</string>
     <string name="promises_empty">No promises here yet.</string>
     <string name="promised_on">promised on %1$s</string>
     <string name="p_FAILED">Did not work out</string>
     <string name="promise_source">Where promised</string>
     <string name="promise_source_hint">An interview, a post, a meeting; a link or a date</string>
     <string name="promise_status_note">Why (briefly)</string>
-    <string name="all_years">All years</string>
     <string name="team_VOLUNTEER_ASSISTANT">Assistant (volunteer)</string>
     <string name="team_OFFICE_HEAD">Head of office</string>
     <string name="team_COMMS">Communications and social media</string>
@@ -305,7 +296,6 @@
     <string name="dash_finished">completed</string>
     <string name="dash_roles_title">Movement by role</string>
     <string name="dash_no_role">No role</string>
-    <string name="dash_idle">No step in this period: %1$s</string>
     <string name="dash_deadlines_title">Deadlines and delegations</string>
     <string name="dash_promises_title">Promises</string>
     <string name="dash_years_title">By year</string>
@@ -314,19 +304,11 @@
     <string name="strip_hide">Hide summary</string>
     <string name="strip_show">Show summary</string>
     <string name="strip_active">in work</string>
-    <string name="strip_focus">in focus</string>
     <string name="strip_stale">no movement %1$d+ days</string>
-    <string name="strip_days_in_work">days in work</string>
-    <string name="strip_next_deadline">next deadline</string>
     <string name="strip_allies">allies</string>
     <string name="strip_undecided">undecided</string>
     <string name="strip_opponents">opponents</string>
-    <string name="strip_team">in the team</string>
-    <string name="strip_delegations_open">delegations open</string>
     <string name="strip_done_30">done in 30 days</string>
-    <string name="strip_this_week">this week</string>
-    <string name="strip_next_week">next week</string>
-    <string name="strip_on_time_month">on time this month</string>
     <string name="screenshots_allow">Allow screenshots</string>
     <string name="screenshots_hint">Off by default. For showing the app to testers.</string>
     <string name="screenshots_confirm_title">Allow screenshots?</string>
@@ -434,8 +416,6 @@
     <string name="thank_hint">A short thank-you strengthens the team. Writing it opens the share menu and leaves Mandat.</string>
     <string name="thank_text">Thank you for: %1$s</string>
     <string name="thank_write">Write a thank-you</string>
-    <string name="thank_done">Already thanked</string>
-    <string name="not_now">Not now</string>
     <string name="thank_short">Thank</string>
     <string name="team_load_title">Team and workload</string>
     <string name="direct_reports">Report to you directly: %1$d</string>
@@ -530,6 +510,7 @@
     <string name="event_remind">Remind on the day</string>
     <string name="event_to_phone">Add to the phone calendar</string>
     <string name="event_to_phone_warning">The title, time and place will leave Mandat\'s encrypted space and be visible in the phone\'s calendar (and in the cloud if that calendar syncs). Notes, people and the outcome stay in Mandat. The event is saved first.</string>
+    <string name="event_to_phone_sensitive">This event belongs to a sensitive matter. Its copy in the phone calendar stays visible even in trip mode.</string>
     <string name="event_to_phone_go">Continue</string>
     <string name="pick_book_hint">Type two letters to search the address book too.</string>
     <string name="directory">Address book</string>
@@ -783,7 +764,6 @@
     <string name="district_title">District</string>
     <string name="district_open">District · communities: %1$d</string>
     <string name="district_coming">Receptions and visits in the next 30 days</string>
-    <string name="district_communities">communities</string>
     <string name="district_coverage">Communities: since the last visit</string>
     <string name="district_coverage_hint">Those not visited for longest come first: the longer the bar, the longer ago.</string>
     <string name="district_days_ago">%1$d days ago</string>
@@ -825,7 +805,8 @@
     <string name="trip_on">On.</string>
     <string name="trip_how">How it works</string>
     <string name="trip_turn_on">Turn on</string>
-    <string name="trip_explain">What it does: matters marked as sensitive, and everything linked to them (delegations, promises, deadlines, events, media items, key messages, alliances, money, aid records, links with people), disappear from every screen, list, chart and search. Events from the phone calendar are not shown either. The data stays encrypted on the phone; nothing is deleted.\n\nWhat stays visible: people, communities, diary entries, the Inbox and topic names (only their links to hidden matters disappear), the switch itself and the \"Sensitive\" mark.\n\nWhat it does not do: it does not protect against someone who makes you unlock Mandat and knows where to turn it off (one switch in Options). Backups, including automatic ones on the phone, contain everything. Copies of events added to the phone calendar stay there. Restoring an older backup removes the marks.\n\nFor crossing a border it is safer to also turn on \"PIN only\", make a backup with a password, move automatic backups off the phone and remove the sensitive matters for the trip. GrapheneOS also has a duress PIN that wipes the phone.\n\nA matter is marked sensitive in its card.</string>
+    <string name="trip_confirm_off">Turn trip mode off</string>
+    <string name="trip_explain">What it does: matters marked as sensitive, and everything linked to them (delegations, promises, deadlines, events, media items, key messages, alliances, money, aid records, links with people), disappear from every screen, list, chart, search and AI prompt. With them go the people known only through these matters, diary entries linked to them or naming them, and communities linked only to them. Events from the phone calendar are not shown either, and nothing hidden gives a reminder. The data stays encrypted on the phone; nothing is deleted.\n\nWhat stays visible: the other people, communities and entries, topic names, the switch itself and the \"Sensitive\" mark.\n\nWhat it does not do: it does not protect against someone who makes you open Mandat and confirm turning it off with the phone\'s fingerprint or PIN. Backups, including automatic ones on the phone, contain everything. Copies of events added to the phone calendar stay there. Restoring an older backup removes the marks.\n\nFor crossing a border it is safer to also turn on \"PIN only\", make a backup with a password, move automatic backups off the phone and remove the sensitive matters for the trip. GrapheneOS also has a duress PIN that wipes the phone.\n\nA matter is marked sensitive in its card.</string>
     <string name="dash_idle_row">Roles without a step in this period: %1$d</string>
     <string name="category_suggest">Looks like: %1$s — choose</string>
     <string name="category_own">Own…</string>
@@ -843,7 +824,6 @@
     <string name="day_strip_open">Open the calendar</string>
     <string name="now_at">now %1$s</string>
     <string name="lens_on">Lens: %1$s</string>
-    <string name="lens_off">Lens: all roles</string>
     <string name="cal_density">How full the week is</string>
     <string name="hours_short">%1$dh</string>
     <string name="free_hours">%1$dh</string>
@@ -858,7 +838,7 @@
     <string name="period_year">Year</string>
     <string name="export_title">Export and import</string>
     <string name="export_options_hint">Contacts, calendar, tables, diary or a matter in open formats; with a password by default.</string>
-    <string name="export_trip_note">Trip mode is on: hidden matters and what is linked to them are left out, and \"Everything\" is not offered.</string>
+    <string name="export_trip_note">Some records are hidden now: they and what is linked to them are left out, and \"Everything\" is not offered.</string>
     <string name="export_what">What to export</string>
     <string name="export_people">People (.vcf)</string>
     <string name="export_book">Address book (.vcf), %1$d</string>
@@ -872,8 +852,8 @@
     <string name="export_matter_one">Matter: %1$s (.md)</string>
     <string name="export_everything">Everything (.json)</string>
     <string name="export_protection">Protection</string>
-    <string name="export_with_password">With a password (recommended)</string>
-    <string name="export_with_password_hint">ZIP with AES-256: opens with the password in 7-Zip, Keka, ZArchiver. Weaker than a Mandat file, and the names of the files inside can be seen without the password.</string>
+    <string name="export_with_password">ZIP with a password (for other apps)</string>
+    <string name="export_with_password_hint">Opens with the password in 7-Zip, Keka, ZArchiver. The protection is weaker than in a Mandat file, so the password is longer; the suggested one is best. File names inside are visible without the password.</string>
     <string name="export_password">Password, at least %1$d characters</string>
     <string name="export_password_repeat">The password again</string>
     <string name="export_open">Open file, without a password</string>
@@ -884,6 +864,7 @@
     <string name="export_go">Export</string>
     <string name="export_done">Done. The file is where you saved it.</string>
     <string name="export_failed">Could not write the file.</string>
+    <string name="export_existing_file">This file already holds something. Mandat does not write over an existing file: save under a new name.</string>
     <string name="import_title">Import</string>
     <string name="import_hint">Files are read only after you confirm; nothing leaves Mandat.</string>
     <string name="import_ics">Calendar (.ics)</string>
@@ -896,10 +877,11 @@
     <string name="import_go">Import</string>
     <string name="import_done">Imported: %1$d</string>
     <string name="export_pdf">Documents also as PDF</string>
-    <string name="export_mandat">Mandat file with a password (strongest)</string>
-    <string name="export_mandat_hint">Contacts and the calendar only. Encrypted the same way as a backup, file names hidden too. Opens only in Mandat (on another phone, say).</string>
+    <string name="export_mandat">Mandat file with a password (recommended)</string>
+    <string name="export_mandat_hint">Contacts, the calendar and a packet for a colleague. Encrypted the same way as a backup, file names hidden too. Opens only in Mandat (on another phone, say).</string>
     <string name="export_suggested_note">Write this password down now and keep it apart from the file:</string>
     <string name="export_password_weak">Too simple: at least 16 characters, without common words. Or tap "Suggest a password".</string>
+    <string name="export_zip_password_weak">A ZIP needs a longer password. Take the suggested six words.</string>
     <string name="export_everything_hidden">"Everything (.json)" is not offered while the lens or trip mode hides something.</string>
     <string name="import_mandat">Mandat file (.mandatx)</string>
     <string name="import_mandat_wrong">Wrong password or a damaged file.</string>
@@ -907,11 +889,11 @@
     <string name="import_mandat_summary">Events: %1$d, contacts: %2$d. Other files (tables, documents) are not imported: %3$d.</string>
     <string name="import_done_short">Imported</string>
     <string name="import_delete_offer">The source file on the phone is not encrypted. Delete it now? The data is already safe in Mandat.</string>
-    <string name="export_mandat_only">A Mandat file holds contacts and the calendar only. Tables, the diary and documents go in a ZIP with a password.</string>
+    <string name="export_mandat_only">A Mandat file holds contacts, the calendar and a packet only. Tables, the diary, documents and the Obsidian vault go in a ZIP with a password.</string>
     <string name="export_lens_note">The lens hides matters of other roles: they and what is linked to them are left out.</string>
     <string name="export_too_big">The file came out larger than 16 MB, and Mandat could not open it later. Nothing was written: choose less, or a ZIP.</string>
     <string name="import_mandat_not">This is not a Mandat export file.</string>
-    <string name="import_mandat_is_backup">This is a backup, not an export file. Restore it in Settings, under Backup.</string>
+    <string name="import_mandat_is_backup">This is a backup, not an export file. Restore it in Options, under Backup.</string>
     <string name="notice_is_export">This is an export file (.mandatx), not a backup. Open it in Export and import. Nothing was changed.</string>
     <string name="brief_title">Brief before a meeting</string>
     <string name="brief_meetings">Meetings</string>
@@ -928,7 +910,6 @@
     <string name="votes_change">Change the number needed</string>
     <string name="votes_needed">How many "for" are needed</string>
     <string name="votes_needed_hint">A majority in a committee or council, say. People with a stance in this matter are counted.</string>
-    <string name="votes_clear">Do not count</string>
     <string name="minutes_short">%1$d min</string>
     <string name="time_matter">Time in 30 days: %1$s</string>
     <string name="time_by_role">Time by role</string>
@@ -968,8 +949,6 @@
     <string name="retro_approx">≈ approximate: the change log starts with this version; earlier months are rebuilt from start and end dates.</string>
     <string name="retro_started">new matters</string>
     <string name="retro_finished">completed</string>
-    <string name="retro_avg_days">days on average to completion</string>
-    <string name="retro_on_time_pct">deadlines on time, per cent</string>
     <string name="retro_directions">Directions: time by month</string>
     <string name="retro_directions_hint">Hours given to each role: calendar events through their matter plus time added in matters.</string>
     <string name="retro_focus">Past priorities</string>
@@ -1315,4 +1294,22 @@
     <string name="packet_as_new">New</string>
     <string name="packet_same_as">Same: %1$s</string>
     <string name="packet_failed">The packet could not be added. Nothing was changed.</string>
+    <string name="discard_title">Discard changes?</string>
+    <string name="discard_text">What was written here will not be saved.</string>
+    <string name="discard_go">Discard</string>
+    <string name="opt_privacy">Privacy and security</string>
+    <string name="opt_privacy_hint">Trip mode, PIN-only unlock, screenshots.</string>
+    <string name="opt_data">Data and backups</string>
+    <string name="opt_data_hint">Backup with a password, automatic copies, export and import.</string>
+    <string name="opt_work">Work: roles and district</string>
+    <string name="opt_work_hint">Parliament or local council, district, your roles and posts.</string>
+    <string name="opt_look">Look and reminders</string>
+    <string name="opt_look_hint">Theme and colours, reminders, the phone calendar.</string>
+    <string name="opt_ai_hint">Optional AI that works only on the phone.</string>
+    <string name="opt_about_hint">Version and licence.</string>
+    <string name="opt_open">Expanded</string>
+    <string name="opt_closed">Collapsed</string>
+    <string name="opt_fold">Collapse</string>
+    <string name="opt_unfold">Expand</string>
+    <string name="unlink">Remove the link</string>
 </resources>

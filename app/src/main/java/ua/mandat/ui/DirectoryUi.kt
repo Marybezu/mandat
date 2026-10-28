@@ -304,7 +304,7 @@ private fun ContactDialog(session: Session, d: ContactDraft) {
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { session.openPerson(id) }
                         }
                     }) { Text(stringResource(R.string.dir_to_people)) }
-                    TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete)) }
+                    TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
                 }
         }
     }

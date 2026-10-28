@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.ui.draw.clip
@@ -131,7 +130,7 @@ fun AiSection(session: Session) {
 const val AI_MARK = "✦"
 
 /** The one colour of everything the AI offers: violet, so a suggestion is never mistaken for a record. */
-val AiViolet: Color @Composable get() = if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) Color(0xFFB9A8FF) else Color(0xFF6A4FD8)
+val AiViolet: Color @Composable get() = if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) ChartColors.aiDark else ChartColors.aiLight
 
 /** A small violet button with the mark: tapping it asks the AI. */
 @Composable
@@ -189,26 +188,40 @@ fun copyToClipboard(context: Context, text: String) {
     val clip = ClipData.newPlainText(AiClipboard.LABEL, text)
     if (Build.VERSION.SDK_INT >= 33) clip.description.extras = PersistableBundle().apply { putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true) }
     cm.setPrimaryClip(clip)
-    AiClipboard.copied = true
+    AiClipboard.markCopied(context)
 }
 
 /** What Mandat put on the clipboard is taken off it again on lock. */
 object AiClipboard {
     const val LABEL = "mandat"
-    @Volatile var copied = false
+    /** Only a yes/no mark (never the text), kept on disk so a copy is cleared even after Android closed Mandat. */
+    private const val PREFS = "clipboard"
+    private const val KEY = "copied"
+
+    fun markCopied(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY, true).apply()
+    }
+
+    private fun copied(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY, false)
+
+    private fun forget(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KEY).apply()
+    }
 
     /**
-     * Clears the clipboard only when it still holds Mandat's copy. Called in the foreground (on
-     * unlock and on the lock button), where the clipboard can be read; never from the background,
-     * so a copy can still be pasted in another app, and nothing copied elsewhere is touched.
+     * Clears the clipboard when it still holds Mandat's copy. In the foreground (on unlock and on
+     * the lock button) the clipboard can be read, so something copied elsewhere is never touched.
+     * When the screen turns off ([screenOff]) it may not be readable any more: then Mandat's copy
+     * is cleared unless the clipboard plainly holds something else.
      */
-    fun clearIfOurs(context: Context) {
-        if (!copied) return
+    fun clearIfOurs(context: Context, screenOff: Boolean = false) {
+        if (!copied(context)) return
         runCatching {
             val cm = context.getSystemService(ClipboardManager::class.java) ?: return
-            val label = cm.primaryClipDescription?.label?.toString() ?: return
-            copied = false
-            if (label == LABEL) cm.clearPrimaryClip()
+            val label = cm.primaryClipDescription?.label?.toString()
+            if (label == null && !screenOff) return
+            forget(context)
+            if (label == null || label == LABEL) cm.clearPrimaryClip()
         }
     }
 }
@@ -235,7 +248,8 @@ fun AiCard(text: String, title: String? = null, onApply: ((String) -> Unit)? = n
         Column(Modifier.padding(Space.card), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("$AI_MARK " + (title ?: stringResource(R.string.ai_suggestion)), style = MaterialTheme.typography.labelLarge, color = AiViolet)
             Text(stringResource(R.string.ai_check), style = MaterialTheme.typography.labelSmall, color = Muted)
-            SelectionContainer { Text(text, style = MaterialTheme.typography.bodyMedium) }
+            // Not selectable: a copy made by selecting would carry no mark and could not be cleared
+            Text(text, style = MaterialTheme.typography.bodyMedium)
             extra()
             FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (onApply != null) TextButton(onClick = { onApply(text) }) { Text(applyText ?: stringResource(R.string.ai_apply), color = AiViolet) }
@@ -404,7 +418,7 @@ private fun PickList(picks: List<Pick>, matcher: Matcher, source: ((Pick) -> Str
 @Composable
 fun AiSplitSheet(db: ua.mandat.data.MandatDb, session: Session, onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     // The text lives in the Session: on lock it is kept in the Inbox
     val text = session.aiSplitText
     var busy by remember { mutableStateOf(false) }
@@ -454,8 +468,8 @@ fun AiSplitSheet(db: ua.mandat.data.MandatDb, session: Session, onClose: () -> U
 @Composable
 fun InboxSortSheet(db: ua.mandat.data.MandatDb, session: Session, onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val inbox by remember(db) { db.inbox().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
+    val inbox by remember(db) { db.inbox().observeAll().hidingNamed(session, { null }) { it.text } }.collectAsStateWithLifecycle(emptyList())
     var busy by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
     val picks = remember { mutableStateListOf<Pick>() }
