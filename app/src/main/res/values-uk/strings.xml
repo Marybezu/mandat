@@ -1246,4 +1246,11 @@
     <string name="retro_more">більше</string>
     <string name="retro_lifelines">Стрічка справ</string>
     <string name="retro_lifelines_hint">Найактивніші справи періоду: смуга — скільки тривала, рисочки — строки. Торкніться, щоб відкрити.</string>
+    <string name="export_obsidian">Для Obsidian: нотатки з посиланнями</string>
+    <string name="export_obsidian_hint">Окрема нотатка на кожну справу, людину, подію (рік назад і наперед) і день щоденника, з посиланнями [[…]]: в Obsidian видно граф зв\'язків. Obsidian зберігає нотатки відкритим текстом — розпаковуйте архів лише на захищеному пристрої.</string>
+    <string name="obs_matters">Справи</string>
+    <string name="obs_people">Люди</string>
+    <string name="obs_events">Події</string>
+    <string name="obs_diary">Щоденник</string>
+    <string name="obs_matter">Справа</string>
 </resources>

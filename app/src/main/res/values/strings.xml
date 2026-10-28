@@ -1242,4 +1242,11 @@
     <string name="retro_more">more</string>
     <string name="retro_lifelines">Matters over time</string>
     <string name="retro_lifelines_hint">The most active matters of the period: the bar is how long it ran, ticks are deadlines. Tap to open.</string>
+    <string name="export_obsidian">For Obsidian: linked notes</string>
+    <string name="export_obsidian_hint">A note for each matter, person, event (a year back and ahead) and diary day, linked with [[…]]: Obsidian shows them as a graph. Obsidian keeps notes as plain text — unpack the archive only on a protected device.</string>
+    <string name="obs_matters">Matters</string>
+    <string name="obs_people">People</string>
+    <string name="obs_events">Events</string>
+    <string name="obs_diary">Diary</string>
+    <string name="obs_matter">Matter</string>
 </resources>

@@ -81,8 +81,10 @@ class ExportPlan {
     var textId by mutableStateOf<Long?>(null)
     /** A brief before meeting a person, as a document. */
     var briefId by mutableStateOf<Long?>(null)
+    /** Notes for Obsidian: one per matter, person, event and diary day, with [[links]]. */
+    var obsidian by mutableStateOf(false)
 
-    fun any() = people || book || calendar || tables.isNotEmpty() || diary || matterId != null || everything || textId != null || briefId != null
+    fun any() = people || book || calendar || tables.isNotEmpty() || diary || matterId != null || everything || textId != null || briefId != null || obsidian
 }
 
 private val TABLES = listOf("matters", "delegations", "promises", "deadlines", "events", "money", "people")
@@ -165,7 +167,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
     }
     fun fileName(): String {
         val date = java.time.LocalDate.now().toString()
-        val single = listOf(plan.people || plan.book, plan.calendar, plan.tables.isNotEmpty(), plan.diary, plan.matterId != null, plan.everything, plan.textId != null).count { it } == 1 &&
+        val single = !plan.obsidian && listOf(plan.people || plan.book, plan.calendar, plan.tables.isNotEmpty(), plan.diary, plan.matterId != null, plan.everything, plan.textId != null).count { it } == 1 &&
             plan.tables.size <= 1 && !(plan.people && plan.book) && plan.textId == null && plan.briefId == null && !((plan.diary || plan.matterId != null) && plan.pdf)
         if (mode == PROTECT_MANDAT) return "mandat-$date.$MANDAT_EXPORT_EXT"
         if (protect || !single) return "mandat-$date.zip"
@@ -246,6 +248,8 @@ fun ExportScreen(db: MandatDb, session: Session) {
                 plan.textId?.let { Check(stringResource(R.string.export_text_one, textTitle.orEmpty()), true) { on -> if (!on) plan.textId = null } }
                 plan.briefId?.let { Check(stringResource(R.string.export_brief_one), true) { on -> if (!on) plan.briefId = null } }
                 if (plan.diary || plan.matterId != null || plan.textId != null || plan.briefId != null) Check(stringResource(R.string.export_pdf), plan.pdf) { plan.pdf = it }
+                Check(stringResource(R.string.export_obsidian), plan.obsidian) { plan.obsidian = it }
+                if (plan.obsidian) Text(stringResource(R.string.export_obsidian_hint), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(start = 12.dp))
                 if (hidden.isEmpty()) Check(stringResource(R.string.export_everything), plan.everything) { plan.everything = it }
                 else Text(stringResource(R.string.export_everything_hidden), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(start = 12.dp))
                 }
@@ -627,6 +631,7 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
         addDoc("text", md)
     }
     plan.briefId?.let { id -> people.firstOrNull { it.id == id } }?.let { p -> addDoc("brief", briefDocument(context, db, p, hidden, titles)) }
+    if (plan.obsidian) obsidianVault(context, db, hidden, onlyHidden).forEach { (name, text) -> add(name, text) }
     if (plan.everything && hidden.isEmpty()) out += "everything.json" to ua.mandat.backup.BackupData.dump(db)
     return out
 }
