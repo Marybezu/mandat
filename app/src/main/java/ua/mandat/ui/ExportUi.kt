@@ -407,12 +407,15 @@ fun ExportScreen(db: MandatDb, session: Session) {
         PacketReview(db, session, p.packet!!, stringResource(p.summary, *p.args.toTypedArray()), onDismiss = { pendingImport = null }) { personChoice, matterChoice ->
             pendingImport = null
             val pk = p.packet
-            session.write { d ->
-                session.packetResult = try { ua.mandat.data.Packet.apply(d, pk, personChoice, matterChoice) }
-                    catch (e: Exception) { ua.mandat.data.Packet.Result(0, 0, 0, 0, 0, failed = true) }
+            // The packet first; calendar and contacts from the same file only after it, so the windows never overlap
+            scope.launch {
+                val r = session.withOpenDb { d ->
+                    try { ua.mandat.data.Packet.apply(d, pk, personChoice, matterChoice) } catch (e: Exception) { ua.mandat.data.Packet.Result(0, 0, 0, 0, 0, failed = true) }
+                } ?: ua.mandat.data.Packet.Result(0, 0, 0, 0, 0, failed = true)
+                session.packetResult = r
+                if (!r.failed) p.apply(session)
+                if (p.source != null) offerDelete = p.source
             }
-            p.apply(session)
-            if (p.source != null) offerDelete = p.source
         }
     }
     pendingImport?.takeIf { it.packet == null }?.let { p ->
@@ -772,7 +775,9 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
                 (dgAll.mapNotNull { it.matterId } + prAll.mapNotNull { it.matterId } + dlAll.mapNotNull { it.matterId } + evAll.mapNotNull { it.matterId })
             else -> if (one in excluded) emptySet() else setOf(one)
         }
-        val matters = all.filter { it.id in ids }
+        // A matter whose own text names a sensitive or hidden one keeps only its title and kind
+        val matters = all.filter { it.id in ids }.map { m -> if (clean(m.description, m.goal, m.nextStep)) m else m.copy(description = "", goal = "", nextStep = "") }
+            .filter { clean(it.title) }
         val dg = dgAll.filter { it.matterId in ids }
         val pr = prAll.filter { it.matterId in ids }
         val dl = dlAll.filter { it.matterId in ids }
@@ -780,7 +785,7 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
         val evIds = ev.map { it.id }.toSet()
         val eventPeople = db.events().observeLinks().first().filter { it.eventId in evIds }
         // Stances are the owner's own judgement: they go only when chosen
-        val links = db.people().observeLinks().first().filter { it.matterId in ids }.map { if (plan.packetStances) it else it.copy(stance = null, raci = null) }
+        val links = db.people().observeLinks().first().filter { it.matterId in ids }.map { if (plan.packetStances) it else it.copy(stance = null) }
         // People who take part in what goes in; never private notes, contacts only when chosen
         val personIds = (links.map { it.personId } + dg.mapNotNull { it.personId } + pr.mapNotNull { it.personId } + eventPeople.map { it.personId }).toSet()
         val persons = people.filter { it.id in personIds }.map { if (plan.packetContacts) it else it.copy(contact = "") }
