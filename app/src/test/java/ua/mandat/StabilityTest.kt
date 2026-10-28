@@ -37,7 +37,8 @@ class StabilityTest {
         assertTrue(HiddenNames(listOf("Чиста вода")).named("про чисту воду"))
         // A short stem matches near forms only, never longer unrelated words
         assertTrue(HiddenNames(listOf("Парк")).named("біля парку"))
-        assertFalse(HiddenNames(listOf("Парк")).named("партія і парламент"))
+        assertFalse(HiddenNames(listOf("Парк")).named("парламент і партійний список"))
+        assertTrue(HiddenNames(listOf("Парк")).named("біля парків"))
         // Words shorter than three letters say nothing alone
         assertTrue(HiddenNames(listOf("Ра")).isEmpty)
     }
