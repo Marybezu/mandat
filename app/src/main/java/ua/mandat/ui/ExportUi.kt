@@ -615,8 +615,11 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
     fun inSpan(day: Long?) = span == null || (day != null && day in span)
     fun msIn(ms: Long?) = ms != null && inSpan(Dates.dayOf(ms))
     fun taskIn(created: Long, closed: Long?, due: Long?) = span == null || msIn(created) || msIn(closed) || (due != null && inSpan(due))
+    // Free text not tied to a matter that names a hidden one stays out, as in the AI and the Obsidian vault
+    val hiddenTitles = if (hidden.isEmpty()) emptyList() else db.matters().observeAll().first().filter { it.id in hidden }.map { it.title.trim().lowercase() }.filter { it.length >= 3 }
+    fun free(matterId: Long?, vararg text: String) = matterId != null || hiddenTitles.isEmpty() || text.none { t -> hiddenTitles.any { t.lowercase().contains(it) } }
     val movedIds = if (span == null) emptySet() else db.history().observeAll().first().filter { it.day in span }.map { it.matterId }.toSet()
-    val events = db.events().observeAll().first().filter { visible(it.matterId) && (span == null || (it.day <= span.to && it.lastDay >= span.from)) }
+    val events = db.events().observeAll().first().filter { visible(it.matterId) && free(it.matterId, it.title, it.notes, it.outcome, it.place) && (span == null || (it.day <= span.to && it.lastDay >= span.from)) }
     if (plan.calendar) {
         val chosen = if (span != null) events else events.filter { e ->
             when (plan.calendarSpan) { 1 -> e.lastDay >= today; 2 -> e.day >= today - 365; else -> true }
@@ -638,14 +641,14 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
     }
     if ("delegations" in plan.tables) add("delegations.csv", Export.csv(
         listOf("what", "to_whom", "matter", "due", "status", "purpose", "done_means", "created", "closed"),
-        db.delegations().observeAll().first().filter { visible(it.matterId) && taskIn(it.createdAt, it.closedAt, it.due) }.map { d ->
+        db.delegations().observeAll().first().filter { visible(it.matterId) && free(it.matterId, it.what, it.purpose, it.doneMeans) && taskIn(it.createdAt, it.closedAt, it.due) }.map { d ->
             listOf(d.what, d.personId?.let(nameOf::get).orEmpty(), d.matterId?.let(titles::get).orEmpty(), Export.day(d.due),
                 context.getString(TaskStatus.of(d.status).delegationLabel()), d.purpose, d.doneMeans, Export.moment(d.createdAt), Export.moment(d.closedAt))
         },
     ))
     if ("promises" in plan.tables) add("promises.csv", Export.csv(
         listOf("what", "to_whom", "publicity", "origin", "risk", "matter", "due", "status", "promised", "closed", "source", "note"),
-        db.promises().observeAll().first().filter { visible(it.matterId) && taskIn(it.createdAt, it.closedAt, it.due) }.map { p ->
+        db.promises().observeAll().first().filter { visible(it.matterId) && free(it.matterId, it.what, it.toWhom, it.source, it.statusNote) && taskIn(it.createdAt, it.closedAt, it.due) }.map { p ->
             listOf(p.what, if (p.personId != null) nameOf[p.personId].orEmpty() else p.toWhom, context.getString(p.level.label()),
                 ua.mandat.data.PromiseOrigin.of(p.origin)?.let { context.getString(it.label()) }.orEmpty(), p.risk?.toString().orEmpty(),
                 p.matterId?.let(titles::get).orEmpty(), Export.day(p.due), context.getString(TaskStatus.of(p.status).promiseLabel()),
@@ -654,7 +657,7 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
     ))
     if ("deadlines" in plan.tables) add("deadlines.csv", Export.csv(
         listOf("title", "day", "kind", "basis", "matter", "status"),
-        db.deadlines().observeAll().first().filter { visible(it.matterId) && taskIn(it.createdAt, it.closedAt, it.day) }.map { d ->
+        db.deadlines().observeAll().first().filter { visible(it.matterId) && free(it.matterId, it.title, it.basis) && taskIn(it.createdAt, it.closedAt, it.day) }.map { d ->
             listOf(d.title, Export.day(d.day), context.getString(if (ua.mandat.data.DeadlineKind.of(d.kind) == ua.mandat.data.DeadlineKind.HARD) R.string.deadline_hard else R.string.deadline_soft),
                 d.basis, d.matterId?.let(titles::get).orEmpty(), context.getString(TaskStatus.of(d.status).delegationLabel()))
         },
@@ -668,7 +671,7 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
     ))
     if ("money" in plan.tables) add("budget.csv", Export.csv(
         listOf("day", "kind", "category", "amount", "currency", "uah", "note", "charity", "to_whom", "awaiting_refund", "refunded"),
-        db.money().observeAll().first().filter { visible(it.matterId) && inSpan(it.day) }.map { m ->
+        db.money().observeAll().first().filter { visible(it.matterId) && free(it.matterId, it.note, it.toWhom, it.category) && inSpan(it.day) }.map { m ->
             listOf(Export.day(m.day), m.kind, m.category, Export.money(m.amount), m.currency, Export.money(m.uah), m.note, m.charityKind.orEmpty(), m.toWhom,
                 if (m.awaitingRefund) "1" else "0", if (m.refunded) "1" else "0")
         },
@@ -681,7 +684,7 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
     if (plan.diary) {
         val hiddenReviews = db.reviews().observeLinks().first()
             .filter { (it.kind == "matter" && it.refId in hidden) || (it.kind == "person" && it.refId in onlyHidden) }.map { it.reviewId }.toSet()
-        val reviews = db.reviews().observeAll().first().filter { it.id !in hiddenReviews && inSpan(it.day) }.sortedBy { it.day }
+        val reviews = db.reviews().observeAll().first().filter { it.id !in hiddenReviews && free(null, it.progress) && inSpan(it.day) }.sortedBy { it.day }
         addDoc("diary", buildString {
             append("# ").append(context.getString(R.string.diary_title)).append("\n\n")
             reviews.filter { it.progress.isNotBlank() || it.mood != null || it.energy != null }.forEach { r ->
