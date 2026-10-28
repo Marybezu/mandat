@@ -3,6 +3,7 @@
     <color name="background">#F7F6F2</color>
     <!-- Icon: flag blue background, a white open hand holding a yellow square -->
     <color name="icon_bg">#0057B7</color>
+    <color name="icon_neutral_bg">#5F6368</color>
     <color name="icon_hand">#FFFFFF</color>
     <color name="icon_square">#FFD700</color>
 </resources>

@@ -70,27 +70,16 @@ import ua.mandat.data.matterFromNote
 fun AiSection(session: Session) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var state by remember { mutableStateOf(session.ai.models.state()) }
-    var importing by remember { mutableStateOf<Float?>(null) }
+    // The copy runs in the Session: folding this group or leaving the screen does not cut it off
+    val state = session.modelState
+    val importing = session.modelImport
+    val note = session.modelNote
     var deleteOriginal by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
-    var note by remember { mutableStateOf<String?>(null) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         session.pickingFile = false
         if (uri == null) return@rememberLauncherForActivityResult
-        importing = 0f
-        scope.launch {
-            note = try {
-                val r = session.ai.models.import(uri, deleteOriginal) { p -> importing = p }
-                when (r.originalDeleted) { true -> context.getString(R.string.ai_original_deleted); false -> context.getString(R.string.ai_original_kept); null -> null }
-            } catch (e: Throwable) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                context.getString(R.string.ai_failed, e.message ?: "")
-            } finally {
-                importing = null
-                state = session.ai.models.state()
-            }
-        }
+        session.importModel(uri, deleteOriginal)
     }
     fun open(url: String) = runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -122,7 +111,7 @@ fun AiSection(session: Session) {
     if (confirmDelete) ConfirmDialog(null, stringResource(R.string.ai_delete_question), stringResource(R.string.ai_delete), danger = true,
         onConfirm = {
             confirmDelete = false
-            scope.launch { session.ai.deleteModel(); state = session.ai.models.state() }
+            scope.launch { session.ai.deleteModel(); session.modelState = session.ai.models.state() }
         }, onCancel = { confirmDelete = false })
 }
 

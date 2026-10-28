@@ -159,8 +159,8 @@ private fun remindLabel(days: Int): String =
 @Composable
 fun TimeScreen(db: MandatDb, session: Session) {
     val deadlines by remember(db) { db.deadlines().observeOpen().hidingNamed(session, { it.matterId }) { it.title + " " + it.basis } }.collectAsStateWithLifecycle(emptyList())
-    val delegations by remember(db) { db.delegations().observeOpen().hidingNamed(session, { it.matterId }) { it.what + " " + it.purpose } }.collectAsStateWithLifecycle(emptyList())
-    val promises by remember(db) { db.promises().observeOpen().hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom } }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db) { db.delegations().observeOpen().hidingNamed(session, { it.matterId }) { it.what + " " + it.purpose + " " + it.doneMeans } }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeOpen().hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom + " " + it.source + " " + it.statusNote } }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val allDeadlines by remember(db) { db.deadlines().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.basis } }.collectAsStateWithLifecycle(emptyList())
@@ -433,9 +433,9 @@ fun openHit(db: MandatDb, session: Session, kind: String, id: Long) {
  */
 @Composable
 fun ReputationTiles(db: MandatDb, session: Session) {
-    val promises by remember(db) { db.promises().observeOpen().hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom } }.collectAsStateWithLifecycle(emptyList())
-    val items by remember(db) { db.info().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.notes } }.collectAsStateWithLifecycle(emptyList())
-    val alliances by remember(db) { db.info().observeAlliances().hidingNamed(session, { it.matterId }) { it.withWhom + " " + it.about + " " + it.notes } }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeOpen().hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom + " " + it.source + " " + it.statusNote } }.collectAsStateWithLifecycle(emptyList())
+    val items by remember(db) { db.info().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.notes + " " + it.source + " " + it.result } }.collectAsStateWithLifecycle(emptyList())
+    val alliances by remember(db) { db.info().observeAlliances().hidingNamed(session, { it.matterId }) { it.withWhom + " " + it.about + " " + it.notes + " " + it.gives + " " + it.gets } }.collectAsStateWithLifecycle(emptyList())
     val today = Dates.today()
     val risky = promises.count { isRisky(it, today) }
     val attacks = items.count { !it.closed && it.kind == ua.mandat.data.InfoKind.ATTACK.name }

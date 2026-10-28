@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Mandat</string>
+    <string name="neutral_name">Notes</string>
     <string name="tagline">Your private, encrypted organiser</string>
     <string name="classified_notice">Not for classified information.</string>
     <string name="unlock">Unlock</string>
@@ -102,6 +103,9 @@
     <string name="matter_status">Status</string>
     <string name="matter_delete">Delete matter</string>
     <string name="matter_delete_confirm">Delete this matter for good?</string>
+    <string name="matter_delete_all">Delete together with everything tied to it</string>
+    <string name="matter_delete_all_hint">Its delegations, promises, deadlines, events, media items, messages, alliances, money, time entries and texts go too. People and diary entries stay, without the link. Backups made earlier still hold the matter.</string>
+    <string name="matter_delete_keep_hint">Delegations, promises, deadlines, events, money and the rest stay without the matter and are no longer hidden by trip mode. Backups made earlier still hold the matter.</string>
     <string name="matter_delete_time">Events stay in the calendar, but their time in the time by roles moves to "no role". Time entries added by hand keep their role.</string>
     <string name="matter_no_next_step">No next step yet</string>
     <plurals name="focus_too_many">
@@ -509,7 +513,7 @@
     <string name="event_outcome">What came out of it</string>
     <string name="event_remind">Remind on the day</string>
     <string name="event_to_phone">Add to the phone calendar</string>
-    <string name="event_to_phone_warning">The title, time and place will leave Mandat\'s encrypted space and be visible in the phone\'s calendar (and in the cloud if that calendar syncs). Notes, people and the outcome stay in Mandat. The event is saved first.</string>
+    <string name="event_to_phone_warning">The title, time and place will leave Mandat\'s encrypted space and be visible in the phone\'s calendar (and in the cloud if that calendar syncs). The copy stays there even if the event or matter is deleted in Mandat. Notes, people and the outcome stay in Mandat. The event is saved first.</string>
     <string name="event_to_phone_sensitive">This event belongs to a sensitive matter. Its copy in the phone calendar stays visible even in trip mode.</string>
     <string name="event_to_phone_go">Continue</string>
     <string name="pick_book_hint">Type two letters to search the address book too.</string>
@@ -796,8 +800,17 @@
     <string name="type_BILL_council">Draft decision</string>
     <string name="type_INVESTIGATION_council">Control check</string>
     <string name="pin_only">PIN only</string>
-    <string name="pin_only_hint">Unlock with the phone\'s PIN or password only, without a fingerprint: a finger can be forced onto the sensor, a PIN has to be said. Takes effect at the next unlock.</string>
-    <string name="pin_only_failed">Could not save the choice.</string>
+    <string name="pin_only_hint">The database key opens only with the phone PIN or password, never a fingerprint: a finger can be forced onto the sensor, a PIN has to be said. Turning it on or off is confirmed with the PIN.</string>
+    <string name="pin_only_confirm_on">Turn on "PIN only"</string>
+    <string name="pin_only_confirm_off">Turn off "PIN only"</string>
+    <string name="pin_only_older">Before, "PIN only" applied to the unlock prompt only. Turn it on again so the key itself accepts only the PIN.</string>
+    <string name="autolock_title">Automatic lock</string>
+    <string name="autolock_hint">Mandat closes itself after this long without a touch.</string>
+    <string name="autolock_never">Never</string>
+    <string name="autolock_min">%1$d min</string>
+    <string name="neutral_icon">Neutral name and icon</string>
+    <string name="neutral_icon_hint">On the home screen, in Share and in reminders the app is called "Notes" with a plain icon. You may need to add the icon to the home screen again. Phone settings still show "Mandat".</string>
+    <string name="pin_only_failed">Could not change it. The key stays as it was.</string>
     <string name="matter_sensitive">Sensitive</string>
     <string name="matter_sensitive_hint">Hidden from every screen while trip mode is on.</string>
     <string name="trip_mode">Trip mode</string>
@@ -806,8 +819,9 @@
     <string name="trip_how">How it works</string>
     <string name="trip_turn_on">Turn on</string>
     <string name="trip_confirm_off">Turn trip mode off</string>
-    <string name="trip_confirm_backup">Confirm: the copy will also hold what is hidden</string>
-    <string name="trip_explain">What it does: matters marked as sensitive, and everything linked to them (delegations, promises, deadlines, events, media items, key messages, alliances, money, aid records, links with people), disappear from every screen, list, chart, search and AI prompt. With them go the people known only through these matters, diary entries linked to them or naming them, and communities linked only to them. Events from the phone calendar are not shown either, and nothing hidden gives a reminder. The data stays encrypted on the phone; nothing is deleted.\n\nWhat stays visible: the other people, communities and entries, topic names, the switch itself and the \"Sensitive\" mark.\n\nWhat it does not do: it does not protect against someone who makes you open Mandat and confirm turning it off with the phone\'s fingerprint or PIN. Backups, including automatic ones on the phone, contain everything. Copies of events added to the phone calendar stay there. Restoring an older backup removes the marks.\n\nFor crossing a border it is safer to also turn on \"PIN only\", make a backup with a password, move automatic backups off the phone and remove the sensitive matters for the trip. GrapheneOS also has a duress PIN that wipes the phone.\n\nA matter is marked sensitive in its card.</string>
+    <string name="confirm_backup">Confirm: the copy holds all data</string>
+    <string name="confirm_export">Confirm the export</string>
+    <string name="trip_explain">What it does: matters marked as sensitive, and everything linked to them (delegations, promises, deadlines, events, media items, key messages, alliances, money, aid records, links with people), disappear from every screen, list, chart, search and AI prompt. With them go the people known only through these matters, diary entries linked to them or naming them, and communities linked only to them. Events from the phone calendar are not shown either, and nothing hidden gives a reminder. The data stays encrypted on the phone; nothing is deleted.\n\nWhat stays visible: the other people, communities and entries, topic names, the switch itself and the \"Sensitive\" mark.\n\nWhat it does not do: it does not protect against someone who makes you open Mandat and confirm turning it off with the phone\'s fingerprint or PIN. Backups, including automatic ones on the phone, contain everything. Copies of events added to the phone calendar stay there. Restoring an older backup removes the marks.\n\nFor crossing a border it is safer to also turn on \"PIN only\", make a backup with a password, move automatic backups off the phone, and before the border switch the phone off or use \"Lockdown\" in the power menu. If you remove sensitive matters for the trip, delete them with \"together with everything tied to it\" ticked, or their tasks and events stay behind and become visible. GrapheneOS also has a duress PIN that wipes the phone.\n\nA matter is marked sensitive in its card.</string>
     <string name="dash_idle_row">Roles without a step in this period: %1$d</string>
     <string name="category_suggest">Looks like: %1$s — choose</string>
     <string name="category_own">Own…</string>
@@ -839,11 +853,13 @@
     <string name="period_year">Year</string>
     <string name="export_title">Export and import</string>
     <string name="export_options_hint">Contacts, calendar, tables, diary or a matter in open formats; with a password by default.</string>
-    <string name="export_trip_note">Some records are hidden now: they and what is linked to them are left out, and \"Everything\" is not offered.</string>
+    <string name="export_trip_note">Only what is shown now is exported.</string>
     <string name="export_what">What to export</string>
     <string name="export_people">People (.vcf)</string>
+    <string name="export_people_note">Includes your notes on people and their categories. Imported into the phone\'s contacts, the notes may sync to the cloud.</string>
     <string name="export_book">Address book (.vcf), %1$d</string>
     <string name="export_calendar">Calendar (.ics)</string>
+    <string name="export_calendar_note">Includes the events\' notes and outcomes. Imported into the phone\'s calendar, they may sync to the cloud.</string>
     <string name="export_span_all">Everything</string>
     <string name="export_span_future">From today</string>
     <string name="export_span_year">Last year</string>
@@ -884,8 +900,8 @@
     <string name="export_suggested_note">Write this password down now and keep it apart from the file:</string>
     <string name="export_password_weak">Too simple: at least 16 characters, without common words. Or tap "Suggest a password".</string>
     <string name="export_zip_password_weak">A ZIP needs a longer password. Take the suggested six words.</string>
-    <string name="export_everything_hidden">"Everything (.json)" is not offered while the lens or trip mode hides something.</string>
-    <string name="import_mandat">Mandat file (.mandatx)</string>
+    <string name="export_everything_hidden">"Everything (.json)" is offered when the screens show everything.</string>
+    <string name="import_mandat">Mandat file (export-….bin, .mandatx)</string>
     <string name="import_mandat_wrong">Wrong password or a damaged file.</string>
     <string name="import_open">Open</string>
     <string name="import_mandat_summary">Events: %1$d, contacts: %2$d. Other files (tables, documents) are not imported: %3$d.</string>
@@ -896,7 +912,7 @@
     <string name="export_too_big">The file came out larger than 16 MB, and Mandat could not open it later. Nothing was written: choose less, or a ZIP.</string>
     <string name="import_mandat_not">This is not a Mandat export file.</string>
     <string name="import_mandat_is_backup">This is a backup, not an export file. Restore it in Options, under Backup.</string>
-    <string name="notice_is_export">This is an export file (.mandatx), not a backup. Open it in Export and import. Nothing was changed.</string>
+    <string name="notice_is_export">This is a Mandat export file, not a backup. Open it in Export and import. Nothing was changed.</string>
     <string name="brief_title">Brief before a meeting</string>
     <string name="brief_meetings">Meetings</string>
     <string name="brief_next">Next</string>

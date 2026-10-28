@@ -247,10 +247,11 @@ private fun Main(db: MandatDb, session: Session) {
         }
         kotlinx.coroutines.flow.combine(db.settings().observe(SETTING_TRIP), db.matters().observeSensitiveIds(), lensHidden) { trip, ids, lens ->
             val on = trip?.value == "1"
-            on to ((if (on) ids.toSet() else emptySet()) + lens)
-        }.distinctUntilChanged().flatMapLatest { (on, matters) ->
+            val trip = if (on) ids.toSet() else emptySet()
+            Triple(on, trip + lens, trip)
+        }.distinctUntilChanged().flatMapLatest { (on, matters, trip) ->
             // People, diary days and communities tied only to them are worked out before anything shows
-            observeHidden(db, matters).map { on to it }
+            observeHidden(db, matters, byName = trip).map { on to it }
         }.collect { (on, hidden) -> session.setHidden(on, hidden) }
     }
 
@@ -521,8 +522,8 @@ internal fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onT
     val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val deadlines by remember(db) { db.deadlines().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.basis } }.collectAsStateWithLifecycle(emptyList())
-    val delegations by remember(db) { db.delegations().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.purpose } }.collectAsStateWithLifecycle(emptyList())
-    val promises by remember(db) { db.promises().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom } }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db) { db.delegations().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.purpose + " " + it.doneMeans } }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom + " " + it.source + " " + it.statusNote } }.collectAsStateWithLifecycle(emptyList())
     val roleNames = roles.associate { it.id to it.name }
     val nameOf = people.associate { it.id to it.name }
     val titleOf = titles.associate { it.id to it.title }

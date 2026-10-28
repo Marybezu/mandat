@@ -34,8 +34,11 @@ class Hidden(
     }
 }
 
-/** Follows the database: what is hidden along with [matters]. */
-fun observeHidden(db: MandatDb, matters: Set<Long>): Flow<Hidden> {
+/**
+ * Follows the database: what is hidden along with [matters]. Free text is checked for the titles of
+ * [byName] only (the matters trip mode hides): the lens leaves records without a matter in view.
+ */
+fun observeHidden(db: MandatDb, matters: Set<Long>, byName: Set<Long> = matters): Flow<Hidden> {
     if (matters.isEmpty()) return flowOf(Hidden.NONE)
     val h = db.hiding()
     val sources: List<Flow<List<Any>>> = listOf(
@@ -50,7 +53,7 @@ fun observeHidden(db: MandatDb, matters: Set<Long>): Flow<Hidden> {
         @Suppress("UNCHECKED_CAST") val commLinks = arr[4] as List<ua.mandat.data.CommunityLink>
         @Suppress("UNCHECKED_CAST") val eventMatter = (arr[5] as List<ua.mandat.data.IdRef>).associate { it.a to it.b }
         @Suppress("UNCHECKED_CAST") val promiseMatter = (arr[6] as List<ua.mandat.data.IdRef>).associate { it.a to it.b }
-        val names = HiddenNames(titles.filter { it.id in matters }.map { it.title })
+        val names = HiddenNames(titles.filter { it.id in byName }.map { it.title })
         val people = Hiding.people(matters, personMatter)
         Hidden(
             matters = matters,
@@ -66,10 +69,10 @@ fun observeHidden(db: MandatDb, matters: Set<Long>): Flow<Hidden> {
 fun visibleRows(rows: List<ua.mandat.data.SearchRow>, h: Hidden): List<ua.mandat.data.SearchRow> =
     if (h.isEmpty) rows else rows.filter { r ->
         when (r.kind) {
-            "person" -> r.id !in h.people
+            "person" -> r.id !in h.people && !h.names.named(r.haystack)
             "review" -> r.id !in h.reviews
             "community" -> r.id !in h.communities
-            "contact" -> true
+            "contact" -> !h.names.named(r.haystack)
             else -> !h.item(r.matterId, r.haystack)
         }
     }
@@ -93,3 +96,4 @@ fun Flow<List<ua.mandat.data.Community>>.hidingCommunities(session: Session?): F
 fun <T> Flow<List<T>>.hidingNamed(session: Session?, matterOf: (T) -> Long?, text: (T) -> String): Flow<List<T>> =
     if (session == null) this
     else combine(session.hidden) { list, h -> if (h.isEmpty) list else list.filter { !h.item(matterOf(it), text(it)) } }
+        .flowOn(kotlinx.coroutines.Dispatchers.Default) // matching titles in many texts, away from the screen thread

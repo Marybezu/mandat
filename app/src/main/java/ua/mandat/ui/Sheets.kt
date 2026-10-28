@@ -54,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.input.pointer.pointerInput
 import ua.mandat.R
 
 /**
@@ -119,7 +120,8 @@ fun SheetWindow(title: String, onDismiss: () -> Unit, bottom: (@Composable () ->
 private fun SheetFrame(title: String, onDismiss: () -> Unit, bottom: (@Composable () -> Unit)?, body: @Composable ColumnScope.() -> Unit) {
     BackHandler(onBack = onDismiss)
     NoAutofill()
-    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    // A sheet is a window of its own: its touches reach the idle timer too
+    Surface(Modifier.fillMaxSize().touchesCount(), color = MaterialTheme.colorScheme.background) {
         // On a tablet the sheet keeps a readable width in the middle of the screen
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.widthIn(max = 720.dp).fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
@@ -261,10 +263,36 @@ fun <K> PickSheet(title: String, items: List<PickItem<K>>, onPick: (K) -> Unit, 
  * A sheet or dialog is a window of its own: autofill services (a password manager, the keyboard)
  * are kept out of it too, as out of the main window.
  */
+fun Modifier.touchesCount(): Modifier = pointerInput(Unit) {
+    awaitPointerEventScope {
+        while (true) {
+            awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+            Idle.touch()
+        }
+    }
+}
+
 @Composable
 fun NoAutofill() {
     val view = androidx.compose.ui.platform.LocalView.current
-    androidx.compose.runtime.SideEffect { view.rootView.importantForAutofill = android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS }
+    androidx.compose.runtime.SideEffect {
+        view.rootView.importantForAutofill = android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
+        (view.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window?.let(::protectWindow)
+    }
+}
+
+/**
+ * Keeps other apps out of a window: accessibility services that are not real assistive tools
+ * (Android 14+) are not shown its text, and other apps' overlays are hidden while it is on top,
+ * so nothing can be drawn over the unlock or confirm steps.
+ */
+fun protectWindow(window: android.view.Window) {
+    try {
+        if (android.os.Build.VERSION.SDK_INT >= 34) window.decorView.setAccessibilityDataSensitive(android.view.View.ACCESSIBILITY_DATA_SENSITIVE_YES)
+        window.setHideOverlayWindows(true)
+    } catch (e: Exception) {
+        // Not available on this phone: the rest of the protection stays
+    }
 }
 
 /** A short question with two answers (delete?, continue?): compact, the risky answer in the warning colour. */

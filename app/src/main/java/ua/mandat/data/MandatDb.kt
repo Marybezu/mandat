@@ -65,6 +65,7 @@ abstract class MandatDb : RoomDatabase() {
     abstract fun money(): MoneyDao
     abstract fun communities(): CommunityDao
     abstract fun hiding(): HidingDao
+    abstract fun cascade(): CascadeDao
 
     companion object {
         const val FILE_NAME = "mandat.db"

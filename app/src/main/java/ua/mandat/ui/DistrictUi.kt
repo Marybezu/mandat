@@ -1,5 +1,6 @@
 package ua.mandat.ui
 
+import kotlinx.coroutines.flow.map
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.graphics.compositeOver
 import android.content.Intent
@@ -120,7 +121,8 @@ private fun stats(
 @Composable
 fun DistrictEntry(db: MandatDb, session: Session) {
     val on by remember(db) { db.settings().observe(SETTING_DISTRICT) }.collectAsStateWithLifecycle(null)
-    val count by remember(db) { db.communities().observeCount() }.collectAsStateWithLifecycle(0)
+    // Counted without what is hidden: a number that differs from the list would tell that something is hidden
+    val count by remember(db) { db.communities().observeAll().hidingCommunities(session).map { it.size } }.collectAsStateWithLifecycle(0)
     if (on?.value != "1" && count == 0) return
     OutlinedButton(onClick = { session.showDistrict = true }, modifier = Modifier.fillMaxWidth()) {
         Text(stringResource(R.string.district_open, count))
@@ -138,8 +140,8 @@ fun DistrictScreen(db: MandatDb, session: Session) {
     val communities by remember(db) { db.communities().observeAll().hidingCommunities(session) }.collectAsStateWithLifecycle(emptyList())
     val links by remember(db) { db.communities().observeLinks() }.collectAsStateWithLifecycle(emptyList())
     val matters by remember(db) { db.matters().observeAll().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
-    val events by remember(db) { db.events().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.notes } }.collectAsStateWithLifecycle(emptyList())
-    val promises by remember(db) { db.promises().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom } }.collectAsStateWithLifecycle(emptyList())
+    val events by remember(db) { db.events().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.notes + " " + it.place + " " + it.outcome } }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom + " " + it.source + " " + it.statusNote } }.collectAsStateWithLifecycle(emptyList())
     val today = Dates.today()
     val all = stats(communities, links, matters, events, promises, today).sortedWith(compareBy({ it.lastVisit != null }, { it.lastVisit }))
     val coming = events.filter { isVisit(it) && it.lastDay >= today && it.day <= today + 30 }.sortedBy { it.day }
@@ -282,8 +284,8 @@ fun CommunityScreen(db: MandatDb, session: Session, id: Long) {
     val communities by remember(db) { db.communities().observeAll().hidingCommunities(session) }.collectAsStateWithLifecycle(emptyList())
     val links by remember(db) { db.communities().observeLinks() }.collectAsStateWithLifecycle(emptyList())
     val matters by remember(db) { db.matters().observeAll().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
-    val events by remember(db) { db.events().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.notes } }.collectAsStateWithLifecycle(emptyList())
-    val promises by remember(db) { db.promises().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom } }.collectAsStateWithLifecycle(emptyList())
+    val events by remember(db) { db.events().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.notes + " " + it.place + " " + it.outcome } }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom + " " + it.source + " " + it.statusNote } }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val c = communities.firstOrNull { it.id == id }

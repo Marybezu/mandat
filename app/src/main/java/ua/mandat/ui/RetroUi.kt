@@ -85,11 +85,11 @@ fun RetroScreen(db: MandatDb, session: Session) {
     val matters by remember(db) { db.matters().observeAll().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val history by remember(db) { db.history().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val deadlines by remember(db) { db.deadlines().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.basis } }.collectAsStateWithLifecycle(emptyList())
-    val events by remember(db) { db.events().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.notes } }.collectAsStateWithLifecycle(emptyList())
+    val events by remember(db) { db.events().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.notes + " " + it.place + " " + it.outcome } }.collectAsStateWithLifecycle(emptyList())
     val eventLinks by remember(db) { db.events().observeLinks() }.collectAsStateWithLifecycle(emptyList())
     val entries by remember(db) { db.time().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
-    val promises by remember(db) { db.promises().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom } }.collectAsStateWithLifecycle(emptyList())
-    val delegations by remember(db) { db.delegations().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.purpose } }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom + " " + it.source + " " + it.statusNote } }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db) { db.delegations().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.purpose + " " + it.doneMeans } }.collectAsStateWithLifecycle(emptyList())
     val aid by remember(db) { db.money().observeAid().hidingNamed(session, { it.matterId }) { it.what + " " + it.party } }.collectAsStateWithLifecycle(emptyList())
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
@@ -97,7 +97,7 @@ fun RetroScreen(db: MandatDb, session: Session) {
     val cadence by remember(db) { db.settings().observe(SETTING_CADENCE_START) }.collectAsStateWithLifecycle(null)
     // Diary entries tied to something hidden, or naming it, stay out while it is hidden
     val reviews by remember(db) { db.reviews().observeAll().hidingReviews(session) }.collectAsStateWithLifecycle(emptyList())
-    val infoItems by remember(db) { db.info().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.notes } }.collectAsStateWithLifecycle(emptyList())
+    val infoItems by remember(db) { db.info().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.notes + " " + it.source + " " + it.result } }.collectAsStateWithLifecycle(emptyList())
     val hidden by session.hidden.collectAsStateWithLifecycle()
     var range by rememberSaveable { mutableStateOf(RetroSpan.HALF) }
     val today = Dates.today()

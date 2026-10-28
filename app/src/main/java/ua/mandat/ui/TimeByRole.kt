@@ -62,7 +62,7 @@ import ua.mandat.data.minutesByRole
  */
 @Composable
 fun TimeBlock(db: MandatDb, session: Session, span: Span, roles: List<Role>) {
-    val events by remember(db) { db.events().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.notes } }.collectAsStateWithLifecycle(emptyList())
+    val events by remember(db) { db.events().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.notes + " " + it.place + " " + it.outcome } }.collectAsStateWithLifecycle(emptyList())
     val entries by remember(db) { db.time().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val matters by remember(db) { db.matters().observeAll().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val shares by remember(db) { db.time().observeShares() }.collectAsStateWithLifecycle(emptyList())
@@ -160,7 +160,7 @@ private fun SharesDialog(session: Session, roles: List<Role>, planned: Map<Long?
 fun RoleTimeScreen(db: MandatDb, session: Session, roleId: Long, span: Span) {
     BackHandler { session.roleTime = null }
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
-    val events by remember(db) { db.events().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.notes } }.collectAsStateWithLifecycle(emptyList())
+    val events by remember(db) { db.events().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.notes + " " + it.place + " " + it.outcome } }.collectAsStateWithLifecycle(emptyList())
     val entries by remember(db) { db.time().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val matters by remember(db) { db.matters().observeAll().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val roleOfMatter = matters.associate { it.id to it.roleId }

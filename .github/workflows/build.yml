@@ -11,7 +11,61 @@ permissions:
   contents: read
 
 jobs:
-  # Builds and tests. Runs third-party build code, so it gets no secrets and no write access.
+  # Tests (with the screen checks, which download extra Android code). Kept apart from the APK
+  # build, so nothing the tests run can touch what is published. No secrets, no write access.
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # Gradle itself is checked against a fixed checksum before it runs
+      - name: Install Gradle (checksum verified)
+        shell: bash
+        run: |
+          set -euo pipefail
+          V=8.14.3
+          SHA=bd71102213493060956ec229d946beee57158dbd89d0e62b91bca0fa2c5f3531
+          curl -sSfL -o "$RUNNER_TEMP/gradle.zip" "https://services.gradle.org/distributions/gradle-$V-bin.zip"
+          echo "$SHA  $RUNNER_TEMP/gradle.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/gradle.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/gradle-$V/bin" >> "$GITHUB_PATH"
+
+      # Only caching; the Gradle used is the one checked above
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+
+      - name: Test
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle --no-daemon testReleaseUnitTest 2>&1 | tee test.log
+
+      - name: Prepare test log
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p log
+          { echo "tests ${{ github.run_number }} ${{ job.status }}"; grep -E "^e: |error:|FAILED|What went wrong|Dependency verification" -A3 test.log | head -300; echo ----; tail -80 test.log; } > log/test.log || true
+          find app/build/test-results -name "*.xml" -exec cp {} log/ \; 2>/dev/null || true
+          # Room's exported database layout, to check migrations against it
+          cp -r app/schemas log/schemas 2>/dev/null || true
+          # Pictures of the screens drawn with neutral test data, for review
+          cp -r app/build/screens log/screens 2>/dev/null || true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: test-log
+          path: log/
+
+  # Builds the unsigned APK in a fresh machine, without running any tests. No secrets, no write access.
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -25,17 +79,28 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
-        with:
-          gradle-version: "8.14.3"
+      # Gradle itself is checked against a fixed checksum before it runs
+      - name: Install Gradle (checksum verified)
+        shell: bash
+        run: |
+          set -euo pipefail
+          V=8.14.3
+          SHA=bd71102213493060956ec229d946beee57158dbd89d0e62b91bca0fa2c5f3531
+          curl -sSfL -o "$RUNNER_TEMP/gradle.zip" "https://services.gradle.org/distributions/gradle-$V-bin.zip"
+          echo "$SHA  $RUNNER_TEMP/gradle.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/gradle.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/gradle-$V/bin" >> "$GITHUB_PATH"
 
-      - name: Test and build (unsigned)
+      # Only caching; the Gradle used is the one checked above
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+
+      - name: Build (unsigned)
         env:
           VERSION_CODE: ${{ github.run_number }}
         shell: bash
         run: |
           set -o pipefail
-          gradle --no-daemon testReleaseUnitTest assembleRelease 2>&1 | tee build.log
+          gradle --no-daemon assembleRelease 2>&1 | tee build.log
 
       - name: Check permissions (no internet, only what is expected)
         shell: bash
@@ -46,7 +111,7 @@ jobs:
           # An empty or unreadable listing must stop the build, never pass as "nothing found"
           grep -q "^package:" permissions.txt || { echo "::error::Could not read the permissions"; exit 1; }
           # Every permission must be on this short list; anything else stops the build
-          ALLOWED="android.permission.USE_BIOMETRIC android.permission.USE_FINGERPRINT android.permission.POST_NOTIFICATIONS android.permission.RECEIVE_BOOT_COMPLETED android.permission.READ_CALENDAR ua.mandat.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+          ALLOWED="android.permission.USE_BIOMETRIC android.permission.USE_FINGERPRINT android.permission.POST_NOTIFICATIONS android.permission.RECEIVE_BOOT_COMPLETED android.permission.READ_CALENDAR android.permission.HIDE_OVERLAY_WINDOWS ua.mandat.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
           for p in $(grep -oE "name='[^']+'" permissions.txt | sed "s/name='//;s/'//"); do
             case " $ALLOWED " in
               *" $p "*) ;;
@@ -60,11 +125,6 @@ jobs:
         run: |
           mkdir -p log
           { echo "run ${{ github.run_number }} ${{ job.status }}"; grep -E "^e: |error:|FAILED|What went wrong|Dependency verification" -A3 build.log | head -300; echo ----; tail -150 build.log; } > log/build.log || true
-          find app/build/test-results -name "*.xml" -exec cp {} log/ \; 2>/dev/null || true
-          # Room's exported database layout, to check migrations against it
-          cp -r app/schemas log/schemas 2>/dev/null || true
-          # Pictures of the screens drawn with neutral test data, for review
-          cp -r app/build/screens log/screens 2>/dev/null || true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
@@ -79,15 +139,21 @@ jobs:
 
   # Saves the build log to the ci-logs branch. Runs no project code.
   logs:
-    needs: build
+    needs: [test, build]
     if: always() && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        continue-on-error: true
         with:
           name: build-log
+          path: log
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        continue-on-error: true
+        with:
+          name: test-log
           path: log
       - name: Push the log
         shell: bash
@@ -101,7 +167,8 @@ jobs:
   # Signs and publishes. Only for main, only in the "release" environment, and with no Gradle
   # or other third-party build code: just the Android SDK's own apksigner.
   release:
-    needs: build
+    # Published only when the tests passed too
+    needs: [test, build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: release
@@ -184,11 +251,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # The SHA-256 of the APK, so anyone can check the file they downloaded is this one
+          SUM=$(cd out && sha256sum *.apk)
           cat > notes.md <<'NOTES'
           **Тестова версія.** Завантажте .apk нижче на телефоні й відкрийте його, або додайте репозиторій в Obtainium. Не для відомостей з грифом.
 
           **Test version.** Download the .apk below on your phone and open it, or add this repository to Obtainium. Not for classified information.
           NOTES
+          printf '\nSHA-256:\n```\n%s\n```\n' "$SUM" >> notes.md
           gh release create "v0.1.${{ github.run_number }}" out/*.apk \
             --repo "${{ github.repository }}" --target "${{ github.sha }}" \
             --title "Mandat 0.1.${{ github.run_number }}" --notes-file notes.md --latest

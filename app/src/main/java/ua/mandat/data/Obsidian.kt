@@ -6,7 +6,7 @@ package ua.mandat.data
  */
 object Obsidian {
     /** Characters a file name or a [[link]] cannot hold, on any system or in Obsidian. */
-    private val BAD = Regex("[\\\\/:*?\"<>|#^\\[\\]\\p{Cntrl}]")
+    private val BAD = Regex("[\\\\/:*?\"<>|#^\\[\\]`~\\p{Cntrl}]")
 
     /** A safe note name: forbidden characters become spaces, at most 80 characters, never empty. */
     fun name(s: String, fallback: String): String {

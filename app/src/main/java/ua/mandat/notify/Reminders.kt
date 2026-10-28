@@ -123,7 +123,8 @@ object Reminders {
             .build()
         val notification = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(context.getString(R.string.app_name))
+            // With the neutral name chosen, the notification says "Notes" too
+            .setContentTitle(context.getString(if (ua.mandat.ui.Appearance.neutralIcon(context)) R.string.neutral_name else R.string.app_name))
             .setContentText(text)
             .setContentIntent(open)
             .setAutoCancel(true)

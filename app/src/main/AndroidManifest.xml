@@ -15,6 +15,9 @@
          Asked only when switched on in Options; turning it off gives it back. -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
 
+    <!-- Protection only: hides other apps' overlays while Mandat is on top (no data, no prompt) -->
+    <uses-permission android:name="android.permission.HIDE_OVERLAY_WINDOWS" />
+
     <application
         android:allowBackup="false"
         android:fullBackupContent="false"
@@ -27,12 +30,21 @@
         <!-- The GPU for the optional on-device AI; not a permission, and not required -->
         <uses-native-library android:name="libOpenCL.so" android:required="false" />
 
+        <!-- Started only through one of the two entries below -->
         <activity
             android:name=".ui.MainActivity"
-            android:exported="true"
+            android:exported="false"
             android:launchMode="singleTask"
             android:taskAffinity=""
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize" />
+        <!-- The entry on the home screen and in "Share": "Mandat", or a neutral name and icon (chosen in Options) -->
+        <activity-alias
+            android:name=".Launcher"
+            android:targetActivity=".ui.MainActivity"
+            android:exported="true"
+            android:enabled="true"
+            android:label="@string/app_name"
+            android:icon="@mipmap/ic_launcher">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -43,7 +55,25 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+        <activity-alias
+            android:name=".LauncherNeutral"
+            android:targetActivity=".ui.MainActivity"
+            android:exported="true"
+            android:enabled="false"
+            android:label="@string/neutral_name"
+            android:icon="@mipmap/ic_neutral">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- "Share" from other apps: text and links go to the Inbox after confirmation -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity-alias>
         <receiver android:name=".notify.ReminderReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

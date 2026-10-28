@@ -35,6 +35,9 @@ class StabilityTest {
         // Short linking words are left out, four-letter words match their other forms
         assertTrue(HiddenNames(listOf("Ремонт для школи")).named("ремонт школи"))
         assertTrue(HiddenNames(listOf("Чиста вода")).named("про чисту воду"))
+        // A short stem matches near forms only, never longer unrelated words
+        assertTrue(HiddenNames(listOf("Парк")).named("біля парку"))
+        assertFalse(HiddenNames(listOf("Парк")).named("партія і парламент"))
         // Words shorter than three letters say nothing alone
         assertTrue(HiddenNames(listOf("Ра")).isEmpty)
     }
@@ -122,5 +125,14 @@ class StabilityTest {
         b.wipe()
         assertEquals(0, b.size)
         assertEquals(0, b.toByteArray().size)
+    }
+
+    @Test fun rawKeyGoesBackAndForth() {
+        val raw = ByteArray(32) { (it * 7 + 3).toByte() }
+        assertArrayEquals(raw, ua.mandat.data.rawFromSqlCipherKey(ua.mandat.data.sqlCipherRawKey(raw)))
+    }
+
+    @Test fun obsidianNamesHoldNoCodeMarks() {
+        assertEquals("Справа x y", Obsidian.name("Справа `x` ~y~", "f"))
     }
 }

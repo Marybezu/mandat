@@ -105,7 +105,7 @@ private fun letterOf(name: String): String = name.trim().firstOrNull()?.uppercas
 @Composable
 fun DirectoryScreen(db: MandatDb, session: Session) {
     BackHandler { session.showDirectory = false }
-    val raw by remember(db) { db.contacts().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val raw by remember(db) { db.contacts().observeAll().hidingNamed(session, { null }) { it.name + " " + it.organization + " " + it.jobTitle + " " + it.notes + " " + it.label } }.collectAsStateWithLifecycle(emptyList())
     // Sorted the way the language sorts (є, і, ї, ґ in their places), not by character codes
     val contacts = remember(raw) {
         val collator = java.text.Collator.getInstance(java.util.Locale.getDefault())

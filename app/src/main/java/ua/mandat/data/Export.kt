@@ -72,7 +72,8 @@ object Export {
         append("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Mandat//UK\r\nCALSCALE:GREGORIAN\r\n")
         for (e in events) {
             append("BEGIN:VEVENT\r\n")
-            append("UID:mandat-").append(e.id).append('-').append(e.createdAt).append("@local\r\n")
+            // A random identifier: record numbers and creation times would show gaps and history
+            append("UID:").append(java.util.UUID.randomUUID()).append("@local\r\n")
             append("DTSTAMP:").append(Instant.ofEpochMilli(now).atZone(ZoneOffset.UTC).format(utc)).append("\r\n")
             if (e.startMin == null) {
                 append("DTSTART;VALUE=DATE:").append(LocalDate.ofEpochDay(e.day).format(dateOnly)).append("\r\n")

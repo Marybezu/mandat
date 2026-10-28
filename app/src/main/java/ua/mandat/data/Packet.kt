@@ -158,7 +158,11 @@ object Packet {
      * used as they are; tasks and events that are already here (same text, matter and date) are
      * skipped. Nothing existing is changed or deleted.
      */
-    suspend fun apply(db: MandatDb, p: P, personChoice: Map<Long, Long?>, matterChoice: Map<Long, Long?>): Result = db.withTransaction {
+    suspend fun apply(
+        db: MandatDb, p: P, personChoice: Map<Long, Long?>, matterChoice: Map<Long, Long?>,
+        // What is hidden now (trip mode, lens): never compared with, so "skipped" cannot tell that it exists
+        hidden: (Long?, String) -> Boolean = { _, _ -> false },
+    ): Result = db.withTransaction {
         // Only choices that point to records really here count; anything else is added as new
         val herePeople = db.people().all().map { it.id }.toSet()
         val hereMatters = db.matters().observeAll().first().map { it.id }.toSet()
@@ -196,19 +200,19 @@ object Packet {
         }
         var tasks = 0
         var skipped = 0
-        val haveD = db.delegations().observeAll().first().map { Triple(key(it.what), it.matterId, it.due) }.toHashSet()
+        val haveD = db.delegations().observeAll().first().filterNot { hidden(it.matterId, it.what) }.map { Triple(key(it.what), it.matterId, it.due) }.toHashSet()
         p.delegations.forEach { d ->
             val m = d.matterId?.let(matterId::get)
             if (!haveD.add(Triple(key(d.what), m, d.due))) { skipped++; return@forEach }
             db.delegations().insert(d.copy(personId = d.personId?.let(personId::get), matterId = m, createdAt = now)); tasks++
         }
-        val haveP = db.promises().observeAll().first().map { Triple(key(it.what), it.matterId, it.due) }.toHashSet()
+        val haveP = db.promises().observeAll().first().filterNot { hidden(it.matterId, it.what) }.map { Triple(key(it.what), it.matterId, it.due) }.toHashSet()
         p.promises.forEach { x ->
             val m = x.matterId?.let(matterId::get)
             if (!haveP.add(Triple(key(x.what), m, x.due))) { skipped++; return@forEach }
             db.promises().insert(x.copy(personId = x.personId?.let(personId::get), matterId = m, createdAt = now)); tasks++
         }
-        val haveDl = db.deadlines().observeAll().first().map { Triple(key(it.title), it.matterId, it.day) }.toHashSet()
+        val haveDl = db.deadlines().observeAll().first().filterNot { hidden(it.matterId, it.title) }.map { Triple(key(it.title), it.matterId, it.day) }.toHashSet()
         p.deadlines.forEach { d ->
             val m = d.matterId?.let(matterId::get)
             if (!haveDl.add(Triple(key(d.title), m, d.day))) { skipped++; return@forEach }
@@ -216,7 +220,7 @@ object Packet {
             if (clean == null) skipped++ else { db.deadlines().insert(clean); tasks++ }
         }
         var events = 0
-        val haveE = db.events().observeAll().first().map { Triple(key(it.title), it.day, it.startMin) }.toHashSet()
+        val haveE = db.events().observeAll().first().filterNot { hidden(it.matterId, it.title + " " + it.notes) }.map { Triple(key(it.title), it.day, it.startMin) }.toHashSet()
         val eventId = HashMap<Long, Long>()
         p.events.forEach { e ->
             if (!haveE.add(Triple(key(e.title), e.day, e.startMin))) { skipped++; return@forEach }

@@ -7,8 +7,6 @@ import android.provider.DocumentsContract
 import ua.mandat.data.MandatDb
 import androidx.room.withTransaction
 import ua.mandat.data.Setting
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
 /**
  * Optional automatic backups: once a day, when Mandat closes, an encrypted copy goes to a
@@ -38,8 +36,7 @@ object AutoBackup {
 
     const val KEEP = 7
     private const val INTERVAL_MS = 24L * 60 * 60 * 1000
-    private const val FILE_PREFIX = "archive-auto-"
-    private val NAME_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmmss")
+    private const val FILE_PREFIX = "archive-"
 
     const val REASON_TOO_BIG = "too_big"
     private const val REASON_WRITE = "write"
@@ -119,7 +116,8 @@ object AutoBackup {
                 return null
             }
             val bytes = BackupCrypto.encryptWithKey(json, key, salt)
-            val name = FILE_PREFIX + LocalDateTime.now().format(NAME_TIME) + ".bin"
+            // A neutral random name: it tells neither the app, nor that it is automatic, nor when Mandat was closed
+            val name = FILE_PREFIX + java.util.UUID.randomUUID().toString().replace("-", "").take(10) + ".bin"
             s.put(Setting(KEY_PENDING, "$name\t$now"))
             return Prepared(folder, name, now, bytes)
         } finally {

@@ -29,6 +29,12 @@ import ua.mandat.data.reminderDays
 import ua.mandat.notify.Reminders
 import ua.mandat.data.sqlCipherRawKey
 
+/** Touches and typing anywhere (also in sheets and dialogs, which are windows of their own) reach the idle timer here. */
+object Idle {
+    @Volatile var onTouch: () -> Unit = {}
+    fun touch() = onTouch()
+}
+
 sealed interface LockState {
     data object NeedsScreenLock : LockState
     data object FirstRun : LockState
@@ -230,7 +236,7 @@ class Session(app: Application) : AndroidViewModel(app) {
         val on = db.settings().get(ua.mandat.ui.SETTING_TRIP)?.value == "1"
         val trip = if (on) db.matters().sensitiveIds().toSet() else emptySet()
         val lens = lensRole.value?.let { db.matters().outsideRole(it).toSet() } ?: emptySet()
-        return on to observeHidden(db, trip + lens).first()
+        return on to observeHidden(db, trip + lens, byName = trip).first()
     }
 
     /** Sets what is hidden: the matters and everything worked out from them, in one step. */
@@ -537,8 +543,21 @@ class Session(app: Application) : AndroidViewModel(app) {
     /** Text shared from another app, waiting for the owner to confirm adding it to the Inbox. */
     var sharedText by mutableStateOf<String?>(null)
 
-    /** An unlock prompt is on screen now. */
+    /** A phone-lock prompt (unlock, or a confirmation) is on screen now. */
     var prompting = false
+
+    /** What that prompt is for; its answer goes there. */
+    var purpose: PromptPurpose = PromptPurpose.Unlock
+
+    /** How the last "PIN only" switch ended (true done, false not done), for one message. */
+    var pinOnlyResult by mutableStateOf<Boolean?>(null)
+
+    /** The 32 raw key bytes, only while the owner's own database is open (to wrap them again). The caller clears them. */
+    fun rawKeyForRewrap(): ByteArray? {
+        if (demo || demoOpening || state !is LockState.Open) return null
+        val k = key ?: return null
+        return try { ua.mandat.data.rawFromSqlCipherKey(k) } catch (e: Exception) { null }
+    }
 
     /** The prompt on screen sets up a new key (first run) rather than opening the existing one. */
     var pendingSetup = false
@@ -646,6 +665,31 @@ class Session(app: Application) : AndroidViewModel(app) {
     /** The optional on-device model; its memory is freed on lock and after five idle minutes. */
     val ai = ua.mandat.ai.LocalAi(app, ua.mandat.ai.ModelStore(app), background)
 
+    /** Copying the model file: progress (null when not copying), the last message, and what is installed. */
+    var modelImport by mutableStateOf<Float?>(null)
+    var modelNote by mutableStateOf<String?>(null)
+    var modelState by mutableStateOf(ai.models.state())
+
+    /** Copies a picked model file in the Session's own scope; it goes on until done, also after a lock. */
+    fun importModel(uri: android.net.Uri, deleteOriginal: Boolean) {
+        if (modelImport != null) return
+        modelImport = 0f
+        val app = getApplication<Application>()
+        background.launch {
+            val note = try {
+                val r = ai.models.import(uri, deleteOriginal) { p -> modelImport = p }
+                when (r.originalDeleted) { true -> app.getString(R.string.ai_original_deleted); false -> app.getString(R.string.ai_original_kept); null -> null }
+            } catch (e: Throwable) {
+                app.getString(R.string.ai_failed, e.message ?: "")
+            }
+            withContext(Dispatchers.Main) {
+                modelImport = null
+                modelNote = note
+                modelState = ai.models.state()
+            }
+        }
+    }
+
     // Turning the screen off always locks Mandat, even while the file picker is open
     private val screenOff = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -670,6 +714,28 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     fun moveTo(newState: LockState) {
         state = newState
+    }
+
+    private var idleJob: Job? = null
+    init { Idle.onTouch = { android.os.Handler(android.os.Looper.getMainLooper()).post { touched() } } }
+
+    /**
+     * A touch on the screen: the idle timer starts again. After the chosen minutes without one,
+     * open Mandat locks itself (not while a file is being picked, a prompt is shown or the model is copied).
+     */
+    fun touched() {
+        idleJob?.cancel()
+        if (state !is LockState.Open) return
+        val minutes = Appearance.autoLockMinutes(getApplication())
+        if (minutes <= 0) return
+        idleJob = background.launch {
+            delay(minutes * 60_000L)
+            withContext(Dispatchers.Main) {
+                if (state !is LockState.Open) return@withContext
+                if (picking || prompting || modelImport != null) touched()
+                else if (lock()) autoPrompt = false
+            }
+        }
     }
 
     /** The current lock generation; taken before the unlock prompt is shown. */
@@ -728,6 +794,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                         // Back in the foreground: Mandat's own copy left on the clipboard is taken off
                         AiClipboard.clearIfOurs(getApplication())
                         applyResume()
+                        touched()
                         // Record the automatic copy made when Mandat last closed
                         background.launch { reconcileAuto(db) }
                     }
@@ -808,6 +875,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                         demo = true
                         setHidden(false, Hidden.NONE)
                         state = LockState.Open(db)
+                        touched()
                     }
                 }
             }
@@ -817,6 +885,7 @@ class Session(app: Application) : AndroidViewModel(app) {
     /** Closes the database and wipes the key until the next unlock. True if it was open or opening. */
     fun lock(): Boolean {
         generation++
+        idleJob?.cancel()
         backups.cancelRestore()
         background.launch { runCatching { ai.stopAndRelease() } }
         // Text pasted for the AI to split is kept in the Inbox, not lost
@@ -956,7 +1025,7 @@ class Session(app: Application) : AndroidViewModel(app) {
     }
 
     companion object {
-        private const val PICKER_TIMEOUT_MS = 90 * 1000L
+        private const val PICKER_TIMEOUT_MS = 30 * 1000L
         private const val RESUME_WINDOW_MS = 15 * 60 * 1000L
         /** A larger .vcf is refused (6 000 contacts without photos are a few MB; with photos tens of MB). */
         const val MAX_VCF_BYTES = 50L * 1024 * 1024

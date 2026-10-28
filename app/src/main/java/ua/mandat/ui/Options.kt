@@ -59,8 +59,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import ua.mandat.R
 import ua.mandat.backup.BackupCrypto
 import java.text.DateFormat
@@ -138,18 +136,19 @@ fun Options(session: Session, onBack: () -> Unit) {
                 Text(stringResource(R.string.security_text), style = MaterialTheme.typography.bodyMedium)
                 openDb?.let { TripSwitch(it, session) }
                 if (!session.demo) {
-                    PinOnlySwitch()
+                    PinOnlySwitch(session)
+                    AutoLockChoice(session)
                     ScreenshotsSwitch(session)
                 }
             }
 
             OptionGroup(stringResource(R.string.opt_data), stringResource(R.string.opt_data_hint), Sym.save) {
-                // With trip mode on, a copy holds what is hidden: making, restoring or switching on copies needs the phone's lock
-                val tripNow by session.tripOn.collectAsStateWithLifecycle()
+                // A copy holds everything: making, restoring or switching on copies always needs the phone's lock,
+                // so a moment with the phone unattended (or forced open) cannot set up a lasting leak
                 val ctx = LocalContext.current
-                val guardTitle = stringResource(R.string.trip_confirm_backup)
+                val guardTitle = stringResource(R.string.confirm_backup)
                 fun guarded(action: () -> Unit) {
-                    if (!tripNow) action() else ctx.findActivity()?.let { a -> confirmWithPhoneLock(a, session, guardTitle, action) }
+                    ctx.findActivity()?.let { a -> confirmWithPhoneLock(a, session, guardTitle, action) }
                 }
                 if (!session.demo) {
                     Section(stringResource(R.string.backup_title))
@@ -245,6 +244,7 @@ fun Options(session: Session, onBack: () -> Unit) {
                 OptionGroup(stringResource(R.string.opt_look), stringResource(R.string.opt_look_hint), Sym.palette) {
                     Section(stringResource(R.string.look_title))
                     LookSection(session)
+                    NeutralIconSwitch()
                     Spacer(Modifier.height(8.dp))
                     Section(stringResource(R.string.reminders_title))
                     RemindersSection(session)
@@ -253,7 +253,7 @@ fun Options(session: Session, onBack: () -> Unit) {
                     PhoneCalendarSwitch(session)
                 }
 
-                OptionGroup(stringResource(R.string.ai_title), stringResource(R.string.opt_ai_hint), Sym.info, keepComposed = true) {
+                OptionGroup(stringResource(R.string.ai_title), stringResource(R.string.opt_ai_hint), Sym.info) {
                     AiSection(session)
                 }
             }
@@ -382,8 +382,6 @@ fun Options(session: Session, onBack: () -> Unit) {
 @Composable
 private fun OptionGroup(
     title: String, hint: String, icon: androidx.compose.ui.graphics.vector.ImageVector,
-    // Kept alive while folded, for work that must not stop when the group folds (copying the AI model)
-    keepComposed: Boolean = false,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
 ) {
     // Folded by default, so the whole list fits on a screen; the choice survives turning the phone
@@ -403,7 +401,6 @@ private fun OptionGroup(
             Icon(if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, contentDescription = null, tint = Muted)
         }
         if (open) Column(Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
-        else if (keepComposed) Column(Modifier.height(0.dp).clipToBounds().clearAndSetSemantics { }, content = content)
     }
 }
 
@@ -626,6 +623,7 @@ private fun ScreenshotsSwitch(session: Session) {
     val activity = context as? android.app.Activity ?: return
     var confirm by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
+    val guardShots = stringResource(R.string.screenshots_confirm_title)
     fun set(on: Boolean) {
         failed = !Appearance.setScreenshotsAllowed(activity, on)
         session.screenshotsAllowed = Appearance.screenshotsAllowed(activity)
@@ -649,7 +647,8 @@ private fun ScreenshotsSwitch(session: Session) {
             confirmButton = {
                 androidx.compose.material3.TextButton(onClick = {
                     confirm = false
-                    set(true)
+                    // Allowing screenshots needs the phone's lock too: a recording could carry everything off
+                    (activity as? androidx.fragment.app.FragmentActivity)?.let { a -> confirmWithPhoneLock(a, session, guardShots) { set(true) } }
                 }) { Text(stringResource(R.string.screenshots_confirm_yes)) }
             },
             dismissButton = {
@@ -702,22 +701,65 @@ private fun DistrictSwitch(db: ua.mandat.data.MandatDb, session: Session) {
     }
 }
 
+/** A neutral name and icon on the home screen, so the app does not draw attention. */
+@Composable
+private fun NeutralIconSwitch() {
+    val context = LocalContext.current
+    var on by remember { mutableStateOf(Appearance.neutralIcon(context)) }
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.neutral_icon), style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.neutral_icon_hint), style = MaterialTheme.typography.labelMedium, color = Muted)
+        }
+        androidx.compose.material3.Switch(checked = on, onCheckedChange = { v ->
+            try { Appearance.setNeutralIcon(context, v) } catch (e: Exception) { }
+            on = Appearance.neutralIcon(context)
+        })
+    }
+}
+
+/** After how many minutes without a touch open Mandat locks itself. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun AutoLockChoice(session: Session) {
+    val context = LocalContext.current
+    var minutes by remember { mutableStateOf(Appearance.autoLockMinutes(context)) }
+    Column(Modifier.padding(top = 8.dp)) {
+        Text(stringResource(R.string.autolock_title), style = MaterialTheme.typography.bodyLarge)
+        Text(stringResource(R.string.autolock_hint), style = MaterialTheme.typography.labelMedium, color = Muted)
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 6.dp)) {
+            Appearance.AUTOLOCK_CHOICES.forEach { m ->
+                QuickChip(if (m == 0) stringResource(R.string.autolock_never) else stringResource(R.string.autolock_min, m), minutes == m) {
+                    minutes = m
+                    Appearance.setAutoLockMinutes(context, m)
+                    session.touched()
+                }
+            }
+        }
+    }
+}
+
 /** "PIN only": no fingerprint at the unlock prompt, for situations where a finger could be forced. */
 @Composable
-private fun PinOnlySwitch() {
-    val context = LocalContext.current
-    var on by remember { mutableStateOf(Appearance.pinOnly(context)) }
+private fun PinOnlySwitch(session: Session) {
+    val activity = LocalContext.current.findActivity() as? MainActivity ?: return
+    // The key itself decides: switching wraps the passphrase again with a key that refuses a fingerprint
+    var on by remember { mutableStateOf(activity.keyIsPinOnly()) }
+    val older = !on && Appearance.pinOnly(activity)
     var failed by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(session.pinOnlyResult) {
+        session.pinOnlyResult?.let { ok -> failed = !ok; on = activity.keyIsPinOnly(); session.pinOnlyResult = null }
+    }
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
         Column(Modifier.weight(1f)) {
             Text(stringResource(R.string.pin_only), style = MaterialTheme.typography.bodyLarge)
             Text(stringResource(R.string.pin_only_hint), style = MaterialTheme.typography.labelMedium, color = Muted)
+            // Turned on in an older version: only the prompt left out the fingerprint, not the key
+            if (older) Text(stringResource(R.string.pin_only_older), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
             if (failed) Text(stringResource(R.string.pin_only_failed), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
         }
-        androidx.compose.material3.Switch(checked = on, onCheckedChange = { v ->
-            failed = !Appearance.setPinOnly(context, v)
-            on = Appearance.pinOnly(context)
-        })
+        // Both ways need the phone's PIN or password (never a fingerprint)
+        androidx.compose.material3.Switch(checked = on, onCheckedChange = { v -> failed = !activity.switchPinOnly(v) })
     }
 }
 

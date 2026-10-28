@@ -139,7 +139,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
         ?.takeIf { t -> t.matterId == null || t.matterId !in session.hiddenMatters.value }?.title }) } }
         .collectAsStateWithLifecycle(null)
     val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
-    val contacts by remember(db) { db.contacts().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val contacts by remember(db) { db.contacts().observeAll().hidingNamed(session, { null }) { it.name + " " + it.organization + " " + it.jobTitle + " " + it.notes + " " + it.label } }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val trip by session.tripOn.collectAsStateWithLifecycle()
     // 0 a ZIP with a password (other apps open it), 1 Mandat's own encrypted file, 2 an open file
@@ -215,7 +215,8 @@ fun ExportScreen(db: MandatDb, session: Session) {
         val single = !plan.obsidian && listOf(plan.people || plan.book, plan.calendar, plan.tables.isNotEmpty(), plan.diary, plan.matterId != null, plan.everything, plan.textId != null).count { it } == 1 &&
             plan.tables.size <= 1 && !(plan.people && plan.book) && plan.textId == null && plan.briefId == null && !((plan.diary || plan.matterId != null) && plan.pdf)
         // A file from the demo says so in its name, so it is never taken for real data
-        val base = if (session.demo) "mandat-demo" else "mandat"
+        // Neutral names: the file does not say which app it comes from (the demo's still says it is the demo)
+        val base = if (session.demo) "demo-export" else "export"
         if (mode == PROTECT_MANDAT) return "$base-$date.$MANDAT_EXPORT_EXT"
         if (protect || !single) return "$base-$date.zip"
         return "$base-$date." + when {
@@ -226,10 +227,17 @@ fun ExportScreen(db: MandatDb, session: Session) {
             else -> "md"
         }
     }
+    val confirmTitle = stringResource(R.string.confirm_export)
     fun startSave() {
-        pickedAt = session.generationNow()
-        session.pickingFile = true
-        save.launch(fileName())
+        // Anything leaving Mandat needs the phone's lock first: a moment with the phone unattended
+        // (or forced open) cannot carry data off
+        context.findActivity()?.let { a ->
+            confirmWithPhoneLock(a, session, confirmTitle) {
+                pickedAt = session.generationNow()
+                session.pickingFile = true
+                save.launch(fileName())
+            }
+        }
     }
     // Mandat's own file holds only what Mandat can take back in: contacts and the calendar
     val ownOnly = mode == PROTECT_MANDAT
@@ -255,7 +263,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
             Modifier.padding(padding).imePadding().fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Space.screen),
             verticalArrangement = Arrangement.spacedBy(Space.gap),
         ) {
-            if (trip) Text(stringResource(R.string.export_trip_note), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+            if (trip) Text(stringResource(R.string.export_trip_note), style = MaterialTheme.typography.labelMedium, color = Muted)
             else if (hidden.isNotEmpty()) Text(stringResource(R.string.export_lens_note), style = MaterialTheme.typography.labelMedium, color = Muted)
             // One period for everything chosen below; each kind of record is taken by its own dates
             SectionCard(Sym.calendar, stringResource(R.string.export_period)) {
@@ -272,6 +280,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
             }
             SectionCard(Sym.save, stringResource(R.string.export_what)) {
                 Check(stringResource(R.string.export_people), plan.people) { plan.people = it }
+                if (plan.people) Text(stringResource(R.string.export_people_note), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(start = 40.dp))
                 if (plan.people) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(start = 40.dp)) {
                     QuickChip(stringResource(R.string.matters_all_roles), plan.peopleCategory == null) { plan.peopleCategory = null }
                     (listOf("TEAM") + categoryChoices(people)).forEach { k ->
@@ -286,6 +295,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
                     }
                 }
                 Check(stringResource(R.string.export_calendar), plan.calendar) { plan.calendar = it }
+                if (plan.calendar) Text(stringResource(R.string.export_calendar_note), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(start = 40.dp))
                 if (plan.calendar && plan.period == ExportPeriod.ALL) Row(Modifier.padding(start = 40.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(R.string.export_span_all, R.string.export_span_future, R.string.export_span_year).forEachIndexed { i, l ->
                         QuickChip(stringResource(l), plan.calendarSpan == i) { plan.calendarSpan = i }
@@ -421,7 +431,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
             // The packet first; calendar and contacts from the same file only after it, so the windows never overlap
             scope.launch {
                 val r = session.withOpenDb { d ->
-                    try { ua.mandat.data.Packet.apply(d, pk, personChoice, matterChoice) } catch (e: Exception) { ua.mandat.data.Packet.Result(0, 0, 0, 0, 0, failed = true) }
+                    try { ua.mandat.data.Packet.apply(d, pk, personChoice, matterChoice, session.hidden.value.let { h -> { m: Long?, t: String -> h.item(m, t) } }) } catch (e: Exception) { ua.mandat.data.Packet.Result(0, 0, 0, 0, 0, failed = true) }
                 } ?: ua.mandat.data.Packet.Result(0, 0, 0, 0, 0, failed = true)
                 session.packetResult = r
                 // Deleting the file is offered only once everything from it is written
@@ -515,7 +525,7 @@ const val PROTECT_MANDAT = 1
 const val PROTECT_OPEN = 2
 
 /** Extension of Mandat's own encrypted export file. */
-const val MANDAT_EXPORT_EXT = "mandatx"
+const val MANDAT_EXPORT_EXT = "bin"
 
 @Composable
 private fun Check(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
@@ -670,7 +680,7 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
         add("people.vcf", Export.vcard(chosen.map { Export.personToV(it, it.allCategories.map(::catName)) }))
     }
     if (plan.book) {
-        val chosen = db.contacts().all().filter { plan.bookGroup == null || it.label == plan.bookGroup }
+        val chosen = db.contacts().all().filter { (plan.bookGroup == null || it.label == plan.bookGroup) && free(null, it.name, it.organization, it.jobTitle, it.notes, it.label) }
         add("address-book.vcf", Export.vcard(chosen.map(Export::contactToV)))
     }
     val today = Dates.today()
@@ -756,7 +766,7 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
             }
         })
     }
-    plan.matterId?.takeIf { visible(it) }?.let { id -> db.matters().get(id)?.let { m -> addDoc("matter-$id", matterDossier(context, db, m, nameOf, hidden)) } }
+    plan.matterId?.takeIf { visible(it) }?.let { id -> db.matters().get(id)?.let { m -> addDoc("matter", matterDossier(context, db, m, nameOf, hidden)) } }
     plan.textId?.let { id -> db.texts().get(id) }?.takeIf { visible(it.matterId) }?.let { t ->
         // Word for editing elsewhere; PDF and Markdown as with other documents
         out += "text.docx" to ua.mandat.data.Docx.build("# " + t.title + "\n\n" + t.body)
@@ -940,7 +950,9 @@ private fun readBytes(context: Context, uri: Uri): ByteArray? = try {
 private suspend fun importEvents(s: Session, items: List<ua.mandat.data.IcsReader.Item>): Boolean = s.withOpenDb { db ->
     try {
         val now = System.currentTimeMillis()
-        val existing = db.events().observeAll().first().map { Triple(it.title, it.day, it.startMin) }.toSet()
+        // Compared only with what is shown now: a skipped event must never tell that a hidden one exists
+        val h = s.hidden.value
+        val existing = db.events().observeAll().first().filterNot { h.item(it.matterId, it.title, it.notes) }.map { Triple(it.title, it.day, it.startMin) }.toSet()
         db.withTransaction {
             items.filter { Triple(it.title, it.day, it.startMin) !in existing }.forEach { i ->
                 ua.mandat.data.cleanEvent(ua.mandat.data.Event(title = i.title, day = i.day, endDay = i.endDay, startMin = i.startMin, endMin = i.endMin,

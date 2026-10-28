@@ -54,6 +54,38 @@ object Appearance {
 
     fun setPinOnly(context: Context, on: Boolean): Boolean = prefs(context).edit().putBoolean("pin_only", on).commit()
 
+    private fun entry(context: Context, neutral: Boolean) =
+        android.content.ComponentName(context.packageName, if (neutral) "ua.mandat.LauncherNeutral" else "ua.mandat.Launcher")
+
+    /** The home-screen entry shows a neutral name and icon ("Notes") instead of "Mandat". */
+    fun neutralIcon(context: Context): Boolean = try {
+        context.packageManager.getComponentEnabledSetting(entry(context, true)) == android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+    } catch (e: Exception) {
+        false
+    }
+
+    /**
+     * Switches the home-screen entry. The new one is turned on before the old one is turned off,
+     * so there is never a moment without any way to open Mandat. The launcher may take a few seconds.
+     */
+    fun setNeutralIcon(context: Context, neutral: Boolean) {
+        val pm = context.packageManager
+        val on = android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+        val off = android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+        val keep = android.content.pm.PackageManager.DONT_KILL_APP
+        pm.setComponentEnabledSetting(entry(context, neutral), on, keep)
+        pm.setComponentEnabledSetting(entry(context, !neutral), off, keep)
+    }
+
+    /** Minutes without a touch after which open Mandat locks itself (0: never). Kept here: needed before unlocking. */
+    fun autoLockMinutes(context: Context): Int =
+        try { prefs(context).getInt("autolock", DEFAULT_AUTOLOCK).takeIf { it in AUTOLOCK_CHOICES } ?: DEFAULT_AUTOLOCK } catch (e: Exception) { DEFAULT_AUTOLOCK }
+
+    fun setAutoLockMinutes(context: Context, minutes: Int) { prefs(context).edit().putInt("autolock", minutes).apply() }
+
+    const val DEFAULT_AUTOLOCK = 5
+    val AUTOLOCK_CHOICES = listOf(0, 1, 2, 5, 10, 30)
+
     /**
      * Screenshots are forbidden unless the owner explicitly allows them (for example to show the
      * app to testers). Kept here because the lock screen must be protected before unlocking.

@@ -19,7 +19,14 @@ class HiddenNames(titles: Collection<String>) {
     fun named(text: String): Boolean {
         if (stems.isEmpty() || text.isBlank()) return false
         val words = wordsOf(text)
-        return stems.any { title -> title.all { s -> words.any { w -> if (s.all(Char::isDigit)) w == s else w.startsWith(s) } } }
+        return stems.any { title -> title.all { s -> words.any { w ->
+            when {
+                s.all(Char::isDigit) -> w == s
+                // A short stem ("пар" from "Парк") matches only near forms ("парку"), never "партія"
+                s.length == 3 -> w.startsWith(s) && w.length <= 5
+                else -> w.startsWith(s)
+            }
+        } } }
     }
 
     /** True when any of [texts] names a hidden title. */

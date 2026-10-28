@@ -18,3 +18,14 @@ fun sqlCipherRawKey(secret: ByteArray): ByteArray {
     out[out.size - 1] = '\''.code.toByte()
     return out
 }
+
+/** The 32 bytes back from the x'…' form (to wrap them again with a new hardware key). */
+fun rawFromSqlCipherKey(key: ByteArray): ByteArray {
+    require(key.size == 67 && key[0] == 'x'.code.toByte() && key[1] == '\''.code.toByte() && key[66] == '\''.code.toByte()) { "Unexpected key form" }
+    fun v(b: Byte): Int = when (val c = b.toInt().toChar()) {
+        in '0'..'9' -> c - '0'
+        in 'A'..'F' -> c - 'A' + 10
+        else -> throw IllegalArgumentException("Unexpected key form")
+    }
+    return ByteArray(32) { i -> ((v(key[2 + i * 2]) shl 4) or v(key[3 + i * 2])).toByte() }
+}
