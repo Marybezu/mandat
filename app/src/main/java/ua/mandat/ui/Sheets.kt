@@ -1,5 +1,6 @@
 package ua.mandat.ui
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -110,7 +111,9 @@ fun SheetWindow(title: String, onDismiss: () -> Unit, bottom: (@Composable () ->
 private fun SheetFrame(title: String, onDismiss: () -> Unit, bottom: (@Composable () -> Unit)?, body: @Composable ColumnScope.() -> Unit) {
     BackHandler(onBack = onDismiss)
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
+        // On a tablet the sheet keeps a readable width in the middle of the screen
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Column(Modifier.widthIn(max = 720.dp).fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
             Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = Space.screen, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close)) }
                 Text(title, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
@@ -120,6 +123,7 @@ private fun SheetFrame(title: String, onDismiss: () -> Unit, bottom: (@Composabl
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Box(Modifier.fillMaxWidth().padding(horizontal = Space.screen, vertical = 10.dp)) { bottom() }
             }
+        }
         }
     }
 }

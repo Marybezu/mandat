@@ -1,5 +1,6 @@
 package ua.mandat.ui
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.statusBars
@@ -195,6 +196,16 @@ private fun Locked(failed: Boolean, onUnlock: () -> Unit) = Centered {
 /** Overdue for longer than this is folded into "old, to sort out". */
 const val OLD_OVERDUE_DAYS = 30
 
+/** A tab's icon; Review in the middle stands out in the flag's yellow. */
+@Composable
+private fun TabIcon(t: Tab) {
+    if (t.central) {
+        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.tertiary, contentColor = MaterialTheme.colorScheme.primary, modifier = Modifier.size(44.dp)) {
+            Box(contentAlignment = Alignment.Center) { Icon(ImageVector.vectorResource(t.icon), contentDescription = null, modifier = Modifier.size(24.dp)) }
+        }
+    } else Icon(ImageVector.vectorResource(t.icon), contentDescription = null)
+}
+
 private enum class Tab(val title: Int, val icon: Int, val central: Boolean = false) {
     Today(R.string.tab_today, R.drawable.sym_home),
     Matters(R.string.tab_matters, R.drawable.sym_folder),
@@ -368,6 +379,7 @@ private fun Main(db: MandatDb, session: Session) {
     }
 
     val aiCenterLabel = stringResource(R.string.ai_center)
+    val wide = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 840
     val context = androidx.compose.ui.platform.LocalContext.current
     Scaffold(
         topBar = {
@@ -394,34 +406,19 @@ private fun Main(db: MandatDb, session: Session) {
                 LensBar(db, session, full = tab == Tab.Today || tab == Tab.Matters || tab == Tab.Review)
             }
         },
-        bottomBar = {
+        // On a phone the tabs are at the bottom, under the thumb; on a tablet they move to a rail at the side
+        bottomBar = { if (!wide) {
             NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
                 Tab.entries.forEach { t ->
                     NavigationBarItem(
                         selected = t == tab,
                         onClick = { tab = t },
-                        icon = {
-                            if (t.central) {
-                                // Blue and yellow: the one place where the flag's yellow is used boldly
-                                Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.tertiary,
-                                    contentColor = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(44.dp),
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(ImageVector.vectorResource(t.icon), contentDescription = null, modifier = Modifier.size(24.dp))
-                                    }
-                                }
-                            } else {
-                                Icon(ImageVector.vectorResource(t.icon), contentDescription = null)
-                            }
-                        },
+                        icon = { TabIcon(t) },
                         label = { Text(stringResource(t.title), style = MaterialTheme.typography.labelMedium) },
                     )
                 }
             }
-        },
+        } },
         floatingActionButton = {
             // On Matters "+" starts a matter; everywhere else it notes something into the Inbox
             FloatingActionButton(onClick = {
@@ -436,7 +433,18 @@ private fun Main(db: MandatDb, session: Session) {
             }
         },
     ) { padding ->
-        Box(Modifier.padding(padding).fillMaxSize()) {
+        Row(Modifier.padding(padding).fillMaxSize()) {
+        if (wide) androidx.compose.material3.NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
+            Tab.entries.forEach { t ->
+                androidx.compose.material3.NavigationRailItem(
+                    selected = t == tab, onClick = { tab = t }, icon = { TabIcon(t) },
+                    label = { Text(stringResource(t.title), style = MaterialTheme.typography.labelMedium) },
+                )
+            }
+        }
+        // A readable width on a large screen: lines that run across a whole tablet are hard to follow
+        Box(Modifier.weight(1f).fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Box(Modifier.widthIn(max = 760.dp).fillMaxSize()) {
             when (tab) {
                 Tab.Today -> Today(
                     db, session,
@@ -452,6 +460,8 @@ private fun Main(db: MandatDb, session: Session) {
                 Tab.Time -> TimeTab(db, session)
                 Tab.Review -> ReviewScreen(db, session)
             }
+        }
+        }
         }
     }
 
