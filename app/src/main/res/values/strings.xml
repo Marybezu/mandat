@@ -1219,4 +1219,12 @@
     <string name="district_visits_s">visits this year</string>
     <string name="district_promises_s">promises open</string>
     <string name="district_long_ago_s">not visited 90+ days</string>
+    <string name="day_main_title">Main today</string>
+    <string name="day_main_empty">Pick 1–3 things that would make the day a good one.</string>
+    <string name="day_main_all_done">The main things for today are done ✓</string>
+    <string name="day_main_progress">%1$d of %2$d done</string>
+    <string name="day_main_add">Add a main thing</string>
+    <string name="day_main_remove">Remove from main</string>
+    <string name="day_main_pick">What is main today?</string>
+    <string name="day_main_nothing">No deadlines for today or tomorrow and no matters in focus.</string>
 </resources>

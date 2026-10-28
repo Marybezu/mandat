@@ -552,6 +552,8 @@ internal fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onT
             }
         }
 
+        // The day's one to three main things, chosen by the owner, first of all
+        DayMainCard(db, session, focus, deadlines, delegations, promises, titleOf, nameOf, roleNames, onOpenMatter = onOpen)
         SmartListChips(smartCounts(active, openD.size, openP.size, today)) { session.smartList = it }
         // The one AI moment on this screen, folded until asked (only with the model on the phone)
         AiRow(session, ua.mandat.ai.LocalAi.Task.MORNING, facts = { session.withOpenDb { todayFacts(it, session) }.orEmpty() })

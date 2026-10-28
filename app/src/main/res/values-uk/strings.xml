@@ -1223,4 +1223,12 @@
     <string name="district_visits_s">візитів за рік</string>
     <string name="district_promises_s">обіцянок відкрито</string>
     <string name="district_long_ago_s">не були 90+ днів</string>
+    <string name="day_main_title">Головне сьогодні</string>
+    <string name="day_main_empty">Оберіть 1–3 справи, після яких день буде вдалим.</string>
+    <string name="day_main_all_done">Головне на сьогодні зроблено ✓</string>
+    <string name="day_main_progress">Зроблено %1$d з %2$d</string>
+    <string name="day_main_add">Додати головне</string>
+    <string name="day_main_remove">Прибрати з головного</string>
+    <string name="day_main_pick">Що головне сьогодні?</string>
+    <string name="day_main_nothing">Немає строків на сьогодні-завтра й справ у фокусі.</string>
 </resources>
