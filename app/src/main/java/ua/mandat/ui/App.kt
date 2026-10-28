@@ -472,6 +472,15 @@ private fun Main(db: MandatDb, session: Session) {
 
     if (session.inboxDraft != null) AddDialog(db, session)
 
+    // After a colleague's packet was taken in: what was added and what was already here, wherever the owner is
+    session.packetResult?.let { r ->
+        AlertDialog(
+            onDismissRequest = { session.packetResult = null },
+            text = { Text(if (r.failed) stringResource(R.string.packet_failed) else stringResource(R.string.packet_done, r.matters, r.people, r.tasks, r.events, r.skipped)) },
+            confirmButton = { TextButton(onClick = { session.packetResult = null }) { Text(stringResource(R.string.ok)) } },
+        )
+    }
+
     // Text shared from another app waits for the owner's own data: in the demo it would vanish
     if (session.inboxDraft == null && !session.demo) session.sharedText?.let { shared ->
         AlertDialog(

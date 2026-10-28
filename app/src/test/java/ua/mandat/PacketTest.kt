@@ -22,10 +22,20 @@ class PacketTest {
     @Test fun matchesTheSamePeopleAndMatters() {
         val p = Packet.P(listOf(matter(1, "  справа а "), matter(2, "Нова")), listOf(person(10, "Людина Б", "Орг"), person(11, "Людина В", "Інша")),
             emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), emptyMap())
-        val plan = Packet.plan(p, listOf(person(100, "людина б"), person(101, "Людина В", "Не та")), listOf(matter(50, "Справа А")))
-        assertEquals(100L, plan.personMap[10])
-        assertNull(plan.personMap[11])
-        assertEquals(50L, plan.matterMap[1])
-        assertEquals(1, plan.newMatters)
+        val plan = Packet.plan(p, listOf(person(100, "людина б", "орг"), person(101, "Людина В", "Не та"), person(102, "Людина В")), listOf(matter(50, "Справа А")))
+        // The same name and organisation: taken as the same person; otherwise the owner decides
+        assertEquals(100L, plan.personDefault[10])
+        assertNull(plan.personDefault[11])
+        assertEquals(listOf(101L, 102L), plan.personCandidates[11]?.map { it.id })
+        // A matter is never matched by itself
+        assertEquals(listOf(50L), plan.matterCandidates[1]?.map { it.id })
+        assertNull(plan.matterDefault[1])
+    }
+
+    @Test fun daysOutsideReasonDropTheRecord() {
+        val json = """{"format":1,"deadlines":[{"title":"А","day":1000000000000,"status":"OPEN"},{"title":"Б","day":20000,"status":"DONE"}]}"""
+        val p = Packet.decode(json)!!
+        assertEquals(listOf("Б"), p.deadlines.map { it.title })
+        assertEquals(true, p.deadlines.single().closedAt != null)
     }
 }

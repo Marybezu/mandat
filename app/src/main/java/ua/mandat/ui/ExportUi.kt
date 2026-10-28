@@ -91,6 +91,9 @@ class ExportPlan {
     var packet by mutableStateOf(false)
     /** Set only on the copy of the plan used for Mandat's own file: the packet is built only there. */
     var packetFile = false
+    /** People's contacts go into the packet (on by default); their stances only when chosen. */
+    var packetContacts by mutableStateOf(true)
+    var packetStances by mutableStateOf(false)
     /** The period records are taken from (a whole backup is never cut by it). */
     var period by mutableStateOf(ExportPeriod.ALL)
     var periodFrom by mutableStateOf(Dates.today() - 30)
@@ -157,13 +160,10 @@ fun ExportScreen(db: MandatDb, session: Session) {
     var sealed by remember { mutableStateOf<ByteArray?>(null) }
     val hidden by session.hiddenMatters.collectAsStateWithLifecycle()
     androidx.compose.runtime.LaunchedEffect(hidden) { if (hidden.isNotEmpty()) plan.everything = false }
-    // After a colleague's packet was taken in: what was added, and what was already here
-    androidx.compose.runtime.LaunchedEffect(session.packetResult) {
-        session.packetResult?.let { r -> message = context.getString(R.string.packet_done, r.matters, r.people, r.tasks, r.events, r.skipped); session.packetResult = null }
-    }
     // A full copy is never cut by a period: choosing one turns the copy off rather than leave it ticked unseen
     androidx.compose.runtime.LaunchedEffect(plan.period) { if (plan.period != ExportPeriod.ALL) plan.everything = false }
     val cadenceSet by remember(db) { db.settings().observe(ua.mandat.data.SETTING_CADENCE_START) }.collectAsStateWithLifecycle(null)
+    val sensitiveIds by remember(db) { db.matters().observeSensitiveIds() }.collectAsStateWithLifecycle(emptyList())
 
     var tooBigForMandat by remember { mutableStateOf(false) }
     val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
@@ -286,9 +286,12 @@ fun ExportScreen(db: MandatDb, session: Session) {
                     if (plan.packet) Column(Modifier.padding(start = 40.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(checked = plan.matterId != null, onCheckedChange = { if (it) pickingMatter = true else plan.matterId = null })
-                            Text(plan.matterId?.let { id -> stringResource(R.string.export_matter_one, titles.firstOrNull { it.id == id }?.title.orEmpty()) }
+                            Text(plan.matterId?.let { id -> stringResource(R.string.packet_matter_one, titles.firstOrNull { it.id == id }?.title.orEmpty()) }
                                 ?: stringResource(R.string.packet_one_matter), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.clickable { pickingMatter = true })
                         }
+                        if (plan.matterId != null && plan.matterId in sensitiveIds) Text(stringResource(R.string.packet_sensitive), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                        Check(stringResource(R.string.packet_contacts), plan.packetContacts) { plan.packetContacts = it }
+                        Check(stringResource(R.string.packet_stances), plan.packetStances) { plan.packetStances = it }
                         Text(stringResource(R.string.packet_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
                     }
                     Text(stringResource(R.string.export_mandat_only), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(start = 12.dp, top = 6.dp))
@@ -400,7 +403,19 @@ fun ExportScreen(db: MandatDb, session: Session) {
         dismissButton = { TextButton(onClick = { warnOpen = false }) { Text(stringResource(R.string.cancel)) } },
     )
     message?.let { m -> AlertDialog(onDismissRequest = { message = null }, text = { Text(m) }, confirmButton = { TextButton(onClick = { message = null }) { Text(stringResource(R.string.ok)) } }) }
-    pendingImport?.let { p ->
+    pendingImport?.takeIf { it.packet != null }?.let { p ->
+        PacketReview(db, session, p.packet!!, stringResource(p.summary, *p.args.toTypedArray()), onDismiss = { pendingImport = null }) { personChoice, matterChoice ->
+            pendingImport = null
+            val pk = p.packet
+            session.write { d ->
+                session.packetResult = try { ua.mandat.data.Packet.apply(d, pk, personChoice, matterChoice) }
+                    catch (e: Exception) { ua.mandat.data.Packet.Result(0, 0, 0, 0, 0, failed = true) }
+            }
+            p.apply(session)
+            if (p.source != null) offerDelete = p.source
+        }
+    }
+    pendingImport?.takeIf { it.packet == null }?.let { p ->
         AlertDialog(
             onDismissRequest = { pendingImport = null },
             title = { Text(stringResource(R.string.import_title)) },
@@ -541,6 +556,7 @@ private suspend fun runExport(context: Context, session: Session, plan: ExportPl
             p.calendar = plan.calendar; p.calendarSpan = plan.calendarSpan; p.pdf = false
             p.period = plan.period; p.periodFrom = plan.periodFrom; p.periodTo = plan.periodTo
             p.packet = plan.packet; p.packetFile = true; p.matterId = plan.matterId
+            p.packetContacts = plan.packetContacts; p.packetStances = plan.packetStances
         } else plan
         files = session.withOpenDb { db -> buildFiles(context, db, session.hiddenMatters.value, wanted) }.orEmpty()
         // Mandat's own file carries only what Mandat can take back in
@@ -740,27 +756,34 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
     }
     plan.briefId?.let { id -> people.firstOrNull { it.id == id } }?.let { p -> addDoc("brief", briefDocument(context, db, p, hidden, titles)) }
     if (plan.packet && plan.packetFile) {
-        // Matters: the one chosen, or those that moved in the period; never a sensitive or hidden one
+        // Never a sensitive or hidden matter, nor anything tied to one or naming one in its text
         val all = db.matters().observeAll().first()
         val excluded = all.filter { it.sensitive || it.id in hidden }.map { it.id }.toSet()
-        fun ok(id: Long?) = id == null || id !in excluded
-        val matters = when (val one = plan.matterId) {
-            null -> all.filter { it.id !in excluded && (span == null || msIn(it.createdAt) || msIn(it.updatedAt) || it.id in movedIds) }
-            else -> all.filter { it.id == one && it.id !in excluded }
+        val excludedTitles = all.filter { it.id in excluded }.map { it.title.trim().lowercase() }.filter { it.length >= 3 }
+        fun clean(vararg text: String) = excludedTitles.isEmpty() || text.none { t -> excludedTitles.any { t.lowercase().contains(it) } }
+        val dgAll = db.delegations().observeAll().first().filter { it.matterId != null && it.matterId !in excluded && clean(it.what, it.purpose, it.doneMeans) && taskIn(it.createdAt, it.closedAt, it.due) }
+        val prAll = db.promises().observeAll().first().filter { it.matterId != null && it.matterId !in excluded && clean(it.what, it.toWhom, it.source) && taskIn(it.createdAt, it.closedAt, it.due) }
+        val dlAll = db.deadlines().observeAll().first().filter { it.matterId != null && it.matterId !in excluded && clean(it.title, it.basis) && taskIn(it.createdAt, it.closedAt, it.day) }
+        val evAll = events.filter { it.matterId != null && it.matterId !in excluded && clean(it.title, it.notes, it.outcome, it.place) }
+        // Matters: the one chosen; or those that moved in the period, and those its tasks and events belong to.
+        // Records without a matter never go into a packet: a packet is about matters
+        val ids: Set<Long> = when (val one = plan.matterId) {
+            null -> all.filter { it.id !in excluded && (span == null || msIn(it.createdAt) || msIn(it.updatedAt) || it.id in movedIds) }.map { it.id }.toSet() +
+                (dgAll.mapNotNull { it.matterId } + prAll.mapNotNull { it.matterId } + dlAll.mapNotNull { it.matterId } + evAll.mapNotNull { it.matterId })
+            else -> if (one in excluded) emptySet() else setOf(one)
         }
-        val ids = matters.map { it.id }.toSet()
-        // With one matter: its own tasks and events; otherwise everything of the period (also without a matter)
-        fun belongs(matterId: Long?) = ok(matterId) && if (plan.matterId != null) matterId in ids else (matterId == null || matterId in ids || span != null)
-        val dg = db.delegations().observeAll().first().filter { belongs(it.matterId) && free(it.matterId, it.what, it.purpose, it.doneMeans) && taskIn(it.createdAt, it.closedAt, it.due) }
-        val pr = db.promises().observeAll().first().filter { belongs(it.matterId) && free(it.matterId, it.what, it.toWhom, it.source) && taskIn(it.createdAt, it.closedAt, it.due) }
-        val dl = db.deadlines().observeAll().first().filter { belongs(it.matterId) && free(it.matterId, it.title, it.basis) && taskIn(it.createdAt, it.closedAt, it.day) }
-        val ev = events.filter { belongs(it.matterId) }
+        val matters = all.filter { it.id in ids }
+        val dg = dgAll.filter { it.matterId in ids }
+        val pr = prAll.filter { it.matterId in ids }
+        val dl = dlAll.filter { it.matterId in ids }
+        val ev = evAll.filter { it.matterId in ids }
         val evIds = ev.map { it.id }.toSet()
         val eventPeople = db.events().observeLinks().first().filter { it.eventId in evIds }
-        val links = db.people().observeLinks().first().filter { it.matterId in ids }
-        // People who take part in what goes in; never private notes
+        // Stances are the owner's own judgement: they go only when chosen
+        val links = db.people().observeLinks().first().filter { it.matterId in ids }.map { if (plan.packetStances) it else it.copy(stance = null, raci = null) }
+        // People who take part in what goes in; never private notes, contacts only when chosen
         val personIds = (links.map { it.personId } + dg.mapNotNull { it.personId } + pr.mapNotNull { it.personId } + eventPeople.map { it.personId }).toSet()
-        val persons = people.filter { it.id in personIds }
+        val persons = people.filter { it.id in personIds }.map { if (plan.packetContacts) it else it.copy(contact = "") }
         val packetPeople = persons.map { it.id }.toSet()
         val roles = db.roles().observeAll().first().associate { it.id to it.name }
         val packet = ua.mandat.data.Packet.P(matters, persons, links.filter { it.personId in packetPeople }, dg, pr, dl, ev,
@@ -855,7 +878,7 @@ private suspend fun matterDossier(context: Context, db: MandatDb, m: ua.mandat.d
 
 /** A file read for import, waiting for confirmation. */
 /** [args] fill the [summary] text (by default the count); [source] is an open file that may be deleted afterwards. */
-class PendingImport(val summary: Int, val count: Int, val args: List<Int> = listOf(count), val source: Uri? = null, val apply: (Session) -> Unit)
+class PendingImport(val summary: Int, val count: Int, val args: List<Int> = listOf(count), val source: Uri? = null, val packet: ua.mandat.data.Packet.P? = null, val apply: (Session) -> Unit)
 
 private const val MAX_IMPORT_BYTES = 20L * 1024 * 1024
 
@@ -968,10 +991,9 @@ private fun openMandatExport(file: ByteArray, password: String, stop: () -> Bool
             }
         }
         val pk = packet
+        // A packet is reviewed in its own sheet (matches confirmed there); calendar and contacts come along after it
         if (pk != null) Opened.Ok(PendingImport(R.string.import_packet_summary, pk.matters.size + pk.tasks + pk.events.size + events.size + contacts.size,
-            args = listOf(pk.matters.size, pk.people.size, pk.tasks, pk.events.size + events.size, contacts.size)) { s ->
-            // Added to what is there: matching people and matters are used, nothing is changed or deleted
-            s.write { d -> s.packetResult = ua.mandat.data.Packet.apply(d, pk) }
+            args = listOf(pk.matters.size, pk.people.size, pk.tasks, pk.events.size, events.size + contacts.size), packet = pk) { s ->
             if (events.isNotEmpty()) importEvents(s, events)
             if (contacts.isNotEmpty()) s.previewContacts(contacts, null)
         })
@@ -1087,3 +1109,46 @@ object PdfText {
 /** The folder Obsidian notes are written under in an export. */
 internal const val OBSIDIAN_ROOT = "Mandat/"
 
+
+/**
+ * Reviewing a colleague's packet before it is added: for each person or matter that may already be
+ * here, the owner says whether it is the same one or a new one. A person is preselected as the
+ * same only when the name and organisation both agree; a matter never by itself.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PacketReview(db: MandatDb, session: Session, pk: ua.mandat.data.Packet.P, summary: String, onDismiss: () -> Unit, onAdd: (Map<Long, Long?>, Map<Long, Long?>) -> Unit) {
+    val plan by androidx.compose.runtime.produceState<ua.mandat.data.Packet.Plan?>(null, pk) {
+        value = session.withOpenDb { d -> ua.mandat.data.Packet.plan(pk, d.people().all(), d.matters().observeAll().first()) }
+    }
+    val personChoice = remember(plan) { androidx.compose.runtime.mutableStateMapOf<Long, Long?>().apply { plan?.personDefault?.let { putAll(it) } } }
+    val matterChoice = remember(plan) { androidx.compose.runtime.mutableStateMapOf<Long, Long?>().apply { plan?.matterDefault?.let { putAll(it) } } }
+    EditSheet(title = stringResource(R.string.packet_review_title), onDismiss = onDismiss,
+        onSave = plan?.let { { onAdd(personChoice.toMap(), matterChoice.toMap()) } }, saveText = stringResource(R.string.packet_add)) {
+        SheetGroup { Text(summary, style = MaterialTheme.typography.bodyMedium) }
+        val pl = plan
+        if (pl != null && (pl.personCandidates.isNotEmpty() || pl.matterCandidates.isNotEmpty())) {
+            Text(stringResource(R.string.packet_review_hint), style = MaterialTheme.typography.labelMedium, color = Muted)
+            if (pl.matterCandidates.isNotEmpty()) SheetGroup(stringResource(R.string.obs_matters)) {
+                pk.matters.filter { it.id in pl.matterCandidates }.forEach { m ->
+                    Text(m.title, style = MaterialTheme.typography.titleSmall)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        QuickChip(stringResource(R.string.packet_as_new), matterChoice[m.id] == null) { matterChoice[m.id] = null }
+                        pl.matterCandidates.getValue(m.id).forEach { c -> QuickChip(stringResource(R.string.packet_same_as, c.title), matterChoice[m.id] == c.id) { matterChoice[m.id] = c.id } }
+                    }
+                }
+            }
+            if (pl.personCandidates.isNotEmpty()) SheetGroup(stringResource(R.string.obs_people)) {
+                pk.people.filter { it.id in pl.personCandidates }.forEach { x ->
+                    Text(listOf(x.name, x.organization).filter { it.isNotBlank() }.joinToString(" · "), style = MaterialTheme.typography.titleSmall)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        QuickChip(stringResource(R.string.packet_as_new), personChoice[x.id] == null) { personChoice[x.id] = null }
+                        pl.personCandidates.getValue(x.id).forEach { c ->
+                            QuickChip(stringResource(R.string.packet_same_as, listOf(c.name, c.organization).filter { it.isNotBlank() }.joinToString(" · ")), personChoice[x.id] == c.id) { personChoice[x.id] = c.id }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
