@@ -565,7 +565,7 @@ internal fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onT
         val oldCount = overdueCount - recentDl.size - recentD.size - recentP.size
         if (overdueCount > 0) {
             SectionCard(Sym.warning, stringResource(R.string.overdue_title), Modifier.bringIntoViewRequester(overdueAt),
-                count = overdueCount, attention = true) {
+                count = overdueCount, attention = true, canvas = Tone.risk) {
                 val rows = buildList<@Composable () -> Unit> {
                     recentDl.forEach { d -> add { DeadlineRow(d, d.matterId?.let(titleOf::get), session) } }
                     recentD.forEach { d -> add { DelegationRow(d, d.personId?.let(nameOf::get), d.matterId?.let(titleOf::get), session) } }
@@ -599,7 +599,7 @@ internal fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onT
         }
 
         SectionCard(Sym.schedule, stringResource(R.string.soon_title), Modifier.bringIntoViewRequester(soonAt),
-            count = soonDl.size + soonD.size + soonP.size) {
+            count = soonDl.size + soonD.size + soonP.size, canvas = Tone.plan) {
             val rows = buildList<@Composable () -> Unit> {
                 soonDl.forEach { d -> add { DeadlineRow(d, d.matterId?.let(titleOf::get), session) } }
                 soonD.forEach { d -> add { DelegationRow(d, d.personId?.let(nameOf::get), d.matterId?.let(titleOf::get), session) } }

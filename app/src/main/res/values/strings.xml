@@ -1215,4 +1215,8 @@
         <item quantity="one">%1$d delegation</item>
         <item quantity="other">%1$d delegations</item>
     </plurals>
+    <string name="district_communities_s">communities</string>
+    <string name="district_visits_s">visits this year</string>
+    <string name="district_promises_s">promises open</string>
+    <string name="district_long_ago_s">not visited 90+ days</string>
 </resources>

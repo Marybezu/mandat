@@ -217,8 +217,8 @@ private fun spanText(period: Period, span: Span, cadenceStart: Long?): String {
 
 /** A titled block of the dashboard. */
 @Composable
-private fun Block(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, content: @Composable () -> Unit) =
-    SectionCard(icon, title, foldKey = "dash:" + title) {
+private fun Block(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, canvas: Color? = null, content: @Composable () -> Unit) =
+    SectionCard(icon, title, foldKey = "dash:" + title, canvas = canvas) {
         Spacer(Modifier.height(6.dp))
         content()
     }
@@ -227,7 +227,7 @@ private fun Block(icon: androidx.compose.ui.graphics.vector.ImageVector, title: 
 private class DashData(val o: Overview, val prev: Overview?, val weekly: List<Int>)
 
 @Composable
-private fun MovedBlock(o: Overview, prev: Overview?, weekly: List<Int>, open: (PeriodKind) -> Unit) = Block(Sym.checkCircle, stringResource(R.string.dash_moved_title)) {
+private fun MovedBlock(o: Overview, prev: Overview?, weekly: List<Int>, open: (PeriodKind) -> Unit) = Block(Sym.checkCircle, stringResource(R.string.dash_moved_title), Tone.plan) {
     Column(verticalArrangement = Arrangement.spacedBy(Space.gap)) {
         // One compact line of four numbers, each in its own colour, with the change since the last period
         Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
@@ -335,7 +335,7 @@ private fun RolesBlock(o: Overview, names: Map<Long, String>, hintIdle: Boolean,
     }
 
 @Composable
-private fun DeadlinesBlock(o: Overview, open: (PeriodKind) -> Unit) = Block(Sym.schedule, stringResource(R.string.dash_deadlines_title)) {
+private fun DeadlinesBlock(o: Overview, open: (PeriodKind) -> Unit) = Block(Sym.schedule, stringResource(R.string.dash_deadlines_title), Tone.risk) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (o.deadlinesDue > 0) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -354,7 +354,7 @@ private fun DeadlinesBlock(o: Overview, open: (PeriodKind) -> Unit) = Block(Sym.
 }
 
 @Composable
-private fun PromisesBlock(o: Overview, open: (PeriodKind) -> Unit, openAll: () -> Unit) = Block(Sym.checkCircle, stringResource(R.string.dash_promises_title)) {
+private fun PromisesBlock(o: Overview, open: (PeriodKind) -> Unit, openAll: () -> Unit) = Block(Sym.checkCircle, stringResource(R.string.dash_promises_title), Tone.promise) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         val made = o.publicPromises.total + o.personalPromises.total
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

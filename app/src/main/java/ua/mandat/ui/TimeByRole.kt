@@ -73,7 +73,7 @@ fun TimeBlock(db: MandatDb, session: Session, span: Span, roles: List<Role>) {
     val planned = shares.associate { it.key.removePrefix(TIME_SHARE_PREFIX).toLongOrNull() to (it.value.toIntOrNull() ?: 0) }
     val names = roles.associate { it.id to it.name }
     if (total == 0 && planned.isEmpty()) return
-    SectionCard(Sym.schedule, stringResource(R.string.time_by_role), foldKey = "dash:time") {
+    SectionCard(Sym.schedule, stringResource(R.string.time_by_role), foldKey = "dash:time", canvas = Tone.people) {
         Text(stringResource(R.string.time_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
         // The whole as a ring: the four largest roles, the rest together; a part opens what the time went to
         val ranked = (roles.map { it.id } + 0L).filter { (byRole[it] ?: 0) > 0 }.sortedByDescending { byRole[it] ?: 0 }

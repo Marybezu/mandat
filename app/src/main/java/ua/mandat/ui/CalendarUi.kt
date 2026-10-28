@@ -1,5 +1,6 @@
 package ua.mandat.ui
 
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.offset
@@ -243,7 +244,7 @@ fun CalendarScreenForTest(db: MandatDb, session: Session, view0: Int) {
                         (0 until 7).forEach { i ->
                             val d = from + w * 7 + i
                             val inMonth = weekMode || LocalDate.ofEpochDay(d).month == sel.month
-                            DayCell(d, d == selected, d == today, inMonth, dotsOn(d), Modifier.weight(1f)) { selected = d }
+                            DayCell(d, d == selected, d == today, inMonth, dotsOn(d), Modifier.weight(1f), load = eventsOn(d).size + deadlines.count { it.day == d } + delegations.count { it.due == d } + promises.count { it.due == d }) { selected = d }
                         }
                     }
                 }
@@ -308,11 +309,13 @@ fun CalendarScreenForTest(db: MandatDb, session: Session, view0: Int) {
 }
 
 @Composable
-private fun DayCell(day: Long, selected: Boolean, today: Boolean, inMonth: Boolean, dots: List<Color>, modifier: Modifier, onClick: () -> Unit) {
+private fun DayCell(day: Long, selected: Boolean, today: Boolean, inMonth: Boolean, dots: List<Color>, modifier: Modifier, load: Int = 0, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
+    // A busier day is shaded a little deeper, so heavy days stand out from afar
+    val shade = when { load >= 6 -> 0.26f; load >= 4 -> 0.17f; load >= 2 -> 0.09f; load >= 1 -> 0.04f; else -> 0f }
     Column(
         modifier.aspectRatio(0.9f).padding(2.dp).clip(RoundedCornerShape(8.dp))
-            .background(if (selected) scheme.primaryContainer else Color.Transparent)
+            .background(if (selected) scheme.primaryContainer else if (inMonth && shade > 0f) Tone.plan.copy(alpha = shade) else Color.Transparent)
             .let { if (today && !selected) it.border(1.dp, scheme.primary, RoundedCornerShape(8.dp)) else it }
             .clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -359,7 +362,9 @@ private fun Legend() {
 fun EventRow(e: Event, names: List<String>, matterTitle: String?, onDay: Long?, session: Session) {
     val kind = EventKind.of(e.kind)
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+        // Tinted by the kind of event, so a day reads at a glance (a plenary, a reception, a trip)
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+            .background(kind.color().copy(alpha = 0.13f).compositeOver(MaterialTheme.colorScheme.surface))
             .clickable { session.openEvent(e.id) }.padding(10.dp),
         verticalAlignment = Alignment.Top,
     ) {
@@ -766,7 +771,7 @@ fun DayStrip(db: MandatDb, session: Session) {
     if (events.isEmpty()) return
     val nowMin = java.time.LocalTime.now().let { it.hour * 60 + it.minute }
     val sorted = events.sortedWith(compareBy({ it.startMin != null }, { it.startMin }))
-    SectionCard(Sym.calendar, stringResource(R.string.day_strip), count = events.size) {
+    SectionCard(Sym.calendar, stringResource(R.string.day_strip), count = events.size, canvas = Tone.plan) {
         val timed = sorted.filter { it.startMin != null }
         val running = timed.firstOrNull { it.startMin!! <= nowMin && (it.endMin ?: (it.startMin + 60)) > nowMin }
         val next = timed.firstOrNull { it.startMin!! > nowMin }

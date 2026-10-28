@@ -1,5 +1,6 @@
 package ua.mandat.ui
 
+import androidx.compose.ui.graphics.compositeOver
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -164,26 +165,24 @@ fun DistrictScreen(db: MandatDb, session: Session) {
             verticalArrangement = Arrangement.spacedBy(Space.gap),
         ) {
             item(key = "tiles") {
+                // One compact line, each number in the colour of what it counts
                 MCard {
-                    Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
-                        StatTile(communities.size, stringResource(R.string.district_communities)) { only = 0 }
-                        StatTile(all.sumOf { it.visitsYear }, stringResource(R.string.district_visits_year)) { only = if (only == 3) 0 else 3 }
-                    }
-                    Spacer(Modifier.height(Space.gap))
-                    Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
-                        StatTile(openPromises, stringResource(R.string.district_open_promises)) { only = if (only == 2) 0 else 2 }
-                        StatTile(longAgo, stringResource(R.string.district_long_ago), attention = true) { only = if (only == 1) 0 else 1 }
-                    }
+                    CompactStats(listOf(
+                        CompactStat(communities.size.toString(), stringResource(R.string.district_communities_s), Tone.district) { only = 0 },
+                        CompactStat(all.sumOf { it.visitsYear }.toString(), stringResource(R.string.district_visits_s), Tone.plan) { only = if (only == 3) 0 else 3 },
+                        CompactStat(openPromises.toString(), stringResource(R.string.district_promises_s), Tone.promise) { only = if (only == 2) 0 else 2 },
+                        CompactStat(longAgo.toString(), stringResource(R.string.district_long_ago_s), if (longAgo > 0) Tone.risk else Tone.district) { only = if (only == 1) 0 else 1 },
+                    ))
                 }
             }
             if (communities.isEmpty()) item(key = "empty") { EmptyHint(Sym.home, stringResource(R.string.district_empty)) }
             if (coming.isNotEmpty()) item(key = "coming") {
-                SectionCard(Sym.calendar, stringResource(R.string.district_coming), count = coming.size) {
+                SectionCard(Sym.calendar, stringResource(R.string.district_coming), count = coming.size, canvas = Tone.plan) {
                     Paged(coming, page = 5) { e -> EventRow(e, emptyList(), null, null, session) }
                 }
             }
             if (all.isNotEmpty()) item(key = "coverage") {
-                SectionCard(Sym.home, stringResource(R.string.district_coverage), count = all.size) {
+                SectionCard(Sym.home, stringResource(R.string.district_coverage), count = all.size, canvas = Tone.district) {
                     Text(stringResource(R.string.district_coverage_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
                     Spacer(Modifier.height(4.dp))
                     val list = when (only) {
@@ -197,7 +196,7 @@ fun DistrictScreen(db: MandatDb, session: Session) {
                 }
             }
             if (all.isNotEmpty()) item(key = "report") {
-                SectionCard(Sym.checkCircle, stringResource(R.string.district_report)) {
+                SectionCard(Sym.checkCircle, stringResource(R.string.district_report), canvas = Tone.promise) {
                     Text(stringResource(R.string.district_report_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
                     Spacer(Modifier.height(4.dp))
                     all.sortedBy { it.c.name }.forEach { s ->
@@ -249,8 +248,10 @@ fun DistrictScreen(db: MandatDb, session: Session) {
 private fun CommunityLine(s: CommunityStats, today: Long, onOpen: () -> Unit) {
     val days = s.lastVisit?.let { (today - it).toInt() }
     val fraction = ((days ?: 365).coerceAtMost(365)) / 365f
+    // Freshness as a tint: green — visited lately, amber — a while ago, coral — over 90 days or never
+    val fresh = if (days == null || days > 90) ChartColors.coral else if (days > 30) ChartColors.amber else ChartColors.teal
     Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(fresh.copy(alpha = 0.12f).compositeOver(MaterialTheme.colorScheme.surface))
             .clickable(onClick = onOpen).padding(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

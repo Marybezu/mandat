@@ -168,7 +168,7 @@ fun PeopleList(db: MandatDb, session: Session) {
                         Text("${list.size}  ▸", style = MaterialTheme.typography.labelLarge, color = Muted)
                     }
                 } else {
-                    SectionCard(Sym.group, title, count = list.size) {
+                    SectionCard(Sym.group, title, count = list.size, canvas = if (title == teamLabel) Tone.people else null) {
                         if (!narrowed && people.size > 30) TextButton(onClick = {
                             if (title == teamLabel) closedGroups = closedGroups + title
                             openGroups = openGroups - title
@@ -328,7 +328,7 @@ fun PeopleList(db: MandatDb, session: Session) {
 private fun PersonLine(p: Person, openCount: Int, onOpen: () -> Unit) {
     Column(
         Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+            .background(if (LocalOnCanvas.current) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
             .clickable(onClick = onOpen).padding(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

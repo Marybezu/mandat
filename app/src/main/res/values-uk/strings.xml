@@ -1219,4 +1219,8 @@
         <item quantity="many">%1$d доручень</item>
         <item quantity="other">%1$d доручення</item>
     </plurals>
+    <string name="district_communities_s">громад</string>
+    <string name="district_visits_s">візитів за рік</string>
+    <string name="district_promises_s">обіцянок відкрито</string>
+    <string name="district_long_ago_s">не були 90+ днів</string>
 </resources>

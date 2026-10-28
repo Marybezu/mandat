@@ -90,7 +90,7 @@ fun RowScope.StatTile(value: Int, label: String, attention: Boolean = false, acc
     val shape = RoundedCornerShape(10.dp)
     Column(
         Modifier.weight(1f).clip(shape)
-            .background(tone?.copy(alpha = 0.10f) ?: MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+            .background(tone?.copy(alpha = 0.10f) ?: if (LocalOnCanvas.current) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
             .let { if (warn) it.border(androidx.compose.foundation.BorderStroke(1.dp, ChartColors.coral.copy(alpha = 0.6f)), shape) else it }
             .let { if (onClick != null) it.clickable(onClick = onClick) else it }
             .padding(horizontal = 12.dp, vertical = 8.dp),

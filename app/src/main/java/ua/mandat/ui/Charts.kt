@@ -516,3 +516,24 @@ fun CompactStats(stats: List<CompactStat>) {
         }
     }
 }
+
+/**
+ * The meaning of colours across Mandat: the same colour always says the same thing, so the eye
+ * reads groups before words. Used muted, as canvases and tints; a screen uses only a few.
+ */
+object Tone {
+    /** Focus and attention. */
+    val focus get() = ChartColors.focus
+    /** Ordinary planned work, events and the calendar. */
+    val plan get() = ChartColors.blue
+    /** Deadlines, risk, what needs looking at. */
+    val risk get() = ChartColors.coral
+    /** Promises. */
+    val promise get() = ChartColors.purple
+    /** People and the team. */
+    val people get() = ChartColors.teal
+    /** The district and its communities. */
+    val district get() = ChartColors.green
+    /** Media and information. */
+    val media get() = ChartColors.pink
+}
