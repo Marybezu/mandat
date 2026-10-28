@@ -878,9 +878,10 @@ class Session(app: Application) : AndroidViewModel(app) {
                 val gz = app.assets.open(ua.mandat.data.DemoData.ASSET).use { it.readBytes() }
                 val json = ua.mandat.data.DemoData.prepare(gz, Dates.today())
                 MandatDb.openDemo(app, passphrase).also { d ->
-                    try { ua.mandat.backup.BackupData.restore(d, json) } catch (e: Exception) { d.close(); throw e }
+                    try { ua.mandat.backup.BackupData.restore(d, json) } catch (e: Throwable) { d.close(); throw e }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                // Anything at all (also running out of memory): the demo just does not open, Mandat stays
                 null
             }
             withContext(Dispatchers.Main) {
