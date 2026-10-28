@@ -1,0 +1,8 @@
+Archive:  app/build/outputs/apk/release/app-release-unsigned.apk
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+    10812  1981-01-01 01:01   assets/dexopt/baseline.prof
+      599  1981-01-01 01:01   assets/dexopt/baseline.profm
+    62144  1981-01-01 01:01   assets/eff_large_wordlist.txt
+---------                     -------
+    73555                     3 files

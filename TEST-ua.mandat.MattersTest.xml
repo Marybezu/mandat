@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ua.mandat.MattersTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-28T21:02:06.268Z" hostname="runnervmnwato" time="0.001">
+  <properties/>
+  <testcase name="fieldsAreTrimmed" classname="ua.mandat.MattersTest" time="0.0"/>
+  <testcase name="firstLineOfANoteBecomesTheTitle" classname="ua.mandat.MattersTest" time="0.0"/>
+  <testcase name="veryLongFirstLineIsShortenedAndKeptInNotes" classname="ua.mandat.MattersTest" time="0.001"/>
+  <testcase name="emptyTitleIsRefused" classname="ua.mandat.MattersTest" time="0.0"/>
+  <testcase name="unknownStoredValuesFallBackSafely" classname="ua.mandat.MattersTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

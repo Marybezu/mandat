@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ua.mandat.WordsTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-28T21:02:13.723Z" hostname="runnervmnwato" time="0.003">
+  <properties/>
+  <testcase name="findsAMatterWithTheSameWords" classname="ua.mandat.WordsTest" time="0.002"/>
+  <testcase name="formsCountTogetherAndFunctionWordsAreLeftOut" classname="ua.mandat.WordsTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ua.mandat.screens.ScreensTest" tests="32" skipped="0" failures="0" errors="0" timestamp="2026-10-28T21:02:26.579Z" hostname="runnervmnwato" time="6.657">
+  <properties/>
+  <testcase name="timeDark" classname="ua.mandat.screens.ScreensTest" time="0.386"/>
+  <testcase name="todayDark" classname="ua.mandat.screens.ScreensTest" time="0.269"/>
+  <testcase name="community" classname="ua.mandat.screens.ScreensTest" time="0.24"/>
+  <testcase name="budget" classname="ua.mandat.screens.ScreensTest" time="0.24"/>
+  <testcase name="dashboard" classname="ua.mandat.screens.ScreensTest" time="0.231"/>
+  <testcase name="promises" classname="ua.mandat.screens.ScreensTest" time="0.275"/>
+  <testcase name="people" classname="ua.mandat.screens.ScreensTest" time="0.279"/>
+  <testcase name="periodMoved" classname="ua.mandat.screens.ScreensTest" time="0.172"/>
+  <testcase name="directory" classname="ua.mandat.screens.ScreensTest" time="0.213"/>
+  <testcase name="review" classname="ua.mandat.screens.ScreensTest" time="0.287"/>
+  <testcase name="topics" classname="ua.mandat.screens.ScreensTest" time="0.174"/>
+  <testcase name="triage" classname="ua.mandat.screens.ScreensTest" time="0.21"/>
+  <testcase name="weekGrid" classname="ua.mandat.screens.ScreensTest" time="0.161"/>
+  <testcase name="influenceMatter" classname="ua.mandat.screens.ScreensTest" time="0.174"/>
+  <testcase name="calendarDark" classname="ua.mandat.screens.ScreensTest" time="0.187"/>
+  <testcase name="matterCard" classname="ua.mandat.screens.ScreensTest" time="0.26"/>
+  <testcase name="calendar" classname="ua.mandat.screens.ScreensTest" time="0.193"/>
+  <testcase name="info" classname="ua.mandat.screens.ScreensTest" time="0.178"/>
+  <testcase name="next" classname="ua.mandat.screens.ScreensTest" time="0.155"/>
+  <testcase name="time" classname="ua.mandat.screens.ScreensTest" time="0.159"/>
+  <testcase name="brief" classname="ua.mandat.screens.ScreensTest" time="0.17"/>
+  <testcase name="diary" classname="ua.mandat.screens.ScreensTest" time="0.216"/>
+  <testcase name="retro" classname="ua.mandat.screens.ScreensTest" time="0.289"/>
+  <testcase name="today" classname="ua.mandat.screens.ScreensTest" time="0.164"/>
+  <testcase name="alliances" classname="ua.mandat.screens.ScreensTest" time="0.176"/>
+  <testcase name="district" classname="ua.mandat.screens.ScreensTest" time="0.172"/>
+  <testcase name="periodYear" classname="ua.mandat.screens.ScreensTest" time="0.159"/>
+  <testcase name="influenceAll" classname="ua.mandat.screens.ScreensTest" time="0.146"/>
+  <testcase name="matters" classname="ua.mandat.screens.ScreensTest" time="0.186"/>
+  <testcase name="eventSheet" classname="ua.mandat.screens.ScreensTest" time="0.188"/>
+  <testcase name="waiting" classname="ua.mandat.screens.ScreensTest" time="0.174"/>
+  <testcase name="oneOnOne" classname="ua.mandat.screens.ScreensTest" time="0.171"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

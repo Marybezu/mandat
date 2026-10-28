@@ -1,0 +1,97 @@
+run 185 success
+----
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :app
+w: ⚠️ Deprecated Gradle Version
+The used Gradle version (Gradle 8.14.3) is deprecated and will not be supported in future Kotlin Gradle Plugin releases.
+The minimum supported Gradle version will become Gradle 8.14.4 in Kotlin 2.5.0.
+
+This warning can be suppressed in 'gradle.properties':
+    kotlin.suppressGradlePluginWarnings=DeprecatedGradleVersionWarning
+Solution: Please update the Gradle version to at least Gradle 8.14.4.
+
+
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :app:mergeReleaseJniLibFolders
+> Task :app:mergeReleaseNativeLibs
+> Task :app:checkReleaseDuplicateClasses
+> Task :app:buildKotlinToolingMetadata
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+
+> Task :app:stripReleaseDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so, liblitertlm_jni.so, libsqlcipher.so. Run with --info option to learn more.
+
+> Task :app:checkReleaseAarMetadata
+> Task :app:extractReleaseNativeSymbolTables
+> Task :app:processReleaseNavigationResources
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:compileReleaseNavigationResources
+> Task :app:generateReleaseResValues
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:generateReleaseResources
+> Task :app:packageReleaseResources
+> Task :app:createReleaseCompatibleScreenManifests
+> Task :app:extractDeepLinksRelease
+> Task :app:mergeReleaseResources
+> Task :app:parseReleaseLocalResources
+
+> Task :app:processReleaseMainManifest
+/home/runner/work/mandat/mandat/app/src/main/AndroidManifest.xml:6:5-87 Warning:
+	uses-permission#android.permission.INTERNET was tagged at AndroidManifest.xml:6 to remove other declarations but no other declaration present
+/home/runner/work/mandat/mandat/app/src/main/AndroidManifest.xml:7:5-99 Warning:
+	uses-permission#android.permission.ACCESS_NETWORK_STATE was tagged at AndroidManifest.xml:7 to remove other declarations but no other declaration present
+/home/runner/work/mandat/mandat/app/src/main/AndroidManifest.xml:8:5-96 Warning:
+	uses-permission#android.permission.ACCESS_WIFI_STATE was tagged at AndroidManifest.xml:8 to remove other declarations but no other declaration present
+
+> Task :app:processReleaseManifest
+> Task :app:desugarReleaseFileDependencies
+> Task :app:javaPreCompileRelease
+> Task :app:mergeReleaseStartupProfile
+> Task :app:processReleaseManifestForPackage
+> Task :app:mergeReleaseShaders
+> Task :app:compileReleaseShaders NO-SOURCE
+> Task :app:mergeReleaseArtProfile
+> Task :app:generateReleaseAssets UP-TO-DATE
+> Task :app:mergeReleaseAssets
+> Task :app:compressReleaseAssets
+> Task :app:extractReleaseVersionControlInfo
+> Task :app:extractProguardFiles
+> Task :app:collectReleaseDependencies
+> Task :app:sdkReleaseDependencyData
+> Task :app:writeReleaseAppMetadata
+> Task :app:writeReleaseSigningConfigVersions
+> Task :app:processReleaseResources
+> Task :app:optimizeReleaseResources
+> Task :app:mergeExtDexRelease
+> Task :app:kspReleaseKotlin
+> Task :app:compileReleaseKotlin
+w: file:///home/runner/work/mandat/mandat/app/src/main/java/ua/mandat/ui/AiUi.kt:91:64 Elvis operator (?:) always returns the left operand of non-nullable type 'Float'.
+w: file:///home/runner/work/mandat/mandat/app/src/main/java/ua/mandat/ui/Backups.kt:253:79 Unnecessary non-null assertion (!!) on a non-null receiver of type 'AutoBackup.Result'.
+w: file:///home/runner/work/mandat/mandat/app/src/main/java/ua/mandat/ui/Backups.kt:253:85 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Uri'.
+w: file:///home/runner/work/mandat/mandat/app/src/main/java/ua/mandat/ui/Session.kt:643:128 Expression is unused.
+w: file:///home/runner/work/mandat/mandat/app/src/main/java/ua/mandat/ui/Session.kt:655:128 Expression is unused.
+w: file:///home/runner/work/mandat/mandat/app/src/main/java/ua/mandat/ui/TasksUi.kt:277:50 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Long'.
+
+> Task :app:compileReleaseJavaWithJavac NO-SOURCE
+> Task :app:dexBuilderRelease
+> Task :app:mergeReleaseGlobalSynthetics
+> Task :app:generateReleaseLintVitalReportModel
+> Task :app:processReleaseJavaRes
+> Task :app:mergeReleaseJavaResource
+> Task :app:mergeDexRelease
+> Task :app:compileReleaseArtProfile
+> Task :app:lintVitalAnalyzeRelease
+> Task :app:lintVitalReportRelease
+> Task :app:lintVitalRelease
+> Task :app:packageRelease
+> Task :app:createReleaseApkListingFileRedirect
+> Task :app:assembleRelease
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1793221219017.json
+
+[Incubating] Problems report is available at: file:///home/runner/work/mandat/mandat/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 2m 24s
+50 actionable tasks: 50 executed

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ua.mandat.screens.DemoScreensTest" tests="20" skipped="0" failures="0" errors="0" timestamp="2026-10-28T21:02:13.800Z" hostname="runnervmnwato" time="12.762">
+  <properties/>
+  <testcase name="wholeApp" classname="ua.mandat.screens.DemoScreensTest" time="5.248"/>
+  <testcase name="budget" classname="ua.mandat.screens.DemoScreensTest" time="0.673"/>
+  <testcase name="promises" classname="ua.mandat.screens.DemoScreensTest" time="0.537"/>
+  <testcase name="people" classname="ua.mandat.screens.DemoScreensTest" time="0.533"/>
+  <testcase name="directory" classname="ua.mandat.screens.DemoScreensTest" time="0.374"/>
+  <testcase name="review" classname="ua.mandat.screens.DemoScreensTest" time="0.606"/>
+  <testcase name="topics" classname="ua.mandat.screens.DemoScreensTest" time="0.408"/>
+  <testcase name="triage" classname="ua.mandat.screens.DemoScreensTest" time="0.422"/>
+  <testcase name="calendar" classname="ua.mandat.screens.DemoScreensTest" time="0.397"/>
+  <testcase name="info" classname="ua.mandat.screens.DemoScreensTest" time="0.355"/>
+  <testcase name="time" classname="ua.mandat.screens.DemoScreensTest" time="0.342"/>
+  <testcase name="week" classname="ua.mandat.screens.DemoScreensTest" time="0.331"/>
+  <testcase name="diary" classname="ua.mandat.screens.DemoScreensTest" time="0.325"/>
+  <testcase name="graph" classname="ua.mandat.screens.DemoScreensTest" time="0.254"/>
+  <testcase name="retro" classname="ua.mandat.screens.DemoScreensTest" time="0.363"/>
+  <testcase name="texts" classname="ua.mandat.screens.DemoScreensTest" time="0.312"/>
+  <testcase name="today" classname="ua.mandat.screens.DemoScreensTest" time="0.371"/>
+  <testcase name="district" classname="ua.mandat.screens.DemoScreensTest" time="0.33"/>
+  <testcase name="matters" classname="ua.mandat.screens.DemoScreensTest" time="0.288"/>
+  <testcase name="influence" classname="ua.mandat.screens.DemoScreensTest" time="0.288"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

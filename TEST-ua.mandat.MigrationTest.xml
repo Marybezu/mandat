@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ua.mandat.MigrationTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-28T21:02:09.346Z" hostname="runnervmnwato" time="4.154">
+  <properties/>
+  <testcase name="damagedValuesInABackupAreBroughtInRange" classname="ua.mandat.MigrationTest" time="3.426"/>
+  <testcase name="oldBackupsRestore" classname="ua.mandat.MigrationTest" time="0.171"/>
+  <testcase name="fromVersion1" classname="ua.mandat.MigrationTest" time="0.112"/>
+  <testcase name="fromVersion2" classname="ua.mandat.MigrationTest" time="0.069"/>
+  <testcase name="fromVersion3" classname="ua.mandat.MigrationTest" time="0.062"/>
+  <testcase name="fromVersion5" classname="ua.mandat.MigrationTest" time="0.065"/>
+  <testcase name="fromVersion7" classname="ua.mandat.MigrationTest" time="0.061"/>
+  <testcase name="todaysBackupRoundTrip" classname="ua.mandat.MigrationTest" time="0.073"/>
+  <testcase name="newerBackupIsRefused" classname="ua.mandat.MigrationTest" time="0.028"/>
+  <testcase name="migrationKeepsMeaning" classname="ua.mandat.MigrationTest" time="0.085"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[[Robolectric] WARN: Android SDK 36 requires Java 21 (have Java 17). Tests won't be run on SDK 36 unless explicitly requested.
+]]></system-err>
+</testsuite>

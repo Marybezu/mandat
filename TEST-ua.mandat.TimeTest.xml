@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ua.mandat.TimeTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-28T21:02:13.589Z" hostname="runnervmnwato" time="0.006">
+  <properties/>
+  <testcase name="reminderDaysIncludeDayBeforeAndSkipClosed" classname="ua.mandat.TimeTest" time="0.001"/>
+  <testcase name="hardDeadlineNeedsBasis" classname="ua.mandat.TimeTest" time="0.001"/>
+  <testcase name="searchIgnoresCaseAlsoForCyrillic" classname="ua.mandat.TimeTest" time="0.004"/>
+  <testcase name="overdueRemindsEveryDayOfTheWindow" classname="ua.mandat.TimeTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ua.mandat.ObsidianTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-28T21:02:13.510Z" hostname="runnervmnwato" time="0.002">
+  <properties/>
+  <testcase name="numberedNamesNeverRepeat" classname="ua.mandat.ObsidianTest" time="0.001"/>
+  <testcase name="namesAreSafeAndUnique" classname="ua.mandat.ObsidianTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
