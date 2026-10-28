@@ -64,9 +64,9 @@ fun saveTopics(session: Session, list: List<Topic>) {
 /** Everything that mentions a topic, in all sections. */
 private class TopicItems(db: MandatDb, session: Session) {
     val matters = db.matters().observeAll().hiding(session) { it.id }
-    val delegations = db.delegations().observeAll().hiding(session) { it.matterId }
-    val promises = db.promises().observeAll().hiding(session) { it.matterId }
-    val deadlines = db.deadlines().observeAll().hiding(session) { it.matterId }
+    val delegations = db.delegations().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.purpose }
+    val promises = db.promises().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom }
+    val deadlines = db.deadlines().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.basis }
     val inbox = db.inbox().observeAll().hidingNamed(session, { null }) { it.text }
     val reviews = db.reviews().observeAll().hidingReviews(session)
 }

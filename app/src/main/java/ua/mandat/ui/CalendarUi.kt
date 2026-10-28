@@ -171,11 +171,11 @@ fun CalendarScreenForTest(db: MandatDb, session: Session, view0: Int) {
     val from = if (weekMode) weekStart(selected) else weekStart(monthFirst)
     val to = if (weekMode) from + 6 else from + 41
 
-    val events by remember(db, from, to) { db.events().observeRange(from, to).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val events by remember(db, from, to) { db.events().observeRange(from, to).hidingNamed(session, { it.matterId }) { it.title + " " + it.notes } }.collectAsStateWithLifecycle(emptyList())
     val links by remember(db) { db.events().observeLinks() }.collectAsStateWithLifecycle(emptyList())
-    val deadlines by remember(db) { db.deadlines().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
-    val delegations by remember(db) { db.delegations().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
-    val promises by remember(db) { db.promises().observeOpen().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val deadlines by remember(db) { db.deadlines().observeOpen().hidingNamed(session, { it.matterId }) { it.title + " " + it.basis } }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db) { db.delegations().observeOpen().hidingNamed(session, { it.matterId }) { it.what + " " + it.purpose } }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeOpen().hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom } }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val nameOf = people.associate { it.id to it.name }
@@ -781,7 +781,7 @@ private fun layoutLanes(blocks: List<Pair<Int, Int>>): List<Pair<Int, Int>> {
 @Composable
 fun DayStrip(db: MandatDb, session: Session) {
     val today = Dates.today()
-    val events by remember(db, today) { db.events().observeRange(today, today).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val events by remember(db, today) { db.events().observeRange(today, today).hidingNamed(session, { it.matterId }) { it.title + " " + it.notes } }.collectAsStateWithLifecycle(emptyList())
     if (events.isEmpty()) return
     val nowMin = java.time.LocalTime.now().let { it.hour * 60 + it.minute }
     val sorted = events.sortedWith(compareBy({ it.startMin != null }, { it.startMin }))

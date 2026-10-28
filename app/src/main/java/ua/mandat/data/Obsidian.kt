@@ -33,7 +33,7 @@ object Obsidian {
 
     fun link(name: String) = "[[$name]]"
 
-    private val TILDE_FENCE = Regex("(?m)^([ \\t]*)~~~")
+    private val TILDES = Regex("~{3,}")
 
     /**
      * Makes a note's text inert before it reaches Obsidian: text that came from elsewhere (a shared
@@ -43,11 +43,13 @@ object Obsidian {
      */
     fun neutralize(note: String): String {
         val bodyStart = if (note.startsWith("---\n")) note.indexOf("\n---\n", 3).let { if (it < 0) 0 else it + 5 } else 0
+        // Backticks and runs of tildes become entities: no code span or block can start anywhere (in a
+        // quote or a list too), and no backslash trick can undo it
         val body = note.substring(bodyStart)
-            .replace("`", "\\`")
+            .replace("`", "&#96;")
             .replace("<", "&lt;")
             .replace("![", "!\\[")
-            .replace(TILDE_FENCE, "$1\\\\~~~")
+            .replace(TILDES) { m -> "&#126;".repeat(m.value.length) }
         return note.substring(0, bodyStart) + body
     }
 }

@@ -56,7 +56,8 @@ class ModelStore(private val context: Context) {
             if (total > 0 && total != E2B_SIZE) error(context.getString(ua.mandat.R.string.ai_wrong_file, E2B_FILE))
             val tmp = File(dir, "import.tmp")
             tmp.delete() // a leftover from a failed copy must not block the space check
-            if (total > 0) require(dir.usableSpace > total + 200 * MB) { context.getString(ua.mandat.R.string.ai_no_space) }
+            // Also when the size is not told: room for the published model is needed either way
+            require(dir.usableSpace > (if (total > 0) total else E2B_SIZE) + 200 * MB) { context.getString(ua.mandat.R.string.ai_no_space) }
             // Only the exact published file is accepted: it is checked by its SHA-256 while copying.
             val sha = java.security.MessageDigest.getInstance("SHA-256")
             try {

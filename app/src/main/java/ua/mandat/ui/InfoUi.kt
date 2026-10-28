@@ -88,8 +88,8 @@ private fun reachLabel(r: Int): Int = when (r) {
 @Composable
 fun InfoScreen(db: MandatDb, session: Session) {
     BackHandler { session.showInfo = false }
-    val items by remember(db) { db.info().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
-    val messages by remember(db) { db.info().observeMessages().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val items by remember(db) { db.info().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.notes } }.collectAsStateWithLifecycle(emptyList())
+    val messages by remember(db) { db.info().observeMessages().hidingNamed(session, { it.matterId }) { it.text + " " + it.proof } }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val nameOf = people.associate { it.id to it.name }
@@ -413,7 +413,7 @@ fun MessageDialog(db: MandatDb, session: Session, d: MessageDraft) {
 @Composable
 fun AlliancesScreen(db: MandatDb, session: Session) {
     BackHandler { session.showAlliances = false }
-    val all by remember(db) { db.info().observeAlliances().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val all by remember(db) { db.info().observeAlliances().hidingNamed(session, { it.matterId }) { it.withWhom + " " + it.about + " " + it.notes } }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val nameOf = people.associate { it.id to it.name }
@@ -547,8 +547,8 @@ fun AllianceDialog(db: MandatDb, session: Session, d: AllianceDraft) {
 /** Media items and alliances of a matter, inside its card. */
 @Composable
 fun MatterInfoLinks(db: MandatDb, session: Session, matterId: Long) {
-    val items by remember(db, matterId) { db.info().observeForMatter(matterId).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
-    val alliances by remember(db, matterId) { db.info().observeAlliancesForMatter(matterId).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val items by remember(db, matterId) { db.info().observeForMatter(matterId).hidingNamed(session, { it.matterId }) { it.title + " " + it.notes } }.collectAsStateWithLifecycle(emptyList())
+    val alliances by remember(db, matterId) { db.info().observeAlliancesForMatter(matterId).hidingNamed(session, { it.matterId }) { it.title + " " + it.notes } }.collectAsStateWithLifecycle(emptyList())
     LinkSection(stringResource(R.string.info_title) + if (items.isEmpty()) "" else " · ${items.size}")
     items.take(5).forEachIndexed { i, it -> if (i > 0) RowDivider(); InfoRow(it, null, null, session) }
     TextButton(onClick = { session.infoDraft = newInfo(matterId = matterId) }) { Text("+ " + stringResource(R.string.info_new)) }

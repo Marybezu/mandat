@@ -26,6 +26,8 @@ fun confirmWithPhoneLock(activity: FragmentActivity, session: Session, title: St
 
         override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
             session.pickingFile = false
+            // Cancelled because the owner left Mandat (Home): it locks now, as leaving always does
+            if (!activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) && session.lock()) session.autoPrompt = true
         }
     }).authenticate(info)
 }

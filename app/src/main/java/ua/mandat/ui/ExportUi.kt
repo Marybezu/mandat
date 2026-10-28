@@ -479,6 +479,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
             title = { Text(stringResource(R.string.import_mandat)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    NoAutofill()
                     OutlinedTextField(pass, { pass = it; problem = null }, label = { Text(stringResource(R.string.password)) }, singleLine = true,
                         visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
                         isError = problem != null, supportingText = { problem?.let { Text(stringResource(it)) } }, modifier = Modifier.fillMaxWidth())

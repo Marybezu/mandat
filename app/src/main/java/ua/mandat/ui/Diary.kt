@@ -109,7 +109,9 @@ fun TodayFeel(db: MandatDb, session: Session) {
     val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     var picking by remember { mutableStateOf<String?>(null) }
-    val r = review
+    // Tonight's entry tied to something hidden: neither its feel nor its links are shown
+    val hiddenNow by session.hidden.collectAsStateWithLifecycle()
+    val r = review?.takeIf { it.id !in hiddenNow.reviews }
     FeelRow(stringResource(R.string.diary_energy), r?.energy) { v -> setFeel(session, today, energy = v, clearEnergy = v == null) }
     FeelRow(stringResource(R.string.diary_mood), r?.mood) { v -> setFeel(session, today, mood = v, clearMood = v == null) }
     val mine = if (r == null) emptyList() else links.filter { it.reviewId == r.id }

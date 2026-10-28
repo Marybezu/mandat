@@ -142,6 +142,13 @@ fun Options(session: Session, onBack: () -> Unit) {
             }
 
             OptionGroup(stringResource(R.string.opt_data), stringResource(R.string.opt_data_hint), Sym.save) {
+                // With trip mode on, a copy holds what is hidden: making, restoring or switching on copies needs the phone's lock
+                val tripNow by session.tripOn.collectAsStateWithLifecycle()
+                val ctx = LocalContext.current
+                val guardTitle = stringResource(R.string.trip_confirm_backup)
+                fun guarded(action: () -> Unit) {
+                    if (!tripNow) action() else ctx.findActivity()?.let { a -> confirmWithPhoneLock(a, session, guardTitle, action) }
+                }
                 if (!session.demo) {
                     Section(stringResource(R.string.backup_title))
                     Text(stringResource(R.string.backup_text), style = MaterialTheme.typography.bodyLarge)
@@ -152,17 +159,19 @@ fun Options(session: Session, onBack: () -> Unit) {
                             Text(stringResource(R.string.backup_working))
                         }
                     } else {
-                        Button(onClick = { askNewPassword = true }, modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = { guarded { askNewPassword = true } }, modifier = Modifier.fillMaxWidth()) {
                             Text(stringResource(R.string.backup_make))
                         }
                         OutlinedButton(
                             onClick = {
-                                session.pickingFile = true
-                                pickedAt = session.generationNow()
-                                try {
-                                    openFile.launch(arrayOf("*/*"))
-                                } catch (e: Exception) {
-                                    session.pickingFile = false
+                                guarded {
+                                    session.pickingFile = true
+                                    pickedAt = session.generationNow()
+                                    try {
+                                        openFile.launch(arrayOf("*/*"))
+                                    } catch (e: Exception) {
+                                        session.pickingFile = false
+                                    }
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -180,7 +189,7 @@ fun Options(session: Session, onBack: () -> Unit) {
                             checked = auto?.enabled == true,
                             enabled = !backups.busy && auto != null,
                             onCheckedChange = { on ->
-                                if (on) {
+                                if (on) guarded {
                                     session.pickingFile = true
                                     pickedAt = session.generationNow()
                                     try {
@@ -446,6 +455,7 @@ private fun NewPasswordDialog(words: List<String>, onDone: (String?) -> Unit) {
                     Text(stringResource(R.string.suggested_note), style = MaterialTheme.typography.bodyMedium)
                     Text(first, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                 }
+                NoAutofill()
                 OutlinedTextField(
                     value = first,
                     onValueChange = {
@@ -491,6 +501,7 @@ private fun PasswordDialog(title: String, onDone: (String?) -> Unit) {
         onDismissRequest = { onDone(null) },
         title = { Text(title) },
         text = {
+            NoAutofill()
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },

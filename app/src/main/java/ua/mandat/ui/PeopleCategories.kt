@@ -64,8 +64,8 @@ fun categoryChoices(people: List<Person>): List<String> =
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun CategoryFields(db: MandatDb, draft: PersonDraft) {
-    val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
+fun CategoryFields(db: MandatDb, draft: PersonDraft, session: Session? = null) {
+    val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     var newOwn by remember { mutableStateOf(false) }
     val choices = categoryChoices(people)
     val currentKey = when {

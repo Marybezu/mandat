@@ -46,7 +46,15 @@ sealed interface BackupNotice {
  * can never cost both the new copy and the old one.
  */
 fun isNewDocument(context: Context, uri: Uri): Boolean = try {
-    context.contentResolver.openInputStream(uri)?.use { it.read() < 0 } ?: false
+    context.contentResolver.openInputStream(uri)?.use { it.read() < 0 } ?: sizeIsZero(context, uri)
+} catch (e: Exception) {
+    // Some file apps cannot read a file just made: then its reported size decides
+    sizeIsZero(context, uri)
+}
+
+private fun sizeIsZero(context: Context, uri: Uri): Boolean = try {
+    context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.SIZE), null, null, null)
+        ?.use { c -> c.moveToFirst() && !c.isNull(0) && c.getLong(0) == 0L } == true
 } catch (e: Exception) {
     false
 }

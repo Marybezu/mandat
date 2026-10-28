@@ -118,6 +118,7 @@ fun SheetWindow(title: String, onDismiss: () -> Unit, bottom: (@Composable () ->
 @Composable
 private fun SheetFrame(title: String, onDismiss: () -> Unit, bottom: (@Composable () -> Unit)?, body: @Composable ColumnScope.() -> Unit) {
     BackHandler(onBack = onDismiss)
+    NoAutofill()
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         // On a tablet the sheet keeps a readable width in the middle of the screen
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
@@ -254,6 +255,16 @@ fun <K> PickSheet(title: String, items: List<PickItem<K>>, onPick: (K) -> Unit, 
     }
     if (LocalInlineSheets.current) frame()
     else Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) { frame() }
+}
+
+/**
+ * A sheet or dialog is a window of its own: autofill services (a password manager, the keyboard)
+ * are kept out of it too, as out of the main window.
+ */
+@Composable
+fun NoAutofill() {
+    val view = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.runtime.SideEffect { view.rootView.importantForAutofill = android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS }
 }
 
 /** A short question with two answers (delete?, continue?): compact, the risky answer in the warning colour. */
