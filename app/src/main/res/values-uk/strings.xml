@@ -1321,11 +1321,11 @@
     <string name="opt_work_hint">Парламент чи місцева рада, округ, ваші ролі й посади.</string>
     <string name="opt_look">Вигляд і нагадування</string>
     <string name="opt_look_hint">Тема й кольори, нагадування, календар телефона.</string>
-    <string name="opt_ai_hint">Необов'язковий ШІ, що працює лише в телефоні.</string>
+    <string name="opt_ai_hint">Необов\'язковий ШІ, що працює лише в телефоні.</string>
     <string name="opt_about_hint">Версія та ліцензія.</string>
     <string name="opt_open">Розгорнуто</string>
     <string name="opt_closed">Згорнуто</string>
     <string name="opt_fold">Згорнути</string>
     <string name="opt_unfold">Розгорнути</string>
-    <string name="unlink">Прибрати зв'язок</string>
+    <string name="unlink">Прибрати зв\'язок</string>
 </resources>
