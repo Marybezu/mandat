@@ -83,19 +83,6 @@ abstract class MandatDb : RoomDatabase() {
         }
 
         /**
-         * The demo database: encrypted with a random key and kept only in memory, so it never
-         * touches the owner's file and disappears when it is closed. Call off the main thread.
-         */
-        fun openDemo(context: Context, passphrase: ByteArray): MandatDb {
-            System.loadLibrary("sqlcipher")
-            val db = Room.inMemoryDatabaseBuilder(context.applicationContext, MandatDb::class.java)
-                .openHelperFactory(SupportOpenHelperFactory(passphrase, Hardening, false))
-                .build()
-            db.openHelper.writableDatabase
-            return db
-        }
-
-        /**
          * Before closing: the write-ahead log is folded back into the database and emptied, so no
          * second file with recent pages stays next to it.
          */

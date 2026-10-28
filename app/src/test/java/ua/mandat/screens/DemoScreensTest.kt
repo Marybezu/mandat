@@ -34,7 +34,7 @@ import java.io.File
 import java.util.concurrent.Executor
 
 /**
- * The demo base, the largest data the app ships, drawn on every main screen: a screen that
+ * A large invented base (a test resource, not in the app), drawn on every main screen: a screen that
  * crashes with a lot of data fails the build. Also times how long each screen takes to settle.
  */
 @RunWith(AndroidJUnit4::class)
@@ -51,7 +51,7 @@ class DemoScreensTest {
         val direct = Executor { it.run() }
         db = Room.inMemoryDatabaseBuilder(app, MandatDb::class.java)
             .allowMainThreadQueries().setQueryExecutor(direct).setTransactionExecutor(direct).build()
-        val gz = app.assets.open(DemoData.ASSET).use { it.readBytes() }
+        val gz = DemoData::class.java.getResourceAsStream(DemoData.RESOURCE)!!.use { it.readBytes() }
         BackupData.restore(db, DemoData.prepare(gz, ua.mandat.ui.Dates.today()))
         session = Session(app)
         shadowOf(app.packageManager).addActivityIfNotPresent(ComponentName(app, ComponentActivity::class.java))
@@ -80,7 +80,7 @@ class DemoScreensTest {
         Unit
     }
 
-    /** The whole app as it opens on the demo: tabs, banner, dialogs at app level. */
+    /** The whole app as it opens on the large base: tabs and dialogs at app level. */
     @Test fun wholeApp() {
         session.moveTo(ua.mandat.ui.LockState.Open(db))
         shot("app") { ua.mandat.ui.App(session = session, onUnlock = {}, onStartOver = {}) }

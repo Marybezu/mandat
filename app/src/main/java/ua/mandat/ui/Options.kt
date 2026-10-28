@@ -151,15 +151,13 @@ fun Options(session: Session, onBack: () -> Unit) {
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // In the demo, nothing that reaches beyond it: no backups, reminders, phone calendar or security switches
-            if (session.demo) Text(stringResource(R.string.demo_options_note), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
             val openDb = (session.state as? LockState.Open)?.db
 
             // Grouped and folded, the most used first: trip mode heads privacy and security
             OptionGroup(stringResource(R.string.opt_privacy), stringResource(R.string.opt_privacy_hint), Sym.lock) {
                 Text(stringResource(R.string.security_text), style = MaterialTheme.typography.bodyMedium)
                 openDb?.let { TripSwitch(it, session) }
-                if (!session.demo) {
+                run {
                     PinOnlySwitch(session)
                     AutoLockChoice(session)
                     ScreenshotsSwitch(session)
@@ -167,7 +165,7 @@ fun Options(session: Session, onBack: () -> Unit) {
             }
 
             OptionGroup(stringResource(R.string.opt_data), stringResource(R.string.opt_data_hint), Sym.save) {
-                if (!session.demo) {
+                run {
                     Section(stringResource(R.string.backup_title))
                     Text(stringResource(R.string.backup_text), style = MaterialTheme.typography.bodyLarge)
                     if (backups.busy) {
@@ -240,7 +238,7 @@ fun Options(session: Session, onBack: () -> Unit) {
                 }
             }
 
-            if (!session.demo) {
+            run {
                 OptionGroup(stringResource(R.string.opt_look), stringResource(R.string.opt_look_hint), Sym.palette) {
                     Section(stringResource(R.string.look_title))
                     LookSection(session)

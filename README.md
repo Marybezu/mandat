@@ -16,7 +16,6 @@
 - 🔭 **Ретроспектива.** Напрямки, пріоритети минулого й динаміка за місяцями з журналу змін.
 - ✍️ **Тексти.** Листи, виступи, колонки, записки з шаблонами, версіями й експортом у Word і PDF.
 - 📓 **Щоденник, бюджет, вхідні.**
-- 🎭 **Демо.** Вигаданий власник із великою базою, щоб спробувати все без своїх даних; нічого не зберігається.
 - 🤖 **Локальний ШІ (Gemma), за бажанням:** розкладає вставлений текст на справи й доручення, пише бриф і підсумок, скорочує виступ. Усе на телефоні, лише пропозиції.
 
 ## Встановлення
@@ -55,7 +54,6 @@ A private, offline organiser for Android: matters, people, calendar, delegations
 - 🔭 **Retrospective.** Directions, past priorities and month-by-month movement from a journal of changes.
 - ✍️ **Texts.** Letters, speeches, columns, notes with templates, versions and export to Word and PDF.
 - 📓 **Diary, budget, inbox.**
-- 🎭 **Demo.** An invented owner with a large base, to try everything without your own data; nothing is kept.
 - 🤖 **On-device AI (Gemma), optional:** splits pasted text into matters and delegations, writes a brief and a summary, shortens a speech. Everything stays on the phone; only suggestions.
 
 ## Install

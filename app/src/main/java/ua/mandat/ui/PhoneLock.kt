@@ -18,8 +18,6 @@ sealed interface PromptPurpose {
  * for the whole app (the unlock prompt), so its answer always reaches the right place.
  */
 fun confirmWithPhoneLock(activity: FragmentActivity, session: Session, title: String, done: () -> Unit) {
-    // Nothing to confirm in the demo: it holds no real data and has no phone-lock key
-    if (session.demo) { done(); return }
     (activity as? MainActivity)?.confirm(title, done)
 }
 

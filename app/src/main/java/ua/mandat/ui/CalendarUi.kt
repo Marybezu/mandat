@@ -185,8 +185,7 @@ fun CalendarScreenForTest(db: MandatDb, session: Session, view0: Int) {
     // In trip mode the phone's own events are not shown either: they may copy hidden ones
     val trip by session.tripOn.collectAsStateWithLifecycle()
     val phone by produceState(emptyList<PhoneEvent>(), from, to, trip) {
-        // The phone's own calendar is not mixed into the demo
-        value = if (trip || session.demo) emptyList() else withContext(Dispatchers.IO) { PhoneCalendar.events(context, from, to) }
+        value = if (trip) emptyList() else withContext(Dispatchers.IO) { PhoneCalendar.events(context, from, to) }
     }
 
     fun eventsOn(d: Long) = events.filter { it.covers(d) }.sortedWith(compareBy({ it.startMin != null }, { it.startMin }))
@@ -498,7 +497,7 @@ fun EventDialog(db: MandatDb, session: Session, draft: EventDraft) {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             // An invented event never goes into the phone's real calendar
-            if (!session.demo) TextButton(onClick = { toPhone = true }, enabled = draft.valid()) { Text(stringResource(R.string.event_to_phone)) }
+            TextButton(onClick = { toPhone = true }, enabled = draft.valid()) { Text(stringResource(R.string.event_to_phone)) }
             Spacer(Modifier.weight(1f))
             if (!draft.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
         }

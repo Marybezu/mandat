@@ -554,7 +554,7 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     /** The 32 raw key bytes, only while the owner's own database is open (to wrap them again). The caller clears them. */
     fun rawKeyForRewrap(): ByteArray? {
-        if (demo || demoOpening || state !is LockState.Open) return null
+        if (state !is LockState.Open) return null
         val k = key ?: return null
         return try { ua.mandat.data.rawFromSqlCipherKey(k) } catch (e: Exception) { null }
     }
@@ -615,8 +615,6 @@ class Session(app: Application) : AndroidViewModel(app) {
      * false if it failed, null if it is still being written (tried again next time).
      */
     suspend fun reconcileAuto(db: MandatDb): Boolean? {
-        // Never with the demo's database
-        if (db === demoDb || demo || demoOpening) return null
         val auto = ua.mandat.backup.AutoBackup
         val app = getApplication<Application>()
         // Old copies that were chosen for removal but not yet removed (Mandat stopped meanwhile)
@@ -768,8 +766,8 @@ class Session(app: Application) : AndroidViewModel(app) {
     fun open(secret: ByteArray, startedAt: Int) {
         val passphrase = sqlCipherRawKey(secret)
         secret.fill(0)
-        // Only from the lock (or first) screen: never over an open demo or another open database
-        if (startedAt != generation || demo || demoOpening || state is LockState.Open || state == LockState.Opening) {
+        // Only from the lock (or first) screen: never over a database that is already open
+        if (startedAt != generation || state is LockState.Open || state == LockState.Opening) {
             passphrase.fill(0)
             return
         }
@@ -844,63 +842,8 @@ class Session(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** The demo is open: invented records in an in-memory database, not the owner's data. */
-    var demo by mutableStateOf(false)
-        private set
-    /** The demo is being opened (set before loading, so a lock meanwhile treats it as the demo). */
-    @Volatile private var demoOpening = false
-    /** The demo's own database while it is open, so backups can tell it from the owner's. */
-    @Volatile private var demoDb: MandatDb? = null
-    /** Where closing the demo returns: the first screen or the lock screen. */
-    private var demoReturn: LockState = LockState.Locked
-
-    /** Runs [block] with the owner's own database only; never with the demo (for backups). */
-    suspend fun <T> withRealDb(block: suspend (MandatDb) -> T): T? = withOpenDb { db -> if (demo || demoOpening || db === demoDb) null else block(db) }
-
-    /**
-     * Opens the demo: the invented records shipped with the app go into an encrypted database that
-     * lives only in memory, with a random key. Backups, reminders and the resume point are never
-     * touched, and closing it (the banner, or leaving the app) leaves nothing behind.
-     */
-    fun openDemo() {
-        val before = state
-        if (before is LockState.Open || before == LockState.Opening || prompting) return
-        // A new generation: an unlock answer arriving now is for the old one and is refused
-        generation++
-        val startedAt = generation
-        demoOpening = true
-        demoReturn = if (before == LockState.FirstRun) LockState.FirstRun else LockState.Locked
-        state = LockState.Opening
-        background.launch {
-            val passphrase = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) }
-            val db = try {
-                val app = getApplication<Application>()
-                val gz = app.assets.open(ua.mandat.data.DemoData.ASSET).use { it.readBytes() }
-                val json = ua.mandat.data.DemoData.prepare(gz, Dates.today())
-                MandatDb.openDemo(app, passphrase).also { d ->
-                    try { ua.mandat.backup.BackupData.restore(d, json) } catch (e: Throwable) { d.close(); throw e }
-                }
-            } catch (e: Throwable) {
-                // Anything at all (also running out of memory): the demo just does not open, Mandat stays
-                null
-            }
-            withContext(Dispatchers.Main) {
-                when {
-                    db == null -> { passphrase.fill(0); if (startedAt == generation) { demoOpening = false; state = before } }
-                    startedAt != generation -> background.launch { db.close(); passphrase.fill(0) }
-                    else -> {
-                        key = passphrase
-                        demoDb = db
-                        demoOpening = false
-                        demo = true
-                        setHidden(false, Hidden.NONE)
-                        state = LockState.Open(db)
-                        touched()
-                    }
-                }
-            }
-        }
-    }
+    /** Runs [block] with the owner's database (for backups). */
+    suspend fun <T> withRealDb(block: suspend (MandatDb) -> T): T? = withOpenDb(block)
 
     /** Closes the database and wipes the key until the next unlock. True if it was open or opening. */
     fun lock(): Boolean {
@@ -919,13 +862,8 @@ class Session(app: Application) : AndroidViewModel(app) {
         showInboxSort = false
         aiTextHelp = false
         val current = state
-        // Closing the demo: nothing of it is kept (no backup, no reminder days, no resume point)
-        val wasDemo = demo || demoOpening
-        demo = false
-        demoOpening = false
         val wasInUse = current is LockState.Open || current == LockState.Opening
-        // Closing the demo returns where it was opened from (the first screen before set-up)
-        if (wasInUse) state = if (wasDemo) demoReturn else LockState.Locked
+        if (wasInUse) state = LockState.Locked
         // Anything still being typed is saved first, in the same step as closing,
         // so leaving the app for a moment never loses it
         val openDraft = draft
@@ -937,9 +875,8 @@ class Session(app: Application) : AndroidViewModel(app) {
         hidden.value = Hidden(hiddenAtLock.matters, hiddenAtLock.people, hiddenAtLock.reviews, hiddenAtLock.communities, ua.mandat.data.HiddenNames.NONE)
         // Where the owner was: only the tab and the numbers of open cards (never their content),
         // so the same card opens again after unlocking
-        // The demo never leaves a resume point: its numbers belong to invented records
         // Only an open Mandat leaves a resume point; locking again (screen off after leaving) keeps the one there is
-        if (!wasDemo && current is LockState.Open) resume = Resume(
+        if (current is LockState.Open) resume = Resume(
             at = System.currentTimeMillis(),
             matterId = draft?.request?.takeIf { !it.isNew }?.matter?.id,
             personId = personDraft?.takeIf { !it.isNew }?.person?.id,
@@ -1016,8 +953,8 @@ class Session(app: Application) : AndroidViewModel(app) {
                             { persistInboxDraft(current.db, openSplit) },
                             { openContact?.takeIf { !it.isNew || it.touched }?.persist(current.db) },
                             { persistReview(current.db, openReview, openReviewAppend) },
-                            // Last: only the days on which something is due, for reminders (never from the demo)
-                            { if (!wasDemo) storeReminderDays(current.db, tripAtLock) },
+                            // Last: only the days on which something is due, for reminders
+                            { storeReminderDays(current.db, tripAtLock) },
                         ).forEach { save ->
                             try {
                                 save()
@@ -1026,7 +963,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                             }
                         }
                         // Automatic backup, if turned on and due: only encrypted here, written after closing
-                        prepared = if (wasDemo) null else try {
+                        prepared = try {
                             ua.mandat.backup.AutoBackup.prepareIfDue(current.db)
                         } catch (e: Throwable) {
                             null
@@ -1036,7 +973,6 @@ class Session(app: Application) : AndroidViewModel(app) {
                     }
                     if (current.db.isOpen) MandatDb.checkpoint(current.db)
                     current.db.close()
-                    if (current.db === demoDb) demoDb = null
                     oldKey?.fill(0)
                 }
                 // The database is closed: a slow folder can only delay writing encrypted bytes

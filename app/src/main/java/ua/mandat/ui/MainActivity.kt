@@ -179,7 +179,7 @@ class MainActivity : AppCompatActivity() {
      * it cannot start.
      */
     fun switchPinOnly(on: Boolean): Boolean {
-        if (session.prompting || session.state !is LockState.Open || session.demo) return false
+        if (session.prompting || session.state !is LockState.Open) return false
         val (cipher, alias) = try { vault.cipherForRewrap(on) } catch (e: Exception) { return false }
         session.purpose = PromptPurpose.Rewrap(alias, on)
         session.prompting = true

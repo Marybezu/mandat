@@ -4,12 +4,12 @@ package ua.mandat.data
 import org.json.JSONObject
 
 /**
- * The demo: an invented MP's records, shipped with the app (nothing personal in it), opened in an
- * encrypted database that lives only in memory, never next to the owner's data. Dates are moved
- * so that the demo's "today" is the real today.
+ * A large invented base for tests (nothing personal in it): the screens are drawn with it to catch
+ * crashes and slowness with a lot of data. Dates are moved so that its "today" is the real today.
  */
 object DemoData {
-    const val ASSET = "demo.bin" // gzip inside; a neutral name, so no build tool treats it specially
+    /** A test resource (gzip inside). */
+    const val RESOURCE = "/demo.bin"
 
     /** Columns holding a calendar day, and columns holding a moment in milliseconds. */
     private val DAY_COLUMNS = setOf("day", "due", "endDay", "checkIn", "lastContact", "stanceSince", "untilDay")
