@@ -237,7 +237,7 @@ object AutoBackup {
             val safety = s.get(KEY_SAFETY)?.value.orEmpty().lines().mapNotNull { line ->
                 val parts = line.split('\t')
                 val t = parts.getOrNull(1)?.toLongOrNull() ?: return@mapNotNull null
-                parts[0].takeIf { it.isNotBlank() && now - t in 0 until KEEP_SAFETY_MS }?.let { it to t }
+                parts[0].takeIf { it.isNotBlank() && now - t < KEEP_SAFETY_MS }?.let { it to t }
             }
             if (safety.isEmpty()) s.deletePrefix(KEY_SAFETY) else s.put(Setting(KEY_SAFETY, safety.joinToString("\n") { "${it.first}\t${it.second}" }))
             val kept = trimmed(files, keepNewest = accepted.toString(), pinned = safety.map { it.first }.toSet())

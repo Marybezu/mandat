@@ -240,8 +240,10 @@ class Backups(private val context: Context, private val session: Session) {
                 val db = (session.state as? LockState.Open)?.db ?: return@run BackupNotice.RestoreFailed
                 if (session.withRealDb { auto.status(it).enabled } == true) {
                     session.reconcileAuto(db)
+                    val tried = System.currentTimeMillis()
                     val prepared = session.withRealDb { auto.prepareIfDue(it, force = true) }
-                    if (prepared == null && session.withRealDb { auto.status(it).failReason == auto.REASON_TOO_BIG } == true) {
+                    // "Too big" only if this very attempt found it so, not an old failure
+                    if (prepared == null && session.withRealDb { st -> auto.status(st).let { it.failReason == auto.REASON_TOO_BIG && (it.lastFail ?: 0L) >= tried } } == true) {
                         refreshAuto()
                         return@run BackupNotice.RestoreTooBigForSafety
                     }

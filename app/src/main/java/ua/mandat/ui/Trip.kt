@@ -40,7 +40,7 @@ suspend fun tripStart(db: ua.mandat.data.MandatDb): Long {
             "matters" to "updatedAt", "people" to "updatedAt", "inbox" to "createdAt", "delegations" to "createdAt",
             "promises" to "createdAt", "deadlines" to "createdAt", "reviews" to "createdAt", "events" to "updatedAt",
             "info_items" to "updatedAt", "key_messages" to "updatedAt", "alliances" to "updatedAt", "money" to "updatedAt",
-            "communities" to "updatedAt", "contacts" to "createdAt", "aid_records" to "createdAt",
+            "communities" to "updatedAt", "contacts" to "createdAt", "aid_records" to "createdAt", "texts" to "updatedAt",
         ).joinToString(" UNION ALL ") { (t, c) -> "SELECT MAX(`$c`) AS t FROM `$t`" } + ")",
     ).use { c -> if (c.moveToFirst() && !c.isNull(0)) c.getLong(0) else 0L }
     return maxOf(System.currentTimeMillis(), newest + 1)
