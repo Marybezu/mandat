@@ -1267,7 +1267,7 @@
         <item quantity="other">days to finish</item>
     </plurals>
     <string name="export_period">Period</string>
-    <string name="export_period_hint">Events that took place in the period; delegations, promises and deadlines made, closed or due in it; matters that moved; diary, media and budget by date. Contacts and people are not limited by the period.</string>
+    <string name="export_period_hint">Events that took place in the period; delegations, promises and deadlines made, closed or due in it; matters that moved; diary, media and budget by date. Address-book contacts are not limited; in Obsidian notes with a period, only people tied to what is exported, unless “all” is chosen.</string>
     <string name="period_all">All</string>
     <string name="period_today">Today</string>
     <string name="period_week">Week</string>
@@ -1294,4 +1294,5 @@
     <string name="obs_note">Note</string>
     <string name="obs_period">Period</string>
     <string name="obs_period_all">All records</string>
+    <string name="export_vault_all_people_basic">All people, not only those tied to what is exported</string>
 </resources>

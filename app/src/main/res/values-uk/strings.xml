@@ -1283,7 +1283,7 @@
         <item quantity="other">дня до кінця</item>
     </plurals>
     <string name="export_period">Період</string>
-    <string name="export_period_hint">Події — ті, що були в цей період; доручення, обіцянки й строки — створені, закриті або зі строком у цей період; справи — що рухалися; щоденник, медіа й бюджет — за датою. Контакти й люди — без обмеження періодом.</string>
+    <string name="export_period_hint">Події — ті, що були в цей період; доручення, обіцянки й строки — створені, закриті або зі строком у цей період; справи — що рухалися; щоденник, медіа й бюджет — за датою. Контакти телефонної книги періодом не обмежуються; у нотатках для Obsidian з періодом — лише люди, пов\'язані з експортованим, якщо не вибрано «усіх».</string>
     <string name="period_all">Усе</string>
     <string name="period_today">Сьогодні</string>
     <string name="period_week">Тиждень</string>
@@ -1310,4 +1310,5 @@
     <string name="obs_note">Примітка</string>
     <string name="obs_period">Період</string>
     <string name="obs_period_all">Усі записи</string>
+    <string name="export_vault_all_people_basic">Усі люди, а не лише пов\'язані з експортованим</string>
 </resources>

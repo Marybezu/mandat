@@ -153,6 +153,9 @@ fun ExportScreen(db: MandatDb, session: Session) {
     var sealed by remember { mutableStateOf<ByteArray?>(null) }
     val hidden by session.hiddenMatters.collectAsStateWithLifecycle()
     androidx.compose.runtime.LaunchedEffect(hidden) { if (hidden.isNotEmpty()) plan.everything = false }
+    // A full copy is never cut by a period: choosing one turns the copy off rather than leave it ticked unseen
+    androidx.compose.runtime.LaunchedEffect(plan.period) { if (plan.period != ExportPeriod.ALL) plan.everything = false }
+    val cadenceSet by remember(db) { db.settings().observe(ua.mandat.data.SETTING_CADENCE_START) }.collectAsStateWithLifecycle(null)
 
     var tooBigForMandat by remember { mutableStateOf(false) }
     val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
@@ -236,7 +239,9 @@ fun ExportScreen(db: MandatDb, session: Session) {
             // One period for everything chosen below; each kind of record is taken by its own dates
             SectionCard(Sym.calendar, stringResource(R.string.export_period)) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    ExportPeriod.entries.forEach { p -> QuickChip(stringResource(p.label), plan.period == p) { plan.period = p } }
+                    // "Cadence" only once its start date is set (in the district settings), never silently a year
+                    ExportPeriod.entries.filter { it != ExportPeriod.CADENCE || cadenceSet?.value?.toLongOrNull() != null }
+                        .forEach { p -> QuickChip(stringResource(p.label), plan.period == p) { plan.period = p } }
                 }
                 if (plan.period == ExportPeriod.CUSTOM) {
                     DueField(plan.periodFrom, allowClear = false, label = R.string.report_from) { if (it != null) plan.periodFrom = it }
@@ -293,7 +298,9 @@ fun ExportScreen(db: MandatDb, session: Session) {
                     }
                     Text(stringResource(if (plan.vaultScope == VaultScope.FULL) R.string.export_vault_full_hint else R.string.export_obsidian_hint),
                         style = MaterialTheme.typography.labelSmall, color = if (plan.vaultScope == VaultScope.FULL) MaterialTheme.colorScheme.error else Muted)
-                    Check(stringResource(R.string.export_vault_all_people), plan.allPeople) { plan.allPeople = it }
+                    // Only where it changes something: the full vault (address book), or a period (people beyond those tied in)
+                    if (plan.vaultScope == VaultScope.FULL || plan.period != ExportPeriod.ALL)
+                        Check(stringResource(if (plan.vaultScope == VaultScope.FULL) R.string.export_vault_all_people else R.string.export_vault_all_people_basic), plan.allPeople) { plan.allPeople = it }
                 }
                 if (hidden.isEmpty() && plan.period == ExportPeriod.ALL) Check(stringResource(R.string.export_everything), plan.everything) { plan.everything = it }
                 else if (hidden.isEmpty()) Text(stringResource(R.string.export_everything_period), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(start = 12.dp))
@@ -508,6 +515,7 @@ private suspend fun runExport(context: Context, session: Session, plan: ExportPl
         val wanted = if (own) ExportPlan().also { p ->
             p.people = plan.people; p.peopleCategory = plan.peopleCategory; p.book = plan.book; p.bookGroup = plan.bookGroup
             p.calendar = plan.calendar; p.calendarSpan = plan.calendarSpan; p.pdf = false
+            p.period = plan.period; p.periodFrom = plan.periodFrom; p.periodTo = plan.periodTo
         } else plan
         files = session.withOpenDb { db -> buildFiles(context, db, session.hiddenMatters.value, wanted) }.orEmpty()
         // Mandat's own file carries only what Mandat can take back in
