@@ -548,7 +548,7 @@ fun AllianceDialog(db: MandatDb, session: Session, d: AllianceDraft) {
 @Composable
 fun MatterInfoLinks(db: MandatDb, session: Session, matterId: Long) {
     val items by remember(db, matterId) { db.info().observeForMatter(matterId).hidingNamed(session, { it.matterId }) { it.title + " " + it.notes } }.collectAsStateWithLifecycle(emptyList())
-    val alliances by remember(db, matterId) { db.info().observeAlliancesForMatter(matterId).hidingNamed(session, { it.matterId }) { it.title + " " + it.notes } }.collectAsStateWithLifecycle(emptyList())
+    val alliances by remember(db, matterId) { db.info().observeAlliancesForMatter(matterId).hidingNamed(session, { it.matterId }) { it.withWhom + " " + it.about + " " + it.notes } }.collectAsStateWithLifecycle(emptyList())
     LinkSection(stringResource(R.string.info_title) + if (items.isEmpty()) "" else " · ${items.size}")
     items.take(5).forEachIndexed { i, it -> if (i > 0) RowDivider(); InfoRow(it, null, null, session) }
     TextButton(onClick = { session.infoDraft = newInfo(matterId = matterId) }) { Text("+ " + stringResource(R.string.info_new)) }
