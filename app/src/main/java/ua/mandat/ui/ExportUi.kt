@@ -153,8 +153,8 @@ fun ExportScreen(db: MandatDb, session: Session) {
     var warnOpen by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
-    var pickedAt by remember { mutableStateOf(-1) }
-    var importKind by remember { mutableStateOf<String?>(null) }
+    var pickedAt by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(-1) }
+    var importKind by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     var pendingImport by remember { mutableStateOf<PendingImport?>(null) }
     var pickingMatter by remember { mutableStateOf(false) }
     // An imported open file that can now be deleted; an encrypted Mandat file waiting for its password
@@ -425,8 +425,9 @@ fun ExportScreen(db: MandatDb, session: Session) {
         PacketReview(db, session, p.packet!!, stringResource(p.summary, *p.args.toTypedArray()), onDismiss = { pendingImport = null }) { personChoice, matterChoice ->
             pendingImport = null
             val pk = p.packet
-            // The packet first; calendar and contacts from the same file only after it, so the windows never overlap
-            scope.launch {
+            // The packet first; calendar and contacts from the same file only after it, so the windows never overlap.
+            // Started outside this screen: leaving it (or turning the phone) does not stop it halfway
+            session.detached {
                 val r = session.withOpenDb { d ->
                     try { ua.mandat.data.Packet.apply(d, pk, personChoice, matterChoice, session.hidden.value.let { h -> { m: Long?, t: String -> h.item(m, t) } }) } catch (e: Exception) { ua.mandat.data.Packet.Result(0, 0, 0, 0, 0, failed = true) }
                 } ?: ua.mandat.data.Packet.Result(0, 0, 0, 0, 0, failed = true)
@@ -1160,7 +1161,7 @@ object PdfText {
 }
 
 /** The folder Obsidian notes are written under in an export. */
-internal const val OBSIDIAN_ROOT = "Mandat/"
+internal const val OBSIDIAN_ROOT = "Notes/"
 
 
 /**
@@ -1175,7 +1176,7 @@ private fun PacketReview(db: MandatDb, session: Session, pk: ua.mandat.data.Pack
         // What is hidden now (trip mode, lens) is never offered as a match, so the sheet does not show that it exists
         val h = session.hidden.value
         value = session.withOpenDb { d ->
-            ua.mandat.data.Packet.plan(pk, d.people().all().filter { it.id !in h.people }, d.matters().observeAll().first().filter { it.id !in session.hiddenMatters.value })
+            ua.mandat.data.Packet.plan(pk, d.people().all().filterNot { h.person(it) }, d.matters().observeAll().first().filter { it.id !in session.hiddenMatters.value })
         }
     }
     val personChoice = remember(plan) { androidx.compose.runtime.mutableStateMapOf<Long, Long?>().apply { plan?.personDefault?.let { putAll(it) } } }

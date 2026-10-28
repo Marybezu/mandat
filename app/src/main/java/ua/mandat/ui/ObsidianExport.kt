@@ -71,7 +71,7 @@ internal suspend fun obsidianVault(
     val commLinksVisible = communityLinks.filter { it.kind != ua.mandat.data.LinkKind.MATTER || it.refId !in hidden }
 
     // People: everyone (no period, or asked for), or only those tied to what goes in
-    val allVisiblePeople = db.people().all().filter { it.id !in onlyHidden }
+    val allVisiblePeople = db.people().all().filter { it.id !in onlyHidden && free(null, it.name, it.organization, it.jobTitle, it.contact, it.notes) }
     val matterIds = matters.map { it.id }.toSet()
     val tied = buildSet {
         links.filter { it.matterId in matterIds }.forEach { add(it.personId) }
@@ -81,7 +81,7 @@ internal suspend fun obsidianVault(
         alliances.mapNotNull { it.personId }.forEach { add(it) }
     }
     val people = if (allPeople || span == null) allVisiblePeople else allVisiblePeople.filter { it.id in tied }
-    val contacts = if (full && allPeople) db.contacts().all() else emptyList()
+    val contacts = if (full && allPeople) db.contacts().all().filter { free(null, it.name, it.organization, it.jobTitle, it.notes, it.label) } else emptyList()
     // A community whose every link leads to something hidden stays out too (its name could tell where)
     val eventMatter = db.events().observeAll().first().associate { it.id to it.matterId }
     val promiseMatter = db.promises().observeAll().first().associate { it.id to it.matterId }
@@ -125,7 +125,7 @@ internal suspend fun obsidianVault(
     fun yamlLine(key: String, value: String?) = if (value.isNullOrBlank()) "" else "$key: ${Obsidian.yaml(value)}\n"
     val out = ArrayList<Pair<String, String>>()
     fun note(folder: String, name: String, tag: String, front: String, body: String) {
-        out += "$root$folder/$name.md" to "---\n${front}tags: [mandat/$tag]\n---\n\n$body"
+        out += "$root$folder/$name.md" to "---\n${front}tags: [notes/$tag]\n---\n\n$body"
     }
 
     matters.forEach { m ->
@@ -162,7 +162,7 @@ internal suspend fun obsidianVault(
             })
     }
     people.forEach { p ->
-        note(fPeople, pName.getValue(p.id), if (p.teamRole != null) "person, mandat/team" else "person",
+        note(fPeople, pName.getValue(p.id), if (p.teamRole != null) "person, notes/team" else "person",
             yamlLine("organization", p.organization) + yamlLine("position", p.jobTitle),
             buildString {
                 // A person's own text that names a hidden matter is left out (the person stays)
@@ -223,7 +223,7 @@ internal suspend fun obsidianVault(
                 })
         }
         if (info.isNotEmpty()) out += "$root$fMedia/$fMedia.md" to buildString {
-            append("---\ntags: [mandat/media]\n---\n\n")
+            append("---\ntags: [notes/media]\n---\n\n")
             info.sortedByDescending { it.day }.forEach { i ->
                 append("## ").append(Export.day(i.day)).append(" ").append(i.title).append("\n")
                 append(s(ua.mandat.data.InfoKind.of(i.kind).label()))
@@ -237,11 +237,11 @@ internal suspend fun obsidianVault(
             }
         }
         if (messages.isNotEmpty()) out += "$root$fMedia/$fMsg.md" to buildString {
-            append("---\ntags: [mandat/messages]\n---\n\n")
+            append("---\ntags: [notes/messages]\n---\n\n")
             messages.forEach { k -> append("- ").append(k.text).append(k.proof.takeIf { it.isNotBlank() }?.let { " — $it" } ?: "").append(ml(k.matterId)?.let { " · $it" } ?: "").append("\n") }
         }
         if (alliances.isNotEmpty()) out += "$root$fAll/$fAll.md" to buildString {
-            append("---\ntags: [mandat/alliances]\n---\n\n")
+            append("---\ntags: [notes/alliances]\n---\n\n")
             alliances.forEach { a ->
                 append("## ").append(pl(a.personId) ?: a.withWhom).append("\n")
                 append(a.about).append(" · ").append(s(ua.mandat.data.AllianceStatus.of(a.status).label()))
@@ -275,7 +275,7 @@ internal suspend fun obsidianVault(
                 (ml(t.matterId)?.let { "**${s(R.string.obs_matter)}:** $it\n\n" } ?: "") + t.body + "\n")
         }
         if (money.isNotEmpty()) out += "$root$fMoney/$fMoney.md" to buildString {
-            append("---\ntags: [mandat/budget]\n---\n\n")
+            append("---\ntags: [notes/budget]\n---\n\n")
             append("| ").append(s(R.string.obs_date)).append(" | ").append(s(R.string.obs_category)).append(" | ").append(s(R.string.obs_sum)).append(" | ").append(s(R.string.obs_note)).append(" |\n|---|---|---|---|\n")
             money.sortedBy { it.day }.forEach { m ->
                 fun cell(v: String) = v.replace("|", "/").replace("\n", " ")
@@ -286,11 +286,11 @@ internal suspend fun obsidianVault(
             }
         }
         if (inbox.isNotEmpty()) out += "$root$fInbox/$fInbox.md" to buildString {
-            append("---\ntags: [mandat/inbox]\n---\n\n")
+            append("---\ntags: [notes/inbox]\n---\n\n")
             inbox.forEach { i -> append("- ").append(Export.day(Dates.dayOf(i.createdAt))).append(" ").append(i.text.replace("\n", " ")).append("\n") }
         }
         if (contacts.isNotEmpty()) out += "$root$fContacts/$fContacts.md" to buildString {
-            append("---\ntags: [mandat/contacts]\n---\n\n")
+            append("---\ntags: [notes/contacts]\n---\n\n")
             contacts.groupBy { it.label.ifBlank { "—" } }.toSortedMap().forEach { (label, list) ->
                 append("## ").append(label).append("\n")
                 list.forEach { c -> append("- **").append(c.name).append("**").append(listOf(c.jobTitle, c.organization, c.phones, c.emails).filter { it.isNotBlank() }.joinToString(" · ").let { if (it.isEmpty()) "" else " — $it" }).append("\n") }
@@ -300,8 +300,7 @@ internal suspend fun obsidianVault(
     }
 
     // A contents note: what period, and a link to each folder's notes
-    out += "${root}Mandat.md" to buildString {
-        append("# Mandat\n\n")
+    out += "${root}Index.md" to buildString {
         append(span?.let { s(R.string.obs_period) + ": " + Export.day(it.from) + " — " + Export.day(it.to) } ?: s(R.string.obs_period_all)).append("\n\n")
         fun line(folder: String, n: Int) { if (n > 0) append("- ").append(folder).append(": ").append(n).append("\n") }
         line(fMatters, matters.size); line(fPeople, people.size); line(fEvents, events.size)

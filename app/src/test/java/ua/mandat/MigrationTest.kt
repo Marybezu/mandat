@@ -183,6 +183,34 @@ class MigrationTest {
         }
     }
 
+    @Test fun damagedValuesInABackupAreBroughtInRange() {
+        val db = Room.inMemoryDatabaseBuilder(app, MandatDb::class.java).allowMainThreadQueries().build()
+        try {
+            val cols = JSONArray().put("id").put("day").put("progress").put("energy").put("mood").put("createdAt")
+            val rows = JSONArray().put(JSONArray().put(1).put(9_000_000_000L).put("x").put(99).put(-5).put(1))
+            val json = JSONObject().put("format", 1).put("app", "mandat").put("schema", DB_VERSION).put("created", 1L)
+                .put("tables", JSONObject().put("reviews", JSONObject().put("columns", cols).put("rows", rows)))
+            BackupData.restore(db, json.toString().toByteArray())
+            db.openHelper.readableDatabase.query("SELECT day, energy, mood FROM reviews").use { c ->
+                c.moveToFirst()
+                assertTrue(c.getLong(0) <= 200_000)
+                assertEquals(5, c.getInt(1))
+                assertEquals(1, c.getInt(2))
+            }
+            // Text where a number belongs refuses the whole file
+            val bad = JSONObject(json.toString())
+            bad.getJSONObject("tables").getJSONObject("reviews").put("rows", JSONArray().put(JSONArray().put(1).put("вчора").put("x").put(1).put(1).put(1)))
+            try {
+                BackupData.restore(db, bad.toString().toByteArray())
+                fail("a value of the wrong kind must be refused")
+            } catch (e: BackupData.Incompatible) {
+                // expected
+            }
+        } finally {
+            db.close()
+        }
+    }
+
     @Test fun newerBackupIsRefused() {
         val db = Room.inMemoryDatabaseBuilder(app, MandatDb::class.java).allowMainThreadQueries().build()
         try {

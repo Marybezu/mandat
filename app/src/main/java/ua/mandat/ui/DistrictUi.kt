@@ -97,6 +97,7 @@ private data class CommunityStats(
 
 private fun stats(
     communities: List<Community>, links: List<CommunityLink>, matters: List<Matter>, events: List<Event>, promises: List<Promise>, today: Long,
+    people: Set<Long>,
 ): List<CommunityStats> {
     val byKind = links.groupBy { it.communityId }
     val matterOf = matters.associateBy { it.id }
@@ -109,7 +110,8 @@ private fun stats(
         val ps = l.filter { it.kind == LinkKind.PROMISE }.mapNotNull { promiseOf[it.refId] }
         val visits = es.filter { isVisit(it) && it.day <= today }
         CommunityStats(
-            c, ms, es, ps, l.count { it.kind == LinkKind.PERSON },
+            // Only people shown now are counted: a hidden one is not given away by a number
+            c, ms, es, ps, l.count { it.kind == LinkKind.PERSON && it.refId in people },
             lastVisit = visits.maxOfOrNull { it.lastDay.coerceAtMost(today) },
             visitsYear = visits.count { it.day > today - 365 },
             doneYear = ms.count { MatterStatus.of(it.status) == MatterStatus.DONE && Dates.dayOf(it.updatedAt) > today - 365 },
@@ -142,8 +144,9 @@ fun DistrictScreen(db: MandatDb, session: Session) {
     val matters by remember(db) { db.matters().observeAll().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val events by remember(db) { db.events().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.notes + " " + it.place + " " + it.outcome } }.collectAsStateWithLifecycle(emptyList())
     val promises by remember(db) { db.promises().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom + " " + it.source + " " + it.statusNote } }.collectAsStateWithLifecycle(emptyList())
+    val shownPeople by remember(db) { db.people().observeAll().hidingPeople(session).map { l -> l.mapTo(HashSet()) { it.id } } }.collectAsStateWithLifecycle(emptySet())
     val today = Dates.today()
-    val all = stats(communities, links, matters, events, promises, today).sortedWith(compareBy({ it.lastVisit != null }, { it.lastVisit }))
+    val all = stats(communities, links, matters, events, promises, today, shownPeople).sortedWith(compareBy({ it.lastVisit != null }, { it.lastVisit }))
     val coming = events.filter { isVisit(it) && it.lastDay >= today && it.day <= today + 30 }.sortedBy { it.day }
     val openPromises = all.flatMap { it.promises }.distinctBy { it.id }.count { TaskStatus.of(it.status) == TaskStatus.OPEN }
     val longAgo = all.count { it.lastVisit == null || it.lastVisit < today - 90 }
@@ -218,8 +221,9 @@ fun DistrictScreen(db: MandatDb, session: Session) {
             }
         }
     }
-    if (sharing) {
-        val context = LocalContext.current
+    val context = LocalContext.current
+    // The report leaves Mandat: the phone's lock is asked first, as for any export
+    val shareReport = rememberConfirmed(session, "district-share", stringResource(R.string.confirm_export)) {
         val text = buildString {
             append(context.getString(R.string.district_report)).append("\n\n")
             all.sortedBy { it.c.name }.forEach { s ->
@@ -229,6 +233,13 @@ fun DistrictScreen(db: MandatDb, session: Session) {
                 append("\n")
             }
         }
+        try {
+            context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), null))
+        } catch (e: android.content.ActivityNotFoundException) {
+            // No app to share with
+        }
+    }
+    if (sharing) {
         AlertDialog(
             onDismissRequest = { sharing = false },
             title = { Text(stringResource(R.string.district_share)) },
@@ -236,11 +247,7 @@ fun DistrictScreen(db: MandatDb, session: Session) {
             confirmButton = {
                 TextButton(onClick = {
                     sharing = false
-                    try {
-                        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), null))
-                    } catch (e: android.content.ActivityNotFoundException) {
-                        // No app to share with
-                    }
+                    shareReport()
                 }) { Text(stringResource(R.string.event_to_phone_go)) }
             },
             dismissButton = { TextButton(onClick = { sharing = false }) { Text(stringResource(R.string.cancel)) } },
@@ -295,7 +302,7 @@ fun CommunityScreen(db: MandatDb, session: Session, id: Long) {
         return
     }
     val today = Dates.today()
-    val s = stats(listOf(c), links, matters, events, promises, today).first()
+    val s = stats(listOf(c), links, matters, events, promises, today, remember(people) { people.mapTo(HashSet()) { it.id } }).first()
     val mine = links.filter { it.communityId == id }
     val linkedPeople = mine.filter { it.kind == LinkKind.PERSON }.mapNotNull { l -> people.firstOrNull { it.id == l.refId } }
     var picking by remember { mutableStateOf<String?>(null) }

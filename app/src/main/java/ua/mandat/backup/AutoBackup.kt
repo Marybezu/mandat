@@ -24,17 +24,20 @@ import ua.mandat.data.Setting
  */
 object AutoBackup {
     const val PREFIX = "auto_backup_"
-    private const val KEY_FOLDER = PREFIX + "folder"
+    const val KEY_FOLDER = PREFIX + "folder"
     private const val KEY_SALT = PREFIX + "salt"
     private const val KEY_KEY = PREFIX + "key"
-    private const val KEY_LAST_OK = PREFIX + "last_ok"
-    private const val KEY_LAST_FAIL = PREFIX + "last_fail"
+    const val KEY_LAST_OK = PREFIX + "last_ok"
+    /** When a backup was last saved by hand (this phone only; kept when a backup is restored). */
+    const val KEY_MANUAL = PREFIX + "manual"
+    const val KEY_LAST_FAIL = PREFIX + "last_fail"
     private const val KEY_FAIL_REASON = PREFIX + "fail_reason"
     private const val KEY_FILES = PREFIX + "files"
     private const val KEY_PENDING = PREFIX + "pending"
     private const val KEY_TO_DELETE = PREFIX + "to_delete"
 
     const val KEEP = 7
+    const val KEEP_WEEKS = 4
     private const val INTERVAL_MS = 24L * 60 * 60 * 1000
     private const val FILE_PREFIX = "archive-"
 
@@ -258,12 +261,19 @@ object AutoBackup {
     /** Removes a file written during set-up when the password check did not pass. */
     fun discard(context: Context, uri: Uri) = deleteQuietly(context, uri)
 
-    /** One copy per day (the newest) for the last [KEEP] days; the new copy always stays. */
-    private fun trimmed(files: List<Pair<String, Long>>, keepNewest: String): List<Pair<String, Long>> {
+    /**
+     * One copy per day (the newest) for the last [KEEP] days, and one per week for [KEEP_WEEKS] weeks
+     * before that (a mistake noticed only weeks later can still be undone); the new copy always stays.
+     */
+    internal fun trimmed(files: List<Pair<String, Long>>, keepNewest: String): List<Pair<String, Long>> {
         val zone = java.time.ZoneId.systemDefault()
         fun dayOf(ms: Long) = java.time.Instant.ofEpochMilli(ms).atZone(zone).toLocalDate()
         val newestPerDay = files.groupBy { dayOf(it.second) }.values.map { day -> day.maxBy { it.second } }
-        val kept = newestPerDay.sortedByDescending { it.second }.take(KEEP).toMutableList()
+        val daily = newestPerDay.sortedByDescending { it.second }.take(KEEP)
+        val weekly = newestPerDay.filter { it !in daily }
+            .groupBy { dayOf(it.second).with(java.time.DayOfWeek.MONDAY) }.values.map { week -> week.maxBy { it.second } }
+            .sortedByDescending { it.second }.take(KEEP_WEEKS)
+        val kept = (daily + weekly).toMutableList()
         if (kept.none { it.first == keepNewest }) files.firstOrNull { it.first == keepNewest }?.let { kept += it }
         return kept
     }

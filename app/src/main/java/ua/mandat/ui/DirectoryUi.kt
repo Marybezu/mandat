@@ -117,7 +117,7 @@ fun DirectoryScreen(db: MandatDb, session: Session) {
     }.collectAsStateWithLifecycle(emptyList())
     var query by rememberSaveable { mutableStateOf("") }
     var label by rememberSaveable { mutableStateOf<String?>(null) }
-    var pickedAt by remember { mutableStateOf(-1) }
+    var pickedAt by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(-1) }
     val context = LocalContext.current
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()

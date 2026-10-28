@@ -28,8 +28,16 @@ class MatterDraft(val request: EditRequest) {
     var sensitive by mutableStateOf(request.matter.sensitive)
     var votesNeeded by mutableStateOf(request.matter.votesNeeded)
 
+    /** Something was typed or chosen since the editor opened: Back asks before throwing that away. */
+    fun changed(): Boolean = request.matter.let { m ->
+        title != m.title || type.name != m.type || roleId != m.roleId || attention.name != m.attention || nextStep != m.nextStep ||
+            goal != m.goal || description != m.description || status.name != m.status || sensitive != m.sensitive || votesNeeded != m.votesNeeded
+    }
+
     /** Writes the draft in one transaction (with removing the Inbox note it came from). */
     suspend fun persist(db: MandatDb) {
+        // Only looked at: nothing is written, so it does not count as changed or moved
+        if (!request.isNew && !changed()) return
         val now = System.currentTimeMillis()
         val edited = cleanMatter(
             request.matter.copy(
@@ -37,7 +45,7 @@ class MatterDraft(val request: EditRequest) {
                 nextStep = nextStep, goal = goal, description = description, status = status.name,
                 updatedAt = now, sensitive = sensitive, votesNeeded = votesNeeded?.takeIf { it in 1..10_000 },
             ),
-        ) ?: return
+        ) ?: return keepInInbox(db, title, goal, nextStep, description)
         val fromInbox = request.fromInboxId
         val today = Dates.today()
         db.withTransaction {
@@ -53,6 +61,14 @@ class MatterDraft(val request: EditRequest) {
             }
         }
     }
+}
+
+/**
+ * What was typed into a record that cannot be saved as it is (no title yet, no amount, a hard
+ * deadline without its basis) goes to the Inbox as a note, so leaving the app never loses it.
+ */
+suspend fun keepInInbox(db: MandatDb, vararg parts: String) {
+    persistInboxDraft(db, parts.map { it.trim() }.filter { it.isNotEmpty() }.joinToString("\n").ifEmpty { null })
 }
 
 /** Saves an unfinished Inbox note, so leaving the app does not lose it. */
@@ -79,7 +95,15 @@ class PersonDraft(val person: ua.mandat.data.Person, val isNew: Boolean) {
     var lastContact by mutableStateOf(person.lastContact)
     var more by mutableStateOf(person.moreCategories.lines().filter { it.isNotBlank() }.toSet())
 
+    /** Something was typed or chosen since the card opened: Back asks before throwing that away. */
+    fun changed(): Boolean = name != person.name || organization != person.organization || jobTitle != person.jobTitle ||
+        contact != person.contact || notes != person.notes || teamRole?.name != person.teamRole || category?.name != person.category ||
+        categoryCustom != person.categoryCustom || teamCustom != person.teamCustom || influence != person.influence ||
+        stance?.name != person.stance || isGroup != person.isGroup || reportsToId != person.reportsToId || lastContact != person.lastContact ||
+        more != person.moreCategories.lines().filter { it.isNotBlank() }.toSet()
+
     suspend fun persist(db: MandatDb) {
+        if (!isNew && !changed()) return
         val now = System.currentTimeMillis()
         val edited = ua.mandat.data.cleanPerson(
             person.copy(
@@ -89,7 +113,7 @@ class PersonDraft(val person: ua.mandat.data.Person, val isNew: Boolean) {
                 influence = influence, stance = stance?.name, isGroup = isGroup,
                 reportsToId = reportsToId, lastContact = lastContact, moreCategories = more.joinToString("\n"),
             ),
-        ) ?: return
+        ) ?: return keepInInbox(db, name, organization, jobTitle, contact, notes)
         if (isNew) db.people().insert(edited.copy(id = 0, createdAt = now)) else db.people().update(edited)
     }
 }
@@ -97,7 +121,7 @@ class PersonDraft(val person: ua.mandat.data.Person, val isNew: Boolean) {
 /** A delegation being edited in its dialog. */
 class DelegationDraft(val delegation: ua.mandat.data.Delegation, val isNew: Boolean) {
     /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
-    fun changed(): Boolean = what != delegation.what || purpose != delegation.purpose || doneMeans != delegation.doneMeans || personId != delegation.personId || matterId != delegation.matterId || due != delegation.due || status.name != delegation.status || freedom?.name != delegation.freedom
+    fun changed(): Boolean = what != delegation.what || purpose != delegation.purpose || doneMeans != delegation.doneMeans || personId != delegation.personId || matterId != delegation.matterId || due != delegation.due || status.name != delegation.status || freedom?.name != delegation.freedom || extra() != initialExtra
 
     var what by mutableStateOf(delegation.what)
     var personId by mutableStateOf(delegation.personId)
@@ -110,9 +134,14 @@ class DelegationDraft(val delegation: ua.mandat.data.Delegation, val isNew: Bool
     var checkIn by mutableStateOf(delegation.checkIn)
     var returned by mutableStateOf(delegation.returned)
 
+    /** The remaining choices as they were when the sheet opened: changing only one of them still counts. */
+    private val initialExtra = extra()
+    private fun extra(): List<Any?> = listOf(checkIn, returned)
+
     suspend fun persist(db: MandatDb) {
+        if (!isNew && !changed()) return
         val text = what.trim().take(2_000)
-        if (text.isEmpty()) return
+        if (text.isEmpty()) return keepInInbox(db, purpose, doneMeans)
         val now = System.currentTimeMillis()
         val closed = if (status == ua.mandat.data.TaskStatus.OPEN) null else (delegation.closedAt ?: now)
         val edited = delegation.copy(
@@ -127,7 +156,7 @@ class DelegationDraft(val delegation: ua.mandat.data.Delegation, val isNew: Bool
 /** A promise being edited in its dialog. */
 class PromiseDraft(val promise: ua.mandat.data.Promise, val isNew: Boolean) {
     /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
-    fun changed(): Boolean = what != promise.what || toWhom != promise.toWhom || source != promise.source || statusNote != promise.statusNote || personId != promise.personId || matterId != promise.matterId || due != promise.due || publicity != promise.level || origin?.name != promise.origin || risk != promise.risk
+    fun changed(): Boolean = what != promise.what || toWhom != promise.toWhom || source != promise.source || statusNote != promise.statusNote || personId != promise.personId || matterId != promise.matterId || due != promise.due || publicity != promise.level || origin?.name != promise.origin || risk != promise.risk || extra() != initialExtra
 
     var what by mutableStateOf(promise.what)
     var personId by mutableStateOf(promise.personId)
@@ -143,9 +172,14 @@ class PromiseDraft(val promise: ua.mandat.data.Promise, val isNew: Boolean) {
     /** The day it was promised; old promises can be written down later with their real date. */
     var madeOn by mutableStateOf(if (promise.createdAt == 0L) Dates.today() else Dates.dayOf(promise.createdAt))
 
+    /** The remaining choices as they were when the sheet opened: changing only one of them still counts. */
+    private val initialExtra = extra()
+    private fun extra(): List<Any?> = listOf(madeOn)
+
     suspend fun persist(db: MandatDb) {
+        if (!isNew && !changed()) return
         val text = what.trim().take(2_000)
-        if (text.isEmpty()) return
+        if (text.isEmpty()) return keepInInbox(db, toWhom, source, statusNote)
         val now = System.currentTimeMillis()
         val closed = if (status == ua.mandat.data.TaskStatus.OPEN) null else (promise.closedAt ?: now)
         val edited = promise.copy(
@@ -189,7 +223,7 @@ fun newPerson() = PersonDraft(
 /** A deadline being edited in its dialog. */
 class DeadlineDraft(val deadline: ua.mandat.data.Deadline, val isNew: Boolean) {
     /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
-    fun changed(): Boolean = title != deadline.title || basis != deadline.basis || day != deadline.day || matterId != deadline.matterId
+    fun changed(): Boolean = title != deadline.title || basis != deadline.basis || day != deadline.day || matterId != deadline.matterId || extra() != initialExtra
 
     var title by mutableStateOf(deadline.title)
     var day by mutableStateOf(deadline.day)
@@ -199,9 +233,14 @@ class DeadlineDraft(val deadline: ua.mandat.data.Deadline, val isNew: Boolean) {
     var remindBefore by mutableStateOf(deadline.remindBefore)
     var status by mutableStateOf(ua.mandat.data.TaskStatus.of(deadline.status))
 
+    /** The remaining choices as they were when the sheet opened: changing only one of them still counts. */
+    private val initialExtra = extra()
+    private fun extra(): List<Any?> = listOf(kind, remindBefore, status)
+
     fun valid() = title.isNotBlank() && (kind == ua.mandat.data.DeadlineKind.SOFT || basis.isNotBlank())
 
     suspend fun persist(db: MandatDb) {
+        if (!isNew && !changed()) return
         val now = System.currentTimeMillis()
         val closed = if (status == ua.mandat.data.TaskStatus.OPEN) null else (deadline.closedAt ?: now)
         val edited = ua.mandat.data.cleanDeadline(
@@ -211,7 +250,7 @@ class DeadlineDraft(val deadline: ua.mandat.data.Deadline, val isNew: Boolean) {
                 basis = if (kind == ua.mandat.data.DeadlineKind.HARD) basis else "", matterId = matterId,
                 remindBefore = remindBefore, status = status.name, closedAt = closed,
             ),
-        ) ?: return
+        ) ?: return keepInInbox(db, title, basis)
         if (isNew) db.deadlines().insert(edited.copy(id = 0, createdAt = now)) else db.deadlines().update(edited)
     }
 }
@@ -229,9 +268,10 @@ fun newDeadline(matterId: Long? = null) = DeadlineDraft(
  * Saves today's answer to the evening question (one entry per day). With [append] (tonight's entry
  * was hidden when typing began) the text goes under what is there, so nothing hidden is overwritten.
  */
-suspend fun persistReview(db: MandatDb, text: String?, append: Boolean = false) {
+suspend fun persistReview(db: MandatDb, text: String?, append: Boolean = false, day: Long? = null) {
     val clean = text?.trim()?.take(ua.mandat.data.MAX_NOTE_LENGTH)?.ifEmpty { null } ?: return
-    val today = Dates.today()
+    // The evening it was started on (typed before midnight, saved after it); never a day in the future
+    val today = day?.takeIf { it <= Dates.today() } ?: Dates.today()
     val existing = db.reviews().forDay(today)
     if (existing == null) {
         db.reviews().insert(ua.mandat.data.Review(day = today, progress = clean, createdAt = System.currentTimeMillis()))
@@ -268,8 +308,9 @@ class EventDraft(val event: ua.mandat.data.Event, val isNew: Boolean, people: Se
     )
 
     suspend fun persist(db: MandatDb) {
+        if (!isNew && !changed()) return
         val now = System.currentTimeMillis()
-        val edited = ua.mandat.data.cleanEvent(current(now)) ?: return
+        val edited = ua.mandat.data.cleanEvent(current(now)) ?: return keepInInbox(db, title, place, notes, outcome)
         db.withTransaction {
             val id = if (isNew) db.events().insert(edited.copy(id = 0, createdAt = now)) else edited.id.also { db.events().update(edited) }
             db.events().setPeople(id, people)
@@ -312,7 +353,7 @@ class ContactDraft(val contact: ua.mandat.data.Contact) {
     )
 
     suspend fun persist(db: MandatDb) {
-        val e = edited() ?: return
+        val e = edited() ?: return keepInInbox(db, name, phones, emails, organization, jobTitle, notes)
         if (isNew) db.contacts().insert(e.copy(id = 0)) else db.contacts().update(e)
     }
 }
@@ -320,7 +361,7 @@ class ContactDraft(val contact: ua.mandat.data.Contact) {
 /** A media or information item being edited. */
 class InfoDraft(val item: ua.mandat.data.InfoItem, val isNew: Boolean) {
     /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
-    fun changed(): Boolean = title != item.title || notes != item.notes || result != item.result || source != item.source || matterId != item.matterId
+    fun changed(): Boolean = title != item.title || notes != item.notes || result != item.result || source != item.source || matterId != item.matterId || extra() != initialExtra
 
     var kind by mutableStateOf(ua.mandat.data.InfoKind.of(item.kind))
     var title by mutableStateOf(item.title)
@@ -336,7 +377,12 @@ class InfoDraft(val item: ua.mandat.data.InfoItem, val isNew: Boolean) {
     var checks by mutableStateOf(ua.mandat.data.checksOf(item.checks))
     var closed by mutableStateOf(item.closed)
 
+    /** The remaining choices as they were when the sheet opened: changing only one of them still counts. */
+    private val initialExtra = extra()
+    private fun extra(): List<Any?> = listOf(kind, day, personId, reach, stage, decision, checks, closed)
+
     suspend fun persist(db: MandatDb) {
+        if (!isNew && !changed()) return
         val now = System.currentTimeMillis()
         val edited = ua.mandat.data.cleanInfo(
             item.copy(
@@ -344,7 +390,7 @@ class InfoDraft(val item: ua.mandat.data.InfoItem, val isNew: Boolean) {
                 stage = stage.name, decision = decision?.name, notes = notes, result = result,
                 checks = ua.mandat.data.checksText(checks), closed = closed, updatedAt = now,
             ),
-        ) ?: return
+        ) ?: return keepInInbox(db, title, source, notes, result)
         if (isNew) db.info().insert(edited.copy(id = 0, createdAt = now)) else db.info().update(edited)
     }
 }
@@ -365,8 +411,9 @@ class MessageDraft(val message: ua.mandat.data.KeyMessage, val isNew: Boolean) {
     var matterId by mutableStateOf(message.matterId)
 
     suspend fun persist(db: MandatDb) {
+        if (!isNew && !changed()) return
         val now = System.currentTimeMillis()
-        val edited = ua.mandat.data.cleanMessage(message.copy(text = text, proof = proof, audience = audience, matterId = matterId, updatedAt = now)) ?: return
+        val edited = ua.mandat.data.cleanMessage(message.copy(text = text, proof = proof, audience = audience, matterId = matterId, updatedAt = now)) ?: return keepInInbox(db, text, proof, audience)
         if (isNew) db.info().insertMessage(edited.copy(id = 0, createdAt = now)) else db.info().updateMessage(edited)
     }
 }
@@ -376,7 +423,7 @@ fun newMessage(matterId: Long? = null) = MessageDraft(ua.mandat.data.KeyMessage(
 /** A situational alliance being edited. */
 class AllianceDraft(val alliance: ua.mandat.data.Alliance, val isNew: Boolean) {
     /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
-    fun changed(): Boolean = withWhom != alliance.withWhom || about != alliance.about || gives != alliance.gives || gets != alliance.gets || notes != alliance.notes || matterId != alliance.matterId
+    fun changed(): Boolean = withWhom != alliance.withWhom || about != alliance.about || gives != alliance.gives || gets != alliance.gets || notes != alliance.notes || matterId != alliance.matterId || extra() != initialExtra
 
     var withWhom by mutableStateOf(alliance.withWhom)
     var personId by mutableStateOf(alliance.personId)
@@ -388,16 +435,21 @@ class AllianceDraft(val alliance: ua.mandat.data.Alliance, val isNew: Boolean) {
     var status by mutableStateOf(ua.mandat.data.AllianceStatus.of(alliance.status))
     var notes by mutableStateOf(alliance.notes)
 
+    /** The remaining choices as they were when the sheet opened: changing only one of them still counts. */
+    private val initialExtra = extra()
+    private fun extra(): List<Any?> = listOf(personId, untilDay, status)
+
     fun valid() = withWhom.isNotBlank() && about.isNotBlank()
 
     suspend fun persist(db: MandatDb) {
+        if (!isNew && !changed()) return
         val now = System.currentTimeMillis()
         val edited = ua.mandat.data.cleanAlliance(
             alliance.copy(
                 withWhom = withWhom, personId = personId, about = about, matterId = matterId, untilDay = untilDay,
                 gives = gives, gets = gets, status = status.name, notes = notes, updatedAt = now,
             ),
-        ) ?: return
+        ) ?: return keepInInbox(db, withWhom, about, gives, gets, notes)
         if (isNew) db.info().insertAlliance(edited.copy(id = 0, createdAt = now)) else db.info().updateAlliance(edited)
     }
 }
@@ -410,7 +462,7 @@ fun newAlliance(matterId: Long? = null) = AllianceDraft(
 /** A money entry being edited: the amount is kept as typed until it is saved. */
 class MoneyDraft(val entry: ua.mandat.data.MoneyEntry, val isNew: Boolean) {
     /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
-    fun changed(): Boolean = note != entry.note || category != entry.category || toWhom != entry.toWhom || matterId != entry.matterId || day != entry.day || kind != entry.kind || currency != entry.currency || (amountText.isNotBlank() && amountText != (if (entry.amount > 0) ua.mandat.data.formatAmount(entry.amount).replace(" ", "") else ""))
+    fun changed(): Boolean = note != entry.note || category != entry.category || toWhom != entry.toWhom || matterId != entry.matterId || day != entry.day || kind != entry.kind || currency != entry.currency || (amountText.isNotBlank() && amountText != (if (entry.amount > 0) ua.mandat.data.formatAmount(entry.amount).replace(" ", "") else "")) || extra() != initialExtra
 
     var kind by mutableStateOf(entry.kind)
     var day by mutableStateOf(entry.day)
@@ -428,13 +480,19 @@ class MoneyDraft(val entry: ua.mandat.data.MoneyEntry, val isNew: Boolean) {
     var awaitingRefund by mutableStateOf(entry.awaitingRefund)
     var refunded by mutableStateOf(entry.refunded)
 
+    /** The remaining choices as they were when the sheet opened: changing only one of them still counts. */
+    private val initialExtra = extra()
+    private fun extra(): List<Any?> = listOf(rateText, charityKind, awaitingRefund, refunded)
+
     fun rate(): Double? = rateText.trim().replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 && it < 10_000 }
     fun amount(): Long? = ua.mandat.data.parseAmount(amountText)
     fun valid() = amount() != null && category.isNotBlank() && currency.matches(Regex("[A-Z]{3}")) && (currency == "UAH" || rate() != null)
 
     suspend fun persist(db: MandatDb) {
-        val a = amount() ?: return
-        if (!currency.matches(Regex("[A-Z]{3}")) || (currency != "UAH" && rate() == null)) return
+        if (!isNew && !changed()) return
+        // A new entry only opened (its category is filled in already) leaves nothing in the Inbox
+        val a = amount() ?: return if (changed()) keepInInbox(db, category, amountText, note, toWhom) else Unit
+        if (!currency.matches(Regex("[A-Z]{3}")) || (currency != "UAH" && rate() == null)) return if (changed()) keepInInbox(db, category, amountText, note, toWhom) else Unit
         val now = System.currentTimeMillis()
         val edited = ua.mandat.data.cleanMoney(
             entry.copy(
@@ -442,7 +500,7 @@ class MoneyDraft(val entry: ua.mandat.data.MoneyEntry, val isNew: Boolean) {
                 note = note, matterId = matterId, charityKind = charityKind?.name, toWhom = toWhom,
                 awaitingRefund = awaitingRefund, refunded = refunded, updatedAt = now,
             ),
-        ) ?: return
+        ) ?: return keepInInbox(db, category, amountText, note, toWhom)
         if (isNew) db.money().insert(edited.copy(id = 0, createdAt = now)) else db.money().update(edited)
     }
 }
@@ -459,7 +517,7 @@ fun newMoney(kind: ua.mandat.data.MoneyKind, category: String? = null) = MoneyDr
 /** A community being edited. */
 class CommunityDraft(val community: ua.mandat.data.Community, val isNew: Boolean) {
     /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
-    fun changed(): Boolean = name != community.name || head != community.head || notes != community.notes || population != community.population?.toString().orEmpty()
+    fun changed(): Boolean = name != community.name || head != community.head || notes != community.notes || population != community.population?.toString().orEmpty() || extra() != initialExtra
 
     var name by mutableStateOf(community.name)
     var kind by mutableStateOf(ua.mandat.data.CommunityKind.of(community.kind))
@@ -467,11 +525,16 @@ class CommunityDraft(val community: ua.mandat.data.Community, val isNew: Boolean
     var head by mutableStateOf(community.head)
     var notes by mutableStateOf(community.notes)
 
+    /** The remaining choices as they were when the sheet opened: changing only one of them still counts. */
+    private val initialExtra = extra()
+    private fun extra(): List<Any?> = listOf(kind)
+
     suspend fun persist(db: MandatDb) {
+        if (!isNew && !changed()) return
         val now = System.currentTimeMillis()
         val edited = ua.mandat.data.cleanCommunity(
             community.copy(name = name, kind = kind.name, population = population.filter { it.isDigit() }.take(9).toIntOrNull(), head = head, notes = notes, updatedAt = now),
-        ) ?: return
+        ) ?: return keepInInbox(db, name, head, notes)
         if (isNew) db.communities().insert(edited.copy(id = 0, createdAt = now)) else db.communities().update(edited)
     }
 }
@@ -497,8 +560,11 @@ class TextDraft(val doc: ua.mandat.data.TextDoc, val isNew: Boolean) {
     fun valid() = title.isNotBlank()
 
     suspend fun persist(db: MandatDb): Long? {
+        if (!isNew && !changed()) return doc.id
         val now = System.currentTimeMillis()
-        val edited = ua.mandat.data.cleanText(doc.copy(title = title, kind = kind.name, body = body, matterId = matterId, updatedAt = now)) ?: return null
+        // Written without a title yet: its first line becomes the title, so the writing is never lost
+        val named = title.ifBlank { body.lineSequence().map { it.trim() }.firstOrNull { it.isNotEmpty() }?.take(80).orEmpty() }
+        val edited = ua.mandat.data.cleanText(doc.copy(title = named, kind = kind.name, body = body, matterId = matterId, updatedAt = now)) ?: return null
         return db.withTransaction {
             if (isNew) db.texts().insert(edited.copy(id = 0, createdAt = now))
             else {
@@ -518,3 +584,17 @@ class TextDraft(val doc: ua.mandat.data.TextDoc, val isNew: Boolean) {
 fun newText(matterId: Long? = null, kind: ua.mandat.data.TextKind = ua.mandat.data.TextKind.OTHER, title: String = "", body: String = "") = TextDraft(
     ua.mandat.data.TextDoc(title = title, kind = kind.name, body = body, matterId = matterId, createdAt = 0, updatedAt = 0), isNew = true,
 )
+
+/**
+ * Keeps what is typed in a field that lives only on its screen: if Mandat locks while it is
+ * there, [save] runs with the database. Call it only while there is something to keep;
+ * leaving the screen forgets it.
+ */
+@androidx.compose.runtime.Composable
+fun SaveOnLock(session: Session, key: String, save: suspend (MandatDb) -> Unit) {
+    val current = androidx.compose.runtime.rememberUpdatedState(save)
+    androidx.compose.runtime.DisposableEffect(session, key) {
+        session.keptOnLock[key] = { db -> current.value(db) }
+        onDispose { session.keptOnLock.remove(key) }
+    }
+}

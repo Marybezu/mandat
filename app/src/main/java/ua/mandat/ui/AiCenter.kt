@@ -156,6 +156,7 @@ fun AiCenter(db: MandatDb, session: Session) {
                 Button(onClick = { close(); session.optionsRequest = true }) { Text(stringResource(R.string.ai_turn_on)) }
             } else {
                 SheetGroup(stringResource(R.string.ai_ask_title)) {
+                    if (question.isNotBlank()) SaveOnLock(session, "ai-question") { db -> persistInboxDraft(db, question) }
                     OutlinedTextField(question, { question = it.take(500) }, placeholder = { Text(stringResource(R.string.ai_ask_hint)) },
                         minLines = 2, maxLines = 5, modifier = Modifier.fillMaxWidth())
                     if (question.isNotBlank()) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -301,6 +302,8 @@ private fun ReplySheet(db: MandatDb, session: Session, onDone: () -> Unit, onDis
     val title = stringResource(R.string.ai_reply_title)
     EditSheet(title = "$AI_MARK $label", onDismiss = onDismiss, onSave = null) {
         SheetGroup {
+            // A pasted letter is kept in the Inbox if Mandat locks before the answer becomes a text
+            if (letter.isNotBlank()) SaveOnLock(session, "ai-letter") { db -> persistInboxDraft(db, letter) }
             Text(stringResource(R.string.ai_reply_explain), style = MaterialTheme.typography.labelMedium, color = Muted)
             OutlinedTextField(letter, { letter = it.take(LocalAi.MAX_INPUT - 1500) }, label = { Text(stringResource(R.string.ai_reply_letter)) },
                 minLines = 6, readOnly = run.busy, modifier = Modifier.fillMaxWidth())
@@ -333,6 +336,7 @@ private fun DigestSheet(session: Session, onDone: () -> Unit, onDismiss: () -> U
     val title = stringResource(R.string.ai_digest_title)
     EditSheet(title = "$AI_MARK " + stringResource(R.string.ai_digest), onDismiss = onDismiss, onSave = null) {
         SheetGroup {
+            if (text.isNotBlank()) SaveOnLock(session, "ai-digest") { db -> persistInboxDraft(db, text) }
             Text(stringResource(R.string.ai_digest_explain), style = MaterialTheme.typography.labelMedium, color = Muted)
             OutlinedTextField(text, { text = it.take(DIGEST_FIELD_MAX) }, label = { Text(stringResource(R.string.ai_digest_text)) },
                 minLines = 8, maxLines = 14, readOnly = busy, modifier = Modifier.fillMaxWidth())

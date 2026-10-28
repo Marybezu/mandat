@@ -34,37 +34,54 @@ object Packet {
 
     // ── Writing ──
 
-    fun encode(p: P): String = JSONObject().apply {
+    /**
+     * The packet numbers its records 1, 2, 3… of its own: the sender's database numbers (how many
+     * records there are, what was deleted) do not travel with it.
+     */
+    fun encode(p: P): String {
+        fun <T> numbers(list: List<T>, id: (T) -> Long): Map<Long, Long> = list.withIndex().associate { (i, x) -> id(x) to (i + 1L) }
+        val mId = numbers(p.matters) { it.id }
+        val pId = numbers(p.people) { it.id }
+        val eId = numbers(p.events) { it.id }
+        val rId = numbers(p.roleNames.keys.toList()) { it }
+        return JSONObject().apply {
         put("format", FORMAT)
-        put("roles", JSONObject().apply { p.roleNames.forEach { (id, n) -> put(id.toString(), n) } })
+        put("roles", JSONObject().apply { p.roleNames.forEach { (id, n) -> put(rId.getValue(id).toString(), n) } })
         put("matters", JSONArray().apply { p.matters.forEach { m -> put(JSONObject().apply {
-            put("id", m.id); put("title", m.title); put("type", m.type); put("attention", m.attention); put("status", m.status)
-            put("nextStep", m.nextStep); put("goal", m.goal); put("description", m.description); m.roleId?.let { put("role", it) }
+            put("id", mId.getValue(m.id)); put("title", m.title); put("type", m.type); put("attention", m.attention); put("status", m.status)
+            put("nextStep", m.nextStep); put("goal", m.goal); put("description", m.description); m.roleId?.let(rId::get)?.let { put("role", it) }
         }) } })
         put("people", JSONArray().apply { p.people.forEach { x -> put(JSONObject().apply {
-            put("id", x.id); put("name", x.name); put("organization", x.organization); put("jobTitle", x.jobTitle); put("contact", x.contact)
+            put("id", pId.getValue(x.id)); put("name", x.name); put("organization", x.organization); put("jobTitle", x.jobTitle); put("contact", x.contact)
         }) } })
-        put("links", JSONArray().apply { p.links.forEach { l -> put(JSONObject().apply {
-            put("matter", l.matterId); put("person", l.personId); l.stance?.let { put("stance", it) }; l.raci?.let { put("raci", it) }
-        }) } })
+        put("links", JSONArray().apply { p.links.forEach { l ->
+            val m = mId[l.matterId] ?: return@forEach
+            val who = pId[l.personId] ?: return@forEach
+            put(JSONObject().apply { put("matter", m); put("person", who); l.stance?.let { put("stance", it) }; l.raci?.let { put("raci", it) } })
+        } })
         put("delegations", JSONArray().apply { p.delegations.forEach { d -> put(JSONObject().apply {
-            put("what", d.what); d.personId?.let { put("person", it) }; d.matterId?.let { put("matter", it) }; d.due?.let { put("due", it) }
+            put("what", d.what); d.personId?.let(pId::get)?.let { put("person", it) }; d.matterId?.let(mId::get)?.let { put("matter", it) }; d.due?.let { put("due", it) }
             put("status", d.status); put("purpose", d.purpose); put("doneMeans", d.doneMeans)
         }) } })
         put("promises", JSONArray().apply { p.promises.forEach { x -> put(JSONObject().apply {
-            put("what", x.what); x.personId?.let { put("person", it) }; put("toWhom", x.toWhom); put("publicity", x.level.name)
-            x.matterId?.let { put("matter", it) }; x.due?.let { put("due", it) }; put("status", x.status); put("source", x.source)
+            put("what", x.what); x.personId?.let(pId::get)?.let { put("person", it) }; put("toWhom", x.toWhom); put("publicity", x.level.name)
+            x.matterId?.let(mId::get)?.let { put("matter", it) }; x.due?.let { put("due", it) }; put("status", x.status); put("source", x.source)
         }) } })
         put("deadlines", JSONArray().apply { p.deadlines.forEach { d -> put(JSONObject().apply {
-            put("title", d.title); put("day", d.day); put("kind", d.kind); put("basis", d.basis); d.matterId?.let { put("matter", it) }; put("status", d.status)
+            put("title", d.title); put("day", d.day); put("kind", d.kind); put("basis", d.basis); d.matterId?.let(mId::get)?.let { put("matter", it) }; put("status", d.status)
         }) } })
         put("events", JSONArray().apply { p.events.forEach { e -> put(JSONObject().apply {
-            put("id", e.id); put("title", e.title); put("day", e.day); e.endDay?.let { put("endDay", it) }; e.startMin?.let { put("start", it) }
-            e.endMin?.let { put("end", it) }; put("kind", e.kind); put("place", e.place); e.matterId?.let { put("matter", it) }
+            put("id", eId.getValue(e.id)); put("title", e.title); put("day", e.day); e.endDay?.let { put("endDay", it) }; e.startMin?.let { put("start", it) }
+            e.endMin?.let { put("end", it) }; put("kind", e.kind); put("place", e.place); e.matterId?.let(mId::get)?.let { put("matter", it) }
             put("notes", e.notes); put("outcome", e.outcome)
         }) } })
-        put("eventPeople", JSONArray().apply { p.eventPeople.forEach { l -> put(JSONObject().apply { put("event", l.eventId); put("person", l.personId) }) } })
-    }.toString()
+        put("eventPeople", JSONArray().apply { p.eventPeople.forEach { l ->
+            val ev = eId[l.eventId] ?: return@forEach
+            val who = pId[l.personId] ?: return@forEach
+            put(JSONObject().apply { put("event", ev); put("person", who) })
+        } })
+        }.toString()
+    }
 
     // ── Reading ──
 

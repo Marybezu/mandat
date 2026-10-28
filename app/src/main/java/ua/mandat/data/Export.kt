@@ -69,7 +69,7 @@ object Export {
     private val dateOnly = DateTimeFormatter.ofPattern("yyyyMMdd")
 
     fun ics(events: List<Event>, kindName: (String) -> String, zone: ZoneId = ZoneId.systemDefault(), now: Long = System.currentTimeMillis()): String = buildString {
-        append("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Mandat//UK\r\nCALSCALE:GREGORIAN\r\n")
+        append("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//notes//EN\r\nCALSCALE:GREGORIAN\r\n")
         for (e in events) {
             append("BEGIN:VEVENT\r\n")
             // A random identifier: record numbers and creation times would show gaps and history

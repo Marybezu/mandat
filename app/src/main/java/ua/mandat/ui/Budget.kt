@@ -477,17 +477,21 @@ private fun LimitsDialog(session: Session, settings: Map<String, String>, onClos
                 onClose()
                 session.write { db ->
                     values.forEach { (c, t) ->
-                        val v = parseAmount(t)
-                        db.settings().put(Setting(SETTING_LIMIT_PREFIX + c, (v ?: 0L).toString()))
+                        // An empty field removes the limit; one that is not a number was not allowed to be saved
+                        val v = if (t.isBlank()) 0L else parseAmount(t) ?: return@forEach
+                        db.settings().put(Setting(SETTING_LIMIT_PREFIX + c, v.toString()))
                     }
                 }
             },
+        saveEnabled = texts.value.values.all { it.isBlank() || parseAmount(it) != null },
     ) {
         SheetGroup {
 
                 Text(stringResource(R.string.money_limits_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
                 cats.forEach { c ->
-                    OutlinedTextField(texts.value[c].orEmpty(), { v -> texts.value = texts.value + (c to v.take(15)) }, label = { Text(categoryName(c)) },
+                    val t = texts.value[c].orEmpty()
+                    OutlinedTextField(t, { v -> texts.value = texts.value + (c to v.take(15)) }, label = { Text(categoryName(c)) },
+                        isError = t.isNotBlank() && parseAmount(t) == null,
                         singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
                 }
         }
@@ -577,6 +581,11 @@ private fun AidDialog(session: Session, matterId: Long, collected: Boolean, onCl
     var party by remember { mutableStateOf("") }
     var day by remember { mutableStateOf(Dates.today()) }
     val minor = parseAmount(amount) ?: 0L
+    // Filled in but not saved yet: a lock saves it as it is
+    if (minor > 0 || what.isNotBlank()) SaveOnLock(session, "aid") { db ->
+        db.money().insertAid(AidRecord(matterId = matterId, day = day, collected = collected, amount = minor, currency = "UAH", uah = minor,
+            what = what.trim(), party = party.trim(), createdAt = System.currentTimeMillis()))
+    }
     EditSheet(
         title = stringResource(if (collected) R.string.aid_collected else R.string.aid_given),
         onDismiss = onClose,

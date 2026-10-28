@@ -29,6 +29,8 @@ sealed interface BackupNotice {
     data object FromNewer : BackupNotice
     data class Restored(val rows: Int) : BackupNotice
     data object RestoreFailed : BackupNotice
+    /** Automatic copies are on, but the copy of the current data before replacing it failed: nothing was replaced. */
+    data object RestoreNoSafetyCopy : BackupNotice
     data object AutoOn : BackupNotice
     data object AutoFailed : BackupNotice
     data object AutoOff : BackupNotice
@@ -173,6 +175,8 @@ class Backups(private val context: Context, private val session: Session) {
             val ok = check.contentEquals(json)
             check.fill(0)
             if (ok) {
+                // Remembered for the reminder to make a copy (only the time, on this phone)
+                session.withRealDb { it.settings().put(ua.mandat.data.Setting(ua.mandat.backup.AutoBackup.KEY_MANUAL, System.currentTimeMillis().toString())) }
                 BackupNotice.Saved(rows)
             } else {
                 deleteQuietly(uri)
@@ -228,6 +232,18 @@ class Backups(private val context: Context, private val session: Session) {
         pending = null
         run(onCrash = { restore.json.fill(0); BackupNotice.RestoreFailed }) {
             try {
+                // With automatic copies on, the current data is copied first (encrypted, to that folder),
+                // so replacing it can be undone; if that copy fails, nothing is replaced
+                val auto = ua.mandat.backup.AutoBackup
+                val db = (session.state as? LockState.Open)?.db ?: return@run BackupNotice.RestoreFailed
+                if (session.withRealDb { auto.status(it).enabled } == true) {
+                    session.reconcileAuto(db)
+                    val prepared = session.withRealDb { auto.prepareIfDue(it, force = true) }
+                    val written = prepared != null && withTimeoutOrNull(60_000) { session.startAutoWrite(prepared).await() } != null
+                    val ok = written && session.reconcileAuto(db) == true
+                    refreshAuto()
+                    if (!ok) return@run BackupNotice.RestoreNoSafetyCopy
+                }
                 session.withRealDb { BackupData.restore(it, restore.json) }
                     ?.let { BackupNotice.Restored(restore.summary.rows) }
                     ?: BackupNotice.RestoreFailed

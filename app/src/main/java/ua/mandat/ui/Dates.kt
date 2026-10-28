@@ -19,8 +19,11 @@ object Dates {
 
     fun toPicker(day: Long): Long = day * DAY_MS
 
+    /** Any stored number becomes a date the calendar can show (a damaged value never stops a screen). */
+    private fun safe(day: Long): LocalDate = LocalDate.ofEpochDay(day.coerceIn(-200_000L, 200_000L))
+
     fun format(day: Long): String {
-        val local = LocalDate.ofEpochDay(day).atStartOfDay(ZoneId.systemDefault()).toInstant()
+        val local = safe(day).atStartOfDay(ZoneId.systemDefault()).toInstant()
         return DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date.from(local))
     }
 
@@ -36,11 +39,11 @@ object Dates {
 
     /** Noon of a calendar day in the phone's time zone, as epoch milliseconds. */
     fun noonOf(day: Long): Long =
-        LocalDate.ofEpochDay(day).atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        safe(day).atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
     /** "28 жовт." for this year, the full date otherwise: short enough for a label. */
     fun short(day: Long): String {
-        val d = LocalDate.ofEpochDay(day)
+        val d = safe(day)
         return if (d.year == LocalDate.now().year) d.format(java.time.format.DateTimeFormatter.ofPattern("d MMM")) else format(day)
     }
 }

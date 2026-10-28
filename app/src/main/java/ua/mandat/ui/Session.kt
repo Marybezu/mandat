@@ -83,7 +83,16 @@ class Session(app: Application) : AndroidViewModel(app) {
     var showAlliances by mutableStateOf(false)
 
     /** Today's answer to the evening question while it is being typed; null when not editing. */
-    var reviewDraft by mutableStateOf<String?>(null)
+    private var reviewDraftText by mutableStateOf<String?>(null)
+    var reviewDraft: String?
+        get() = reviewDraftText
+        set(v) {
+            // The day typing began: an entry started before midnight belongs to that evening
+            if (v == null) reviewDraftDay = null else if (reviewDraftText == null) reviewDraftDay = Dates.today()
+            reviewDraftText = v
+        }
+    /** The evening the entry being typed belongs to. */
+    var reviewDraftDay: Long? = null
     /** Tonight's entry was hidden when typing began: the new text is added under it, never over it. */
     var reviewAppend = false
 
@@ -133,19 +142,19 @@ class Session(app: Application) : AndroidViewModel(app) {
     fun saveDeadlineDraft() {
         val d = deadlineDraft ?: return
         deadlineDraft = null
-        write { d.persist(it) }
+        write(onFail = { if (deadlineDraft == null) deadlineDraft = d }) { d.persist(it) }
     }
 
     fun saveInfoDraft() {
         val d = infoDraft ?: return
         infoDraft = null
-        write { d.persist(it) }
+        write(onFail = { if (infoDraft == null) infoDraft = d }) { d.persist(it) }
     }
 
     fun saveMessageDraft() {
         val d = messageDraft ?: return
         messageDraft = null
-        write { d.persist(it) }
+        write(onFail = { if (messageDraft == null) messageDraft = d }) { d.persist(it) }
     }
 
     /** The text being written, and whether the list of texts is open. */
@@ -170,25 +179,25 @@ class Session(app: Application) : AndroidViewModel(app) {
     fun saveTextDraft() {
         val d = textDraft ?: return
         textDraft = null
-        write { d.persist(it) }
+        write(onFail = { if (textDraft == null) textDraft = d }) { d.persist(it) }
     }
 
     fun saveCommunityDraft() {
         val d = communityDraft ?: return
         communityDraft = null
-        write { d.persist(it) }
+        write(onFail = { if (communityDraft == null) communityDraft = d }) { d.persist(it) }
     }
 
     fun saveMoneyDraft() {
         val d = moneyDraft ?: return
         moneyDraft = null
-        write { d.persist(it) }
+        write(onFail = { if (moneyDraft == null) moneyDraft = d }) { d.persist(it) }
     }
 
     fun saveAllianceDraft() {
         val d = allianceDraft ?: return
         allianceDraft = null
-        write { d.persist(it) }
+        write(onFail = { if (allianceDraft == null) allianceDraft = d }) { d.persist(it) }
     }
 
     /** Opens a media item or an alliance by id (from search). */
@@ -199,8 +208,8 @@ class Session(app: Application) : AndroidViewModel(app) {
             withContext(Dispatchers.Main) {
                 if (startedAt != generation || state !is LockState.Open) return@withContext
                 when (found) {
-                    is ua.mandat.data.InfoItem -> if (!isHidden(found.matterId)) infoDraft = InfoDraft(found, isNew = false)
-                    is ua.mandat.data.Alliance -> if (!isHidden(found.matterId)) allianceDraft = AllianceDraft(found, isNew = false)
+                    is ua.mandat.data.InfoItem -> if (!isHidden(found.matterId) && !hidden.value.itemAt(found.matterId, found.updatedAt, found.title, found.source, found.notes, found.result)) infoDraft = InfoDraft(found, isNew = false)
+                    is ua.mandat.data.Alliance -> if (!isHidden(found.matterId) && !hidden.value.itemAt(found.matterId, found.updatedAt, found.withWhom, found.about, found.gives, found.gets, found.notes)) allianceDraft = AllianceDraft(found, isNew = false)
                 }
             }
         }
@@ -209,7 +218,7 @@ class Session(app: Application) : AndroidViewModel(app) {
     fun saveEventDraft() {
         val d = eventDraft ?: return
         eventDraft = null
-        write { d.persist(it) }
+        write(onFail = { if (eventDraft == null) eventDraft = d }) { d.persist(it) }
     }
 
     /** Opens an event in its dialog, with the people taking part. */
@@ -218,7 +227,8 @@ class Session(app: Application) : AndroidViewModel(app) {
         background.launch {
             val found = withOpenDb { db -> db.events().get(id)?.let { it to db.events().peopleOf(id).toSet() } }
             withContext(Dispatchers.Main) {
-                if (found != null && startedAt == generation && state is LockState.Open && !isHidden(found.first.matterId)) eventDraft = EventDraft(found.first, isNew = false, found.second)
+                if (found != null && startedAt == generation && state is LockState.Open && !isHidden(found.first.matterId) &&
+                    !found.first.let { e -> hidden.value.itemAt(e.matterId, e.updatedAt, e.title, e.place, e.notes, e.outcome) }) eventDraft = EventDraft(found.first, isNew = false, found.second)
             }
         }
     }
@@ -236,7 +246,8 @@ class Session(app: Application) : AndroidViewModel(app) {
         val on = db.settings().get(ua.mandat.ui.SETTING_TRIP)?.value == "1"
         val trip = if (on) db.matters().sensitiveIds().toSet() else emptySet()
         val lens = lensRole.value?.let { db.matters().outsideRole(it).toSet() } ?: emptySet()
-        return on to observeHidden(db, trip + lens, byName = trip).first()
+        val since = tripSince(db.settings().get(SETTING_TRIP_SINCE)?.value)
+        return on to observeHidden(db, trip + lens, byName = trip, since = since).first()
     }
 
     /** Sets what is hidden: the matters and everything worked out from them, in one step. */
@@ -358,7 +369,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                 R.string.vcf_too_big
             }
             val plan = (result as? ua.mandat.data.VCard.Result)?.let { r ->
-                withOpenDb { db -> ua.mandat.data.planImport(r.contacts, db.contacts().all(), db.people().all()) }?.let { it to r }
+                withOpenDb { db -> ua.mandat.data.planImport(r.contacts, shownContacts(db), shownPeople(db)) }?.let { it to r }
             }
             withContext(Dispatchers.Main) {
                 if (startedAt != generation || state !is LockState.Open) return@withContext
@@ -380,7 +391,7 @@ class Session(app: Application) : AndroidViewModel(app) {
     fun previewContacts(list: List<ua.mandat.data.Contact>, source: android.net.Uri?) {
         val startedAt = generation
         background.launch {
-            val plan = withOpenDb { db -> ua.mandat.data.planImport(list, db.contacts().all(), db.people().all()) }
+            val plan = withOpenDb { db -> ua.mandat.data.planImport(list, shownContacts(db), shownPeople(db)) }
             withContext(Dispatchers.Main) {
                 if (plan == null || startedAt != generation || state !is LockState.Open) return@withContext
                 vcfImport = VcfImport(source, plan, list.size >= ua.mandat.data.VCard.MAX_CONTACTS)
@@ -406,9 +417,10 @@ class Session(app: Application) : AndroidViewModel(app) {
     fun saveReviewDraft() {
         val text = reviewDraft
         val append = reviewAppend
+        val day = reviewDraftDay
         reviewDraft = null
         reviewAppend = false
-        write { persistReview(it, text, append) }
+        write(onFail = { if (reviewDraft == null) { reviewDraft = text; reviewDraftDay = day; reviewAppend = append } }) { persistReview(it, text, append, day) }
     }
 
     /** Recomputes the reminder days now (for example right after reminders are switched on). */
@@ -440,19 +452,19 @@ class Session(app: Application) : AndroidViewModel(app) {
     fun savePersonDraft() {
         val d = personDraft ?: return
         personDraft = null
-        write { d.persist(it) }
+        write(onFail = { if (personDraft == null) personDraft = d }) { d.persist(it) }
     }
 
     fun saveDelegationDraft() {
         val d = delegationDraft ?: return
         delegationDraft = null
-        write { d.persist(it) }
+        write(onFail = { if (delegationDraft == null) delegationDraft = d }) { d.persist(it) }
     }
 
     fun savePromiseDraft() {
         val d = promiseDraft ?: return
         promiseDraft = null
-        write { d.persist(it) }
+        write(onFail = { if (promiseDraft == null) promiseDraft = d }) { d.persist(it) }
     }
 
     /** Reads under the write lock and shows the result on the main thread, unless Mandat was locked meanwhile. */
@@ -497,9 +509,10 @@ class Session(app: Application) : AndroidViewModel(app) {
             withContext(Dispatchers.Main) {
                 if (startedAt != generation || state !is LockState.Open) return@withContext
                 when (item) {
-                    is ua.mandat.data.Delegation -> if (!isHidden(item.matterId)) delegationDraft = DelegationDraft(item, isNew = false)
-                    is ua.mandat.data.Promise -> if (!isHidden(item.matterId)) promiseDraft = PromiseDraft(item, isNew = false)
-                    is ua.mandat.data.Deadline -> if (!isHidden(item.matterId)) deadlineDraft = DeadlineDraft(item, isNew = false)
+                    // Not tied to a hidden matter, and not naming one either (any link leads to the same check)
+                    is ua.mandat.data.Delegation -> if (!isHidden(item.matterId) && !hidden.value.itemAt(item.matterId, item.createdAt, item.what, item.purpose, item.doneMeans)) delegationDraft = DelegationDraft(item, isNew = false)
+                    is ua.mandat.data.Promise -> if (!isHidden(item.matterId) && !hidden.value.itemAt(item.matterId, item.createdAt, item.what, item.toWhom, item.source, item.statusNote)) promiseDraft = PromiseDraft(item, isNew = false)
+                    is ua.mandat.data.Deadline -> if (!isHidden(item.matterId) && !hidden.value.itemAt(item.matterId, item.createdAt, item.title, item.basis)) deadlineDraft = DeadlineDraft(item, isNew = false)
                 }
             }
         }
@@ -518,7 +531,7 @@ class Session(app: Application) : AndroidViewModel(app) {
         background.launch {
             val p = withOpenDb { db -> db.people().get(id) }
             withContext(Dispatchers.Main) {
-                if (p != null && startedAt == generation && state is LockState.Open && p.id !in hidden.value.people) personDraft = PersonDraft(p, isNew = false)
+                if (p != null && startedAt == generation && state is LockState.Open && !hidden.value.person(p)) personDraft = PersonDraft(p, isNew = false)
             }
         }
     }
@@ -530,14 +543,14 @@ class Session(app: Application) : AndroidViewModel(app) {
     fun saveDraft() {
         val d = draft ?: return
         draft = null
-        write { d.persist(it) }
+        write(onFail = { if (draft == null) draft = d }) { d.persist(it) }
     }
 
     /** Saves the open Inbox note and closes the dialog. */
     fun saveInboxDraft() {
         val text = inboxDraft
         inboxDraft = null
-        write { persistInboxDraft(it, text) }
+        write(onFail = { if (inboxDraft == null) inboxDraft = text }) { persistInboxDraft(it, text) }
     }
 
     /** Text shared from another app, waiting for the owner to confirm adding it to the Inbox. */
@@ -661,7 +674,9 @@ class Session(app: Application) : AndroidViewModel(app) {
     private var key: ByteArray? = null
 
     // Not tied to the screen's lifetime: opening and closing always run to the end
-    private val background = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // An unexpected failure in one background step ends that step only, never the whole app
+    // (and nothing about the data is logged)
+    private val background = CoroutineScope(SupervisorJob() + Dispatchers.IO + kotlinx.coroutines.CoroutineExceptionHandler { _, _ -> })
 
     val backups = Backups(app, this)
 
@@ -775,7 +790,8 @@ class Session(app: Application) : AndroidViewModel(app) {
         background.launch {
             val opened = try {
                 MandatDb.open(getApplication(), passphrase)
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                // Any failure (also of the native library) leaves Mandat locked, never crashed
                 null
             }
             // Trip mode is applied before any screen shows data, so nothing hidden flashes up.
@@ -783,7 +799,7 @@ class Session(app: Application) : AndroidViewModel(app) {
             var db2 = opened
             val hidden = try {
                 opened?.let { computeHidden(it) } ?: (false to Hidden.NONE)
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 try { opened?.close() } catch (x: Exception) { }
                 db2 = null
                 false to Hidden.NONE
@@ -820,24 +836,57 @@ class Session(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Work started from a screen that must finish even if the screen closes (on the main thread, like the screen). */
+    fun detached(block: suspend kotlinx.coroutines.CoroutineScope.() -> Unit) {
+        background.launch(Dispatchers.Main) { block() }
+    }
+
     /** Runs [block] with the open database, never at the same time as a write or a lock. */
     suspend fun <T> withOpenDb(block: suspend (MandatDb) -> T): T? = writes.withLock {
         val db = (state as? LockState.Open)?.db
         if (db == null || !db.isOpen) null else block(db)
     }
 
-    /** Saves a change in the background; a lock waits until it is written. */
-    fun write(block: suspend (MandatDb) -> Unit) {
-        val db = (state as? LockState.Open)?.db ?: return
+    /**
+     * Text typed on a screen outside the drafts (the evening "unload" field, a pasted letter, a new
+     * role's name…): the lock saves it where it belongs, or to the Inbox. Main thread only.
+     */
+    val keptOnLock = LinkedHashMap<String, suspend (MandatDb) -> Unit>()
+
+    // Compared only with what is shown now: a count of "already there" must not give away a hidden entry
+    private suspend fun shownPeople(db: MandatDb) = hidden.value.let { h -> db.people().all().filterNot { h.person(it) } }
+    private suspend fun shownContacts(db: MandatDb) = hidden.value.let { h ->
+        db.contacts().all().filterNot { h.named(it.createdAt, it.name + " " + it.organization + " " + it.jobTitle + " " + it.notes + " " + it.label) }
+    }
+
+    /** A save failed: one short notice says so (its content stays in the editor when it can). */
+    var notSaved by mutableStateOf(false)
+
+    /**
+     * Saves a change in the background; a lock waits until it is written. When it cannot be written,
+     * the owner is told, and [onFail] puts the record back into its editor if Mandat is still open.
+     */
+    fun write(onFail: (() -> Unit)? = null, block: suspend (MandatDb) -> Unit) {
+        val db = (state as? LockState.Open)?.db
+        if (db == null) {
+            if (onFail != null) notSaved = true
+            return
+        }
+        val startedAt = generation
         background.launch {
-            writes.withLock {
-                if (db.isOpen) {
-                    try {
-                        block(db)
-                    } catch (e: Exception) {
-                        // Not written; nothing about the content is logged
-                    }
+            val ok = writes.withLock {
+                if (!db.isOpen) false
+                else try {
+                    block(db)
+                    true
+                } catch (e: Exception) {
+                    // Not written; nothing about the content is logged
+                    false
                 }
+            }
+            if (!ok) withContext(Dispatchers.Main) {
+                notSaved = true
+                if (startedAt == generation && state is LockState.Open) onFail?.invoke()
             }
         }
     }
@@ -915,12 +964,18 @@ class Session(app: Application) : AndroidViewModel(app) {
         vcfBusy = false
         vcfError = null
         showDirectory = false
+        val kept = keptOnLock.values.toList()
+        keptOnLock.clear()
         val openReview = reviewDraft
         val openReviewAppend = reviewAppend
+        val openReviewDay = reviewDraftDay
         reviewAppend = false
         deadlineDraft = null
         reviewDraft = null
         searching = false
+        // Text shared while Mandat was open is content too: it does not wait behind the lock
+        // (one shared to a locked Mandat waits for the unlock, as before)
+        if (current is LockState.Open) sharedText = null
         thankFor = null
         draft = null
         inboxDraft = null
@@ -952,12 +1007,19 @@ class Session(app: Application) : AndroidViewModel(app) {
                             { openText?.persist(current.db) },
                             { persistInboxDraft(current.db, openSplit) },
                             { openContact?.takeIf { !it.isNew || it.touched }?.persist(current.db) },
-                            { persistReview(current.db, openReview, openReviewAppend) },
+                            { persistReview(current.db, openReview, openReviewAppend, openReviewDay) },
                             // Last: only the days on which something is due, for reminders
                             { storeReminderDays(current.db, tripAtLock) },
                         ).forEach { save ->
                             try {
                                 save()
+                            } catch (e: Exception) {
+                                // Not saved; nothing about the content is logged
+                            }
+                        }
+                        kept.forEach { save ->
+                            try {
+                                save(current.db)
                             } catch (e: Exception) {
                                 // Not saved; nothing about the content is logged
                             }
@@ -971,9 +1033,15 @@ class Session(app: Application) : AndroidViewModel(app) {
                         // Registered before the lock is released, so the next unlock always waits for it
                         prepared?.let { autoWrite = startAutoWrite(it, lazy = true) }
                     }
-                    if (current.db.isOpen) MandatDb.checkpoint(current.db)
-                    current.db.close()
-                    oldKey?.fill(0)
+                    // Whatever happens while closing, the database is closed and the key wiped
+                    try {
+                        if (current.db.isOpen) MandatDb.checkpoint(current.db)
+                    } catch (e: Throwable) {
+                        // The write-ahead file stays encrypted; it is merged on the next opening
+                    } finally {
+                        try { current.db.close() } catch (e: Throwable) { }
+                        oldKey?.fill(0)
+                    }
                 }
                 // The database is closed: a slow folder can only delay writing encrypted bytes
                 autoWrite?.start()
@@ -983,7 +1051,7 @@ class Session(app: Application) : AndroidViewModel(app) {
     }
 
     companion object {
-        private const val PICKER_TIMEOUT_MS = 30 * 1000L
+        private const val PICKER_TIMEOUT_MS = 2 * 60 * 1000L
         private const val PROMPT_TIMEOUT_MS = 120 * 1000L
         private const val RESUME_WINDOW_MS = 15 * 60 * 1000L
         /** A larger .vcf is refused (6 000 contacts without photos are a few MB; with photos tens of MB). */

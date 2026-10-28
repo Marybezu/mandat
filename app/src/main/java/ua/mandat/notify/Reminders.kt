@@ -10,7 +10,6 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import ua.mandat.R
-import ua.mandat.ui.MainActivity
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -112,7 +111,8 @@ object Reminders {
         )
         val open = PendingIntent.getActivity(
             context, 0,
-            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            // Through the home-screen entry in use, so the neutral name is kept everywhere
+            Intent(Intent.ACTION_MAIN).setComponent(ua.mandat.ui.Appearance.activeEntry(context)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_IMMUTABLE,
         )
         val text = context.getString(R.string.reminder_text)

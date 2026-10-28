@@ -276,6 +276,10 @@ private fun DiaryEditDialog(session: Session, r: Review, onClose: () -> Unit) {
     var text by remember(r) { mutableStateOf(r.progress) }
     var energy by remember(r) { mutableStateOf(r.energy) }
     var mood by remember(r) { mutableStateOf(r.mood) }
+    // A correction being typed is written to that day if Mandat locks meanwhile
+    if (text != r.progress || energy != r.energy || mood != r.mood) SaveOnLock(session, "diary-edit") { db ->
+        db.reviews().update(r.copy(progress = text.trim().take(ua.mandat.data.MAX_NOTE_LENGTH), energy = energy, mood = mood))
+    }
     EditSheet(
         title = Dates.format(r.day),
         onDismiss = onClose,

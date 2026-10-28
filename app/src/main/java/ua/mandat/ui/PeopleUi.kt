@@ -353,8 +353,14 @@ private fun PersonLine(p: Person, openCount: Int, onOpen: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
-    val onBack = { session.personDraft = null }
+    // Back with something changed first asks, like every other sheet: nothing typed is lost by one tap
+    var askDiscard by remember { mutableStateOf(false) }
+    val onBack: () -> Unit = { if (draft.changed()) askDiscard = true else session.personDraft = null }
     BackHandler(onBack = onBack)
+    if (askDiscard) ConfirmDialog(
+        stringResource(R.string.discard_title), stringResource(R.string.discard_text), stringResource(R.string.discard_go), danger = true,
+        onConfirm = { askDiscard = false; session.personDraft = null }, onCancel = { askDiscard = false },
+    )
     var confirmDelete by remember { mutableStateOf(false) }
     val id = draft.person.id
     val allPeople by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
@@ -381,13 +387,13 @@ fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            OutlinedTextField(value = draft.name, onValueChange = { draft.name = it },
+            OutlinedTextField(value = draft.name, onValueChange = { draft.name = it.take(200) },
                 label = { Text(stringResource(R.string.person_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = draft.jobTitle, onValueChange = { draft.jobTitle = it },
+            OutlinedTextField(value = draft.jobTitle, onValueChange = { draft.jobTitle = it.take(300) },
                 label = { Text(stringResource(R.string.person_job)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = draft.organization, onValueChange = { draft.organization = it },
+            OutlinedTextField(value = draft.organization, onValueChange = { draft.organization = it.take(300) },
                 label = { Text(stringResource(R.string.person_org)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = draft.contact, onValueChange = { draft.contact = it },
+            OutlinedTextField(value = draft.contact, onValueChange = { draft.contact = it.take(1_000) },
                 label = { Text(stringResource(R.string.person_contact)) }, modifier = Modifier.fillMaxWidth())
             ReachButtons(ua.mandat.data.phonesIn(draft.contact), ua.mandat.data.emailsIn(draft.contact))
             CategoryFields(db, draft, session)
@@ -437,7 +443,7 @@ fun PersonEditor(db: MandatDb, session: Session, draft: PersonDraft) {
                 Column(Modifier.weight(1f)) { DueField(draft.lastContact, label = R.string.last_contact) { draft.lastContact = it } }
                 TextButton(onClick = { draft.lastContact = Dates.today() }) { Text(stringResource(R.string.talked_today)) }
             }
-            OutlinedTextField(value = draft.notes, onValueChange = { draft.notes = it },
+            OutlinedTextField(value = draft.notes, onValueChange = { draft.notes = it.take(ua.mandat.data.MAX_NOTE_LENGTH) },
                 label = { Text(stringResource(R.string.person_notes)) }, minLines = 3, modifier = Modifier.fillMaxWidth())
 
             if (!draft.isNew) {

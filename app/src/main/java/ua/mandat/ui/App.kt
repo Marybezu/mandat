@@ -240,13 +240,14 @@ private fun Main(db: MandatDb, session: Session) {
         val lensHidden = session.lensRole.flatMapLatest { r ->
             if (r == null) kotlinx.coroutines.flow.flowOf(emptyList()) else db.matters().observeOutsideRole(r)
         }
-        kotlinx.coroutines.flow.combine(db.settings().observe(SETTING_TRIP), db.matters().observeSensitiveIds(), lensHidden) { trip, ids, lens ->
+        kotlinx.coroutines.flow.combine(db.settings().observe(SETTING_TRIP), db.settings().observe(SETTING_TRIP_SINCE), db.matters().observeSensitiveIds(), lensHidden) { trip, since, ids, lens ->
             val on = trip?.value == "1"
             val trip = if (on) ids.toSet() else emptySet()
-            Triple(on, trip + lens, trip)
-        }.distinctUntilChanged().flatMapLatest { (on, matters, trip) ->
+            listOf(on, trip + lens, trip, tripSince(since?.value))
+        }.distinctUntilChanged().flatMapLatest { (on, matters, trip, since) ->
             // People, diary days and communities tied only to them are worked out before anything shows
-            observeHidden(db, matters, byName = trip).map { on to it }
+            @Suppress("UNCHECKED_CAST")
+            observeHidden(db, matters as Set<Long>, byName = trip as Set<Long>, since = since as Long).map { (on as Boolean) to it }
         }.collect { (on, hidden) -> session.setHidden(on, hidden) }
     }
 
@@ -406,6 +407,7 @@ private fun Main(db: MandatDb, session: Session) {
                     }
                 }
                 LensBar(db, session, full = tab == Tab.Today || tab == Tab.Matters || tab == Tab.Review)
+                if (tab == Tab.Today) BackupReminder(db) { options = true }
             }
         },
         // On a phone the tabs are at the bottom, under the thumb; on a tablet they move to a rail at the side
@@ -468,6 +470,12 @@ private fun Main(db: MandatDb, session: Session) {
     }
 
     if (session.inboxDraft != null) AddDialog(db, session)
+
+    if (session.notSaved) AlertDialog(
+        onDismissRequest = { session.notSaved = false },
+        text = { Text(stringResource(R.string.not_saved)) },
+        confirmButton = { TextButton(onClick = { session.notSaved = false }) { Text(stringResource(R.string.ok)) } },
+    )
 
     // After a colleague's packet was taken in: what was added and what was already here, wherever the owner is
     session.packetResult?.let { r ->

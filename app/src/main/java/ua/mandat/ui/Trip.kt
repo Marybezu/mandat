@@ -27,6 +27,12 @@ fun <T> Flow<List<T>>.hiding(session: Session?, matterOf: (T) -> Long?): Flow<Li
 /** The setting that turns trip mode on (in the encrypted database). */
 const val SETTING_TRIP = "trip_mode"
 
+/** When trip mode was last turned on (epoch milliseconds). */
+const val SETTING_TRIP_SINCE = "trip_since"
+
+/** The moment trip mode was turned on, from its setting; unknown (older versions) counts as always. */
+fun tripSince(value: String?): Long = value?.toLongOrNull() ?: Long.MAX_VALUE
+
 /**
  * The lens: a strip at the top showing which role the whole app is looked through, with a picker.
  * Matters of other roles (and what is linked to them) step aside; items without a matter stay.
@@ -34,7 +40,15 @@ const val SETTING_TRIP = "trip_mode"
 @androidx.compose.runtime.Composable
 fun LensBar(db: ua.mandat.data.MandatDb, session: Session, full: Boolean) {
     val lens by session.lensRole.collectAsStateWithLifecycle()
-    val roles by androidx.compose.runtime.remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val loaded by androidx.compose.runtime.remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle<List<ua.mandat.data.Role>?>(null)
+    // A lens on a role that no longer exists would hide every matter: it is turned off
+    androidx.compose.runtime.LaunchedEffect(lens, loaded) {
+        val all = loaded ?: return@LaunchedEffect
+        val id = lens ?: return@LaunchedEffect
+        if (id != 0L && all.none { it.id == id }) session.lensRole.value = null
+        if (id == 0L && all.isEmpty()) session.lensRole.value = null
+    }
+    val roles = loaded ?: return
     if (roles.isEmpty()) return
     val noRole = androidx.compose.ui.res.stringResource(ua.mandat.R.string.dash_no_role)
     if (!full) {

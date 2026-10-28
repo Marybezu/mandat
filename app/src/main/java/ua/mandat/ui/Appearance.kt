@@ -54,6 +54,9 @@ object Appearance {
 
     fun setPinOnly(context: Context, on: Boolean): Boolean = prefs(context).edit().putBoolean("pin_only", on).commit()
 
+    /** The home-screen entry now in use: opening through it keeps the same name in the recent apps. */
+    fun activeEntry(context: Context): android.content.ComponentName = entry(context, neutralIcon(context))
+
     private fun entry(context: Context, neutral: Boolean) =
         android.content.ComponentName(context.packageName, if (neutral) "ua.mandat.LauncherNeutral" else "ua.mandat.Launcher")
 

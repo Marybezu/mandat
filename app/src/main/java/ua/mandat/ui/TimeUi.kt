@@ -298,6 +298,8 @@ fun ReviewScreen(db: MandatDb, session: Session) {
                         Button(onClick = { session.saveReviewDraft() }) { Text(stringResource(R.string.save)) }
                     }
                     TodayFeel(db, session)
+                    // Emptied from the head and not yet sorted: a lock keeps it in the Inbox
+                    if (unload.isNotBlank()) SaveOnLock(session, "unload") { db -> persistInboxDraft(db, unload) }
                     OutlinedTextField(
                         value = unload, onValueChange = { unload = it },
                         label = { Text(stringResource(R.string.evening_unload)) },

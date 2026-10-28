@@ -75,7 +75,7 @@ fun Options(session: Session, onBack: () -> Unit) {
     var newPassword by remember { mutableStateOf<String?>(null) }
     var askRestorePassword by remember { mutableStateOf<android.net.Uri?>(null) }
     // The lock generation when a file picker was opened; results from before a lock are ignored
-    var pickedAt by remember { mutableStateOf(-1) }
+    var pickedAt by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(-1) }
 
     // Leaving Options drops a decrypted backup that is still waiting for confirmation
     DisposableEffect(Unit) { onDispose { backups.cancelRestore() } }
@@ -333,6 +333,7 @@ fun Options(session: Session, onBack: () -> Unit) {
             BackupNotice.FromNewer -> stringResource(R.string.notice_from_newer)
             is BackupNotice.Restored -> stringResource(R.string.notice_restored, notice.rows)
             BackupNotice.RestoreFailed -> stringResource(R.string.notice_restore_failed)
+            BackupNotice.RestoreNoSafetyCopy -> stringResource(R.string.notice_restore_no_safety)
             BackupNotice.AutoOn -> stringResource(R.string.notice_auto_on)
             BackupNotice.AutoFailed -> stringResource(R.string.notice_auto_failed)
             BackupNotice.AutoOff -> stringResource(R.string.notice_auto_off)
@@ -770,7 +771,11 @@ private fun TripSwitch(db: ua.mandat.data.MandatDb, session: Session) {
     val trip by remember(db) { db.settings().observe(SETTING_TRIP) }.collectAsStateWithLifecycle(null)
     var explain by remember { mutableStateOf(false) }
     val on = trip?.value == "1"
-    fun set(v: Boolean) = session.write { it.settings().put(ua.mandat.data.Setting(SETTING_TRIP, if (v) "1" else "0")) }
+    fun set(v: Boolean) = session.write {
+        // What is written from now on stays in view even if it names a hidden matter
+        if (v) it.settings().put(ua.mandat.data.Setting(SETTING_TRIP_SINCE, System.currentTimeMillis().toString()))
+        it.settings().put(ua.mandat.data.Setting(SETTING_TRIP, if (v) "1" else "0"))
+    }
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
         Column(Modifier.weight(1f)) {
             Text(stringResource(R.string.trip_mode), style = MaterialTheme.typography.bodyLarge)

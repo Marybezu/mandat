@@ -42,8 +42,11 @@ def main() -> None:
     with open(sys.argv[1], "rb") as f:
         data = f.read()
     plain = decrypt(data, getpass.getpass("Password: "))
-    fd = os.open(sys.argv[2], os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    os.fchmod(fd, 0o600)  # also if the file already existed with wider permissions
+    # A new file only: an existing one (or a link planted in its place) is never overwritten
+    try:
+        fd = os.open(sys.argv[2], os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    except FileExistsError:
+        raise SystemExit("The output file already exists; choose a new name.")
     with os.fdopen(fd, "wb") as f:
         f.write(plain)
     print("Done:", sys.argv[2])

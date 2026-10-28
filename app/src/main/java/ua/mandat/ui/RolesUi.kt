@@ -48,11 +48,13 @@ import ua.mandat.data.Setting
 
 /** Builds a role from a body, a position and an optional name: "Secretary — Committee «…»". */
 @Composable
-fun RoleBuilder(onAdd: (String) -> Unit) {
+fun RoleBuilder(session: Session? = null, onAdd: (String) -> Unit) {
     val context = LocalContext.current
     var body by remember(AppMode.council) { mutableStateOf(roleBodies().first()) }
     var position by remember(AppMode.council) { mutableStateOf(roleBodies().first().positions.firstOrNull()) }
     var name by remember { mutableStateOf("") }
+    // A name typed for a new role is kept in the Inbox if Mandat locks before it is added
+    if (session != null && name.isNotBlank()) SaveOnLock(session, "role-name") { db -> persistInboxDraft(db, name) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Picker(
@@ -174,7 +176,7 @@ fun RolesManager(db: MandatDb, session: Session) {
             }
         }
         Spacer(Modifier.height(8.dp))
-        RoleBuilder(onAdd = { name ->
+        RoleBuilder(session, onAdd = { name ->
             if (roles.none { it.name == name }) {
                 session.write { it.roles().insert(Role(name = name, position = it.roles().maxPosition() + 1, post = ua.mandat.data.RolePost.guess(name)?.name)) }
             }
@@ -220,6 +222,8 @@ OutlinedTextField(value = name, onValueChange = { name = it }, singleLine = true
             text = { Text(stringResource(R.string.role_delete_confirm, role.name)) },
             confirmButton = {
                 TextButton(onClick = {
+                    // Looking through this role would show nothing once it is gone
+                    if (session.lensRole.value == role.id) session.lensRole.value = null
                     session.write { db ->
                         db.withTransaction {
                             // Each matter's move out of the role is kept in its history, like any change of role

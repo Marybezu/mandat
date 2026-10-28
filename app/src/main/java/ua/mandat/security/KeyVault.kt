@@ -201,6 +201,10 @@ class KeyVault(context: Context) {
         generate(alias, pinOnly, strongBox = true)
     } catch (e: StrongBoxUnavailableException) {
         generate(alias, pinOnly, strongBox = false)
+    } catch (e: Exception) {
+        // Some phones report StrongBox but fail inside it (a ProviderException or similar):
+        // the key is made in the regular secure hardware instead, with the same protections
+        generate(alias, pinOnly, strongBox = false)
     }
 
     private fun generate(alias: String, pinOnly: Boolean, strongBox: Boolean): SecretKey {

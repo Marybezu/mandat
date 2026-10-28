@@ -74,10 +74,10 @@ object BackupData {
         tables.keys().forEach { if (it !in current) throw Incompatible() }
 
         // Only columns that really exist in this version are accepted; anything else is refused
-        val known = current.associateWith { columnNames(sql, it) }
+        val known = current.associateWith { columnTypes(sql, it) }
         tables.keys().forEach { table ->
             val columns = tables.getJSONObject(table).getJSONArray("columns")
-            for (i in 0 until columns.length()) if (columns.getString(i) !in known.getValue(table)) throw Incompatible()
+            for (i in 0 until columns.length()) if (columns.getString(i) !in known.getValue(table).keys) throw Incompatible()
         }
 
         // Room's own transaction: all or nothing, and the screens see the new data afterwards
@@ -95,7 +95,13 @@ object BackupData {
                     val row = rows.getJSONArray(r)
                     if (row.length() != columns.length()) throw Incompatible()
                     val values = ContentValues()
-                    for (i in 0 until columns.length()) put(values, columns.getString(i), row.get(i))
+                    for (i in 0 until columns.length()) {
+                        val column = columns.getString(i)
+                        // A value of the wrong kind refuses the file; a number outside what the screens
+                        // can show is brought inside it, so a restored backup never makes Mandat fail
+                        val value = checkCell(column, known.getValue(table).getValue(column), row.get(i))
+                        put(values, column, value)
+                    }
                     if (table == "settings" && values.getAsString("key")?.startsWith(AutoBackup.PREFIX) == true) continue
                     if (sql.insert(table, android.database.sqlite.SQLiteDatabase.CONFLICT_ABORT, values) < 0) {
                         throw Incompatible()
@@ -104,8 +110,18 @@ object BackupData {
             }
             // Backups from before schema 8 have no "publicity" for promises: public ones get it here,
             // so the stored value always agrees with the older public/personal field
-            if ("promises" in current && "publicity" in known.getValue("promises")) {
+            if ("promises" in current && "publicity" in known.getValue("promises").keys) {
                 sql.execSQL("UPDATE `promises` SET `publicity` = 'PUBLIC' WHERE `isPublic` = 1 AND `publicity` <> 'PUBLIC'")
+            }
+            // Backups from before schema 16 have no post for roles: guessed from the name, as the migration does
+            val rolesCols = tables.optJSONObject("roles")?.optJSONArray("columns")
+            val hasPost = rolesCols != null && (0 until rolesCols.length()).any { rolesCols.getString(it) == "post" }
+            if ("roles" in current && "post" in known.getValue("roles").keys && !hasPost) {
+                val found = ArrayList<Pair<Long, String>>()
+                sql.query("SELECT id, name FROM roles WHERE post IS NULL").use { c ->
+                    while (c.moveToNext()) ua.mandat.data.RolePost.guess(c.getString(1))?.let { found.add(c.getLong(0) to it.name) }
+                }
+                found.forEach { (id, post) -> sql.execSQL("UPDATE roles SET post = ? WHERE id = ?", arrayOf<Any>(post, id)) }
             }
         })
     }
@@ -120,13 +136,47 @@ object BackupData {
         return root
     }
 
-    private fun columnNames(sql: SupportSQLiteDatabase, table: String): Set<String> {
-        val names = mutableSetOf<String>()
+    /** Each column with its declared type (INTEGER, TEXT, REAL or BLOB). */
+    private fun columnTypes(sql: SupportSQLiteDatabase, table: String): Map<String, String> {
+        val types = HashMap<String, String>()
         sql.query("PRAGMA table_info(`$table`)").use { c ->
             val nameIndex = c.getColumnIndexOrThrow("name")
-            while (c.moveToNext()) names += c.getString(nameIndex)
+            val typeIndex = c.getColumnIndexOrThrow("type")
+            while (c.moveToNext()) types[c.getString(nameIndex)] = c.getString(typeIndex).uppercase(java.util.Locale.ROOT)
         }
-        return names
+        return types
+    }
+
+    /** Calendar days: about five centuries either way of 1970 (the screens show no others). */
+    private val DAY_COLUMNS = setOf("day", "due", "endDay", "untilDay", "checkIn", "lastContact", "stanceSince")
+    private const val MAX_DAY = 200_000L
+    private const val MAX_TEXT = 1_000_000
+
+    /** Ranges the screens rely on. */
+    private val RANGES = mapOf(
+        "startMin" to 0L..1439L, "endMin" to 0L..1440L, "energy" to 1L..5L, "mood" to 1L..5L,
+        "influence" to 1L..3L, "reach" to 1L..3L, "risk" to 1L..3L, "remindBefore" to 0L..60L,
+        "votesNeeded" to 1L..10_000L, "population" to 1L..20_000_000L,
+    )
+
+    private fun checkCell(column: String, type: String, value: Any): Any {
+        if (value == JSONObject.NULL) return value
+        return when (type) {
+            "INTEGER" -> {
+                var v = when (value) {
+                    is Int -> value.toLong()
+                    is Long -> value
+                    else -> throw Incompatible()
+                }
+                if (column in DAY_COLUMNS) v = v.coerceIn(-MAX_DAY, MAX_DAY)
+                RANGES[column]?.let { v = v.coerceIn(it.first, it.last) }
+                v
+            }
+            "REAL" -> if (value !is Number || (value is Double && !value.isFinite())) throw Incompatible() else value
+            "TEXT" -> if (value !is String || value.length > MAX_TEXT) throw Incompatible() else value
+            "BLOB" -> if (value !is JSONObject) throw Incompatible() else value
+            else -> value
+        }
     }
 
     private fun tableNames(sql: SupportSQLiteDatabase): List<String> {

@@ -159,10 +159,12 @@ object PhoneCalendar {
                         val s = Instant.ofEpochMilli(startMs).atZone(zone)
                         val e = Instant.ofEpochMilli(maxOf(endMs, startMs)).atZone(zone)
                         val d0 = s.toLocalDate().toEpochDay()
-                        val d1 = e.toLocalDate().toEpochDay()
+                        // Ending exactly at midnight is the end of that day, not a moment of the next one
+                        val d1 = maxOf(d0, Instant.ofEpochMilli(maxOf(endMs - 1, startMs)).atZone(zone).toLocalDate().toEpochDay())
+                        val endsAtMidnight = e.toLocalDate().toEpochDay() > d1
                         for (d in maxOf(d0, from)..minOf(d1, last)) {
                             val sm = if (d == d0) s.hour * 60 + s.minute else null
-                            val em = if (d == d1 && d == d0) e.hour * 60 + e.minute else null
+                            val em = if (d == d1 && d == d0) (if (endsAtMidnight) 24 * 60 else e.hour * 60 + e.minute) else null
                             out += PhoneEvent(title, d, sm, em, place)
                         }
                     }

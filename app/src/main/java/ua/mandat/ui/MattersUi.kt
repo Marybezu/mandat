@@ -312,9 +312,14 @@ fun MatterLine(m: Matter, roleName: String?, onOpen: () -> Unit) {
 @Composable
 fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
     val request = draft.request
-    // Back without saving discards the changes
-    val onDone = { session.draft = null }
+    // Back with something changed first asks, like every other sheet: nothing typed is lost by one tap
+    var askDiscard by remember { mutableStateOf(false) }
+    val onDone: () -> Unit = { if (draft.changed()) askDiscard = true else session.draft = null }
     BackHandler(onBack = onDone)
+    if (askDiscard) ConfirmDialog(
+        stringResource(R.string.discard_title), stringResource(R.string.discard_text), stringResource(R.string.discard_go), danger = true,
+        onConfirm = { askDiscard = false; session.draft = null }, onCancel = { askDiscard = false },
+    )
     val rolesFlow = remember(db) { db.roles().observeAll() }
     val focusFlow = remember(db) { db.matters().observeFocus().hiding(session) { it.id } }
     val roles by rolesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -350,7 +355,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
             if (!request.isNew) MatterTime(db, request.matter, session)
             SheetGroup {
             OutlinedTextField(
-                value = draft.title, onValueChange = { draft.title = it },
+                value = draft.title, onValueChange = { draft.title = it.take(300) },
                 label = { Text(stringResource(R.string.matter_title)) },
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -406,7 +411,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
             }
             SheetGroup(stringResource(R.string.matter_group_work)) {
             OutlinedTextField(
-                value = draft.nextStep, onValueChange = { draft.nextStep = it },
+                value = draft.nextStep, onValueChange = { draft.nextStep = it.take(2_000) },
                 label = { Text(stringResource(R.string.matter_next_step)) },
                 placeholder = { Text(stringResource(R.string.matter_next_step_hint)) },
                 modifier = Modifier.fillMaxWidth(),
@@ -417,12 +422,12 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                 onUse = { a -> draft.nextStep = a.lines().first().trim().take(200) }, useText = stringResource(R.string.ai_apply),
                 label = stringResource(R.string.ai_suggest))
             OutlinedTextField(
-                value = draft.goal, onValueChange = { draft.goal = it },
+                value = draft.goal, onValueChange = { draft.goal = it.take(2_000) },
                 label = { Text(stringResource(R.string.matter_goal)) },
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
-                value = draft.description, onValueChange = { draft.description = it },
+                value = draft.description, onValueChange = { draft.description = it.take(ua.mandat.data.MAX_NOTE_LENGTH) },
                 label = { Text(stringResource(R.string.matter_description)) },
                 minLines = 4,
                 modifier = Modifier.fillMaxWidth(),

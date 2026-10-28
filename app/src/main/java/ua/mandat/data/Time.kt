@@ -137,26 +137,27 @@ interface ReviewDao {
 }
 
 /** Everything searchable, one row per item; the matching is done in Kotlin (see [search]). */
-data class SearchRow(val kind: String, val id: Long, val title: String, val detail: String, val haystack: String, val matterId: Long?)
+/** One searchable record; [at] is when it was written or last changed (trip mode leaves newer ones in view). */
+data class SearchRow(val kind: String, val id: Long, val title: String, val detail: String, val haystack: String, val matterId: Long?, val at: Long = 0)
 
 @Dao
 interface SearchDao {
     @Query(
         "SELECT 'matter' AS kind, id, title, nextStep AS detail, " +
-            "title || ' ' || nextStep || ' ' || goal || ' ' || description AS haystack, id AS matterId FROM matters " +
-            "UNION ALL SELECT 'person', id, name, organization, name || ' ' || organization || ' ' || jobTitle || ' ' || notes || ' ' || contact, NULL FROM people " +
-            "UNION ALL SELECT 'inbox', id, text, '', text, NULL FROM inbox " +
-            "UNION ALL SELECT 'delegation', id, what, '', what, matterId FROM delegations " +
-            "UNION ALL SELECT 'promise', id, what, toWhom, what || ' ' || toWhom, matterId FROM promises " +
-            "UNION ALL SELECT 'deadline', id, title, basis, title || ' ' || basis, matterId FROM deadlines " +
-            "UNION ALL SELECT 'review', id, progress, '', progress, NULL FROM reviews " +
-            "UNION ALL SELECT 'event', id, title, place, title || ' ' || place || ' ' || notes || ' ' || outcome, matterId FROM events " +
-            "UNION ALL SELECT 'info', id, title, source, title || ' ' || source || ' ' || notes || ' ' || result, matterId FROM info_items " +
-            "UNION ALL SELECT 'message', id, text, audience, text || ' ' || proof || ' ' || audience, matterId FROM key_messages " +
-            "UNION ALL SELECT 'alliance', id, withWhom, about, withWhom || ' ' || about || ' ' || gives || ' ' || gets || ' ' || notes, matterId FROM alliances " +
-            "UNION ALL SELECT 'money', id, category, note, category || ' ' || note || ' ' || toWhom, matterId FROM money " +
-            "UNION ALL SELECT 'community', id, name, head, name || ' ' || head || ' ' || notes, NULL FROM communities " +
-            "UNION ALL SELECT 'contact', id, name, organization, name || ' ' || organization || ' ' || jobTitle || ' ' || phones || ' ' || emails || ' ' || label, NULL FROM contacts",
+            "title || ' ' || nextStep || ' ' || goal || ' ' || description AS haystack, id AS matterId, updatedAt AS at FROM matters " +
+            "UNION ALL SELECT 'person', id, name, organization, name || ' ' || organization || ' ' || jobTitle || ' ' || notes || ' ' || contact, NULL, updatedAt FROM people " +
+            "UNION ALL SELECT 'inbox', id, text, '', text, NULL, createdAt FROM inbox " +
+            "UNION ALL SELECT 'delegation', id, what, '', what || ' ' || IFNULL(purpose, '') || ' ' || IFNULL(doneMeans, ''), matterId, createdAt FROM delegations " +
+            "UNION ALL SELECT 'promise', id, what, toWhom, what || ' ' || toWhom || ' ' || IFNULL(source, '') || ' ' || IFNULL(statusNote, ''), matterId, createdAt FROM promises " +
+            "UNION ALL SELECT 'deadline', id, title, basis, title || ' ' || basis, matterId, createdAt FROM deadlines " +
+            "UNION ALL SELECT 'review', id, progress, '', progress, NULL, createdAt FROM reviews " +
+            "UNION ALL SELECT 'event', id, title, place, title || ' ' || place || ' ' || notes || ' ' || outcome, matterId, updatedAt FROM events " +
+            "UNION ALL SELECT 'info', id, title, source, title || ' ' || source || ' ' || notes || ' ' || result, matterId, updatedAt FROM info_items " +
+            "UNION ALL SELECT 'message', id, text, audience, text || ' ' || proof || ' ' || audience, matterId, updatedAt FROM key_messages " +
+            "UNION ALL SELECT 'alliance', id, withWhom, about, withWhom || ' ' || about || ' ' || gives || ' ' || gets || ' ' || notes, matterId, updatedAt FROM alliances " +
+            "UNION ALL SELECT 'money', id, category, note, category || ' ' || note || ' ' || toWhom, matterId, updatedAt FROM money " +
+            "UNION ALL SELECT 'community', id, name, head, name || ' ' || head || ' ' || notes, NULL, updatedAt FROM communities " +
+            "UNION ALL SELECT 'contact', id, name, organization, name || ' ' || organization || ' ' || jobTitle || ' ' || phones || ' ' || emails || ' ' || label || ' ' || IFNULL(notes, ''), NULL, createdAt FROM contacts",
     )
     fun everything(): Flow<List<SearchRow>>
 }
