@@ -63,9 +63,9 @@ import java.time.format.DateTimeFormatter
 fun Dashboard(db: MandatDb, session: Session) {
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val matters by remember(db) { db.matters().observeAll().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
-    val promises by remember(db) { db.promises().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom + " " + it.source + " " + it.statusNote } }.collectAsStateWithLifecycle(emptyList())
-    val delegations by remember(db) { db.delegations().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.purpose + " " + it.doneMeans } }.collectAsStateWithLifecycle(emptyList())
-    val deadlines by remember(db) { db.deadlines().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.basis } }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeAll().hidingNamed(session, { it.matterId }, { it.createdAt }) { it.what + " " + it.toWhom + " " + it.source + " " + it.statusNote } }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db) { db.delegations().observeAll().hidingNamed(session, { it.matterId }, { it.createdAt }) { it.what + " " + it.purpose + " " + it.doneMeans } }.collectAsStateWithLifecycle(emptyList())
+    val deadlines by remember(db) { db.deadlines().observeAll().hidingNamed(session, { it.matterId }, { it.createdAt }) { it.title + " " + it.basis } }.collectAsStateWithLifecycle(emptyList())
     val reviews by remember(db) { db.reviews().observeAll().hidingReviews(session) }.collectAsStateWithLifecycle(emptyList())
     val cadenceSetting by remember(db) { db.settings().observe(SETTING_CADENCE_START) }.collectAsStateWithLifecycle(null)
     val cadenceStart = cadenceSetting?.value?.toLongOrNull()

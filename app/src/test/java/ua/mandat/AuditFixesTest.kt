@@ -59,6 +59,14 @@ class AuditFixesTest {
         assertEquals(1L, back.delegations.single().personId)
     }
 
+    @Test fun changingOnlyTheStatusCountsAsAChange() {
+        val pr = ua.mandat.data.Promise(id = 5, what = "Обіцянка", personId = null, toWhom = "", isPublic = false, matterId = null, due = null, status = "OPEN", createdAt = 1, closedAt = null)
+        val d = ua.mandat.ui.PromiseDraft(pr, isNew = false)
+        assertFalse(d.changed())
+        d.status = ua.mandat.data.TaskStatus.DONE
+        assertTrue(d.changed())
+    }
+
     @Test fun writtenInTripModeStaysInView() {
         val since = 1_000L
         val h = Hidden(setOf(1L), emptySet(), emptySet(), emptySet(), HiddenNames(listOf("Таємна справа")), since)
@@ -70,6 +78,8 @@ class AuditFixesTest {
         val p = Person(id = 3, name = "Особа", organization = "", jobTitle = "", contact = "", notes = "щодо таємної справи", teamRole = null, createdAt = 0, updatedAt = 10)
         assertTrue(h.person(p))
         assertFalse(h.person(p.copy(updatedAt = 2_000)))
+        // A time in the future (a clock once set ahead) never exempts a record
+        assertTrue(h.itemAt(null, Long.MAX_VALUE - 1, "про таємну справу"))
         assertEquals(Long.MAX_VALUE, tripSince(null))
         assertEquals(42L, tripSince("42"))
     }

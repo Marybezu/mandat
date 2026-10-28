@@ -165,7 +165,7 @@ internal suspend fun obsidianVault(
         note(fPeople, pName.getValue(p.id), if (p.teamRole != null) "person, notes/team" else "person",
             yamlLine("organization", p.organization) + yamlLine("position", p.jobTitle),
             buildString {
-                // A person's own text that names a hidden matter is left out (the person stays)
+                // People whose card names a hidden matter are not exported at all (see above); this stays as a second check
                 if (p.contact.isNotBlank() && free(null, p.contact)) append(p.contact).append("\n\n")
                 if (p.notes.isNotBlank() && free(null, p.notes)) append(p.notes).append("\n\n")
                 val ms = links.filter { it.personId == p.id && it.matterId in mName }

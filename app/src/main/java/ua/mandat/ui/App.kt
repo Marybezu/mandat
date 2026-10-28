@@ -518,14 +518,14 @@ private fun Main(db: MandatDb, session: Session) {
 @Composable
 internal fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onToMatter: (InboxItem) -> Unit) {
     // A note naming a hidden matter stays out while it is hidden
-    val items by remember(db) { db.inbox().observeAll().hidingNamed(session, { null }) { it.text } }.collectAsStateWithLifecycle(emptyList())
+    val items by remember(db) { db.inbox().observeAll().hidingNamed(session, { null }, { it.createdAt }) { it.text } }.collectAsStateWithLifecycle(emptyList())
     val focus by remember(db) { db.matters().observeFocus().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
-    val deadlines by remember(db) { db.deadlines().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.basis } }.collectAsStateWithLifecycle(emptyList())
-    val delegations by remember(db) { db.delegations().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.purpose + " " + it.doneMeans } }.collectAsStateWithLifecycle(emptyList())
-    val promises by remember(db) { db.promises().observeAll().hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom + " " + it.source + " " + it.statusNote } }.collectAsStateWithLifecycle(emptyList())
+    val deadlines by remember(db) { db.deadlines().observeAll().hidingNamed(session, { it.matterId }, { it.createdAt }) { it.title + " " + it.basis } }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db) { db.delegations().observeAll().hidingNamed(session, { it.matterId }, { it.createdAt }) { it.what + " " + it.purpose + " " + it.doneMeans } }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db) { db.promises().observeAll().hidingNamed(session, { it.matterId }, { it.createdAt }) { it.what + " " + it.toWhom + " " + it.source + " " + it.statusNote } }.collectAsStateWithLifecycle(emptyList())
     val roleNames = roles.associate { it.id to it.name }
     val nameOf = people.associate { it.id to it.name }
     val titleOf = titles.associate { it.id to it.title }

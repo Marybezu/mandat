@@ -139,7 +139,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
         ?.takeIf { t -> t.matterId == null || t.matterId !in session.hiddenMatters.value }?.title }) } }
         .collectAsStateWithLifecycle(null)
     val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
-    val contacts by remember(db) { db.contacts().observeAll().hidingNamed(session, { null }) { it.name + " " + it.organization + " " + it.jobTitle + " " + it.notes + " " + it.label } }.collectAsStateWithLifecycle(emptyList())
+    val contacts by remember(db) { db.contacts().observeAll().hidingNamed(session, { null }, { it.createdAt }) { it.name + " " + it.organization + " " + it.jobTitle + " " + it.notes + " " + it.label } }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val trip by session.tripOn.collectAsStateWithLifecycle()
     // 0 a ZIP with a password (other apps open it), 1 Mandat's own encrypted file, 2 an open file

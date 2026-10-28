@@ -873,7 +873,7 @@ class Session(app: Application) : AndroidViewModel(app) {
             return
         }
         val startedAt = generation
-        background.launch {
+        val job = background.launch {
             val ok = writes.withLock {
                 if (!db.isOpen) false
                 else try {
@@ -889,7 +889,12 @@ class Session(app: Application) : AndroidViewModel(app) {
                 if (startedAt == generation && state is LockState.Open) onFail?.invoke()
             }
         }
+        synchronized(inFlight) { inFlight += job }
+        job.invokeOnCompletion { synchronized(inFlight) { inFlight -= job } }
     }
+
+    /** Saves started and not yet finished; a lock waits for them before closing the database. */
+    private val inFlight = HashSet<kotlinx.coroutines.Job>()
 
     /** Runs [block] with the owner's database (for backups). */
     suspend fun <T> withRealDb(block: suspend (MandatDb) -> T): T? = withOpenDb(block)
@@ -985,10 +990,14 @@ class Session(app: Application) : AndroidViewModel(app) {
         if (current is LockState.Open) {
             val oldKey = key
             key = null
+            // Saves started just before (a sheet's "Save", then leaving the app) are written first
+            val pendingWrites = synchronized(inFlight) { inFlight.toList() }
             background.launch {
                 var prepared: ua.mandat.backup.AutoBackup.Prepared? = null
                 var autoWrite: kotlinx.coroutines.Deferred<ua.mandat.backup.AutoBackup.Result>? = null
+                pendingWrites.forEach { runCatching { it.join() } }
                 writes.withLock {
+                  try {
                     if (current.db.isOpen) {
                         // Each draft on its own: one failure must not lose the others
                         listOf<suspend () -> Unit>(
@@ -1033,7 +1042,8 @@ class Session(app: Application) : AndroidViewModel(app) {
                         // Registered before the lock is released, so the next unlock always waits for it
                         prepared?.let { autoWrite = startAutoWrite(it, lazy = true) }
                     }
-                    // Whatever happens while closing, the database is closed and the key wiped
+                  } finally {
+                    // Whatever happened above, the database is closed and the key wiped
                     try {
                         if (current.db.isOpen) MandatDb.checkpoint(current.db)
                     } catch (e: Throwable) {
@@ -1042,6 +1052,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                         try { current.db.close() } catch (e: Throwable) { }
                         oldKey?.fill(0)
                     }
+                  }
                 }
                 // The database is closed: a slow folder can only delay writing encrypted bytes
                 autoWrite?.start()

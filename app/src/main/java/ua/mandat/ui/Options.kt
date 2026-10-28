@@ -334,6 +334,7 @@ fun Options(session: Session, onBack: () -> Unit) {
             is BackupNotice.Restored -> stringResource(R.string.notice_restored, notice.rows)
             BackupNotice.RestoreFailed -> stringResource(R.string.notice_restore_failed)
             BackupNotice.RestoreNoSafetyCopy -> stringResource(R.string.notice_restore_no_safety)
+            BackupNotice.RestoreTooBigForSafety -> stringResource(R.string.notice_restore_too_big)
             BackupNotice.AutoOn -> stringResource(R.string.notice_auto_on)
             BackupNotice.AutoFailed -> stringResource(R.string.notice_auto_failed)
             BackupNotice.AutoOff -> stringResource(R.string.notice_auto_off)
@@ -773,7 +774,8 @@ private fun TripSwitch(db: ua.mandat.data.MandatDb, session: Session) {
     val on = trip?.value == "1"
     fun set(v: Boolean) = session.write {
         // What is written from now on stays in view even if it names a hidden matter
-        if (v) it.settings().put(ua.mandat.data.Setting(SETTING_TRIP_SINCE, System.currentTimeMillis().toString()))
+        // Later than every record already there, even if the phone's clock was once set ahead or back
+        if (v) it.settings().put(ua.mandat.data.Setting(SETTING_TRIP_SINCE, tripStart(it).toString()))
         it.settings().put(ua.mandat.data.Setting(SETTING_TRIP, if (v) "1" else "0"))
     }
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {

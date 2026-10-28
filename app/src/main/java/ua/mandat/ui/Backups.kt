@@ -31,6 +31,8 @@ sealed interface BackupNotice {
     data object RestoreFailed : BackupNotice
     /** Automatic copies are on, but the copy of the current data before replacing it failed: nothing was replaced. */
     data object RestoreNoSafetyCopy : BackupNotice
+    /** The same, because the data is too big for an automatic copy: a copy by hand is needed first. */
+    data object RestoreTooBigForSafety : BackupNotice
     data object AutoOn : BackupNotice
     data object AutoFailed : BackupNotice
     data object AutoOff : BackupNotice
@@ -239,8 +241,14 @@ class Backups(private val context: Context, private val session: Session) {
                 if (session.withRealDb { auto.status(it).enabled } == true) {
                     session.reconcileAuto(db)
                     val prepared = session.withRealDb { auto.prepareIfDue(it, force = true) }
-                    val written = prepared != null && withTimeoutOrNull(60_000) { session.startAutoWrite(prepared).await() } != null
-                    val ok = written && session.reconcileAuto(db) == true
+                    if (prepared == null && session.withRealDb { auto.status(it).failReason == auto.REASON_TOO_BIG } == true) {
+                        refreshAuto()
+                        return@run BackupNotice.RestoreTooBigForSafety
+                    }
+                    val written = if (prepared == null) null else withTimeoutOrNull(60_000) { session.startAutoWrite(prepared).await() }
+                    val ok = written?.ok == true && written.uri != null && session.reconcileAuto(db) == true
+                    // Kept a month even if more copies are made today (another restore, "copy now")
+                    if (ok) session.withRealDb { auto.keepAsSafety(it, written!!.uri!!, prepared!!.createdAt) }
                     refreshAuto()
                     if (!ok) return@run BackupNotice.RestoreNoSafetyCopy
                 }

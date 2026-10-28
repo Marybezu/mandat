@@ -45,7 +45,7 @@ class MatterDraft(val request: EditRequest) {
                 nextStep = nextStep, goal = goal, description = description, status = status.name,
                 updatedAt = now, sensitive = sensitive, votesNeeded = votesNeeded?.takeIf { it in 1..10_000 },
             ),
-        ) ?: return keepInInbox(db, title, goal, nextStep, description)
+        ) ?: return keepInInbox(db, request.matter.id.takeIf { !request.isNew }, title, goal, nextStep, description)
         val fromInbox = request.fromInboxId
         val today = Dates.today()
         db.withTransaction {
@@ -67,8 +67,11 @@ class MatterDraft(val request: EditRequest) {
  * What was typed into a record that cannot be saved as it is (no title yet, no amount, a hard
  * deadline without its basis) goes to the Inbox as a note, so leaving the app never loses it.
  */
-suspend fun keepInInbox(db: MandatDb, vararg parts: String) {
-    persistInboxDraft(db, parts.map { it.trim() }.filter { it.isNotEmpty() }.joinToString("\n").ifEmpty { null })
+suspend fun keepInInbox(db: MandatDb, matterId: Long?, vararg parts: String) {
+    val typed = parts.map { it.trim() }.filter { it.isNotEmpty() }.joinToString("\n").ifEmpty { return }
+    // The note starts with its matter's title: in trip mode it is hidden together with that matter
+    val matter = matterId?.let { db.matters().get(it)?.title }
+    persistInboxDraft(db, if (matter.isNullOrBlank()) typed else matter + "\n" + typed)
 }
 
 /** Saves an unfinished Inbox note, so leaving the app does not lose it. */
@@ -113,7 +116,7 @@ class PersonDraft(val person: ua.mandat.data.Person, val isNew: Boolean) {
                 influence = influence, stance = stance?.name, isGroup = isGroup,
                 reportsToId = reportsToId, lastContact = lastContact, moreCategories = more.joinToString("\n"),
             ),
-        ) ?: return keepInInbox(db, name, organization, jobTitle, contact, notes)
+        ) ?: return keepInInbox(db, null, name, organization, jobTitle, contact, notes)
         if (isNew) db.people().insert(edited.copy(id = 0, createdAt = now)) else db.people().update(edited)
     }
 }
@@ -141,7 +144,7 @@ class DelegationDraft(val delegation: ua.mandat.data.Delegation, val isNew: Bool
     suspend fun persist(db: MandatDb) {
         if (!isNew && !changed()) return
         val text = what.trim().take(2_000)
-        if (text.isEmpty()) return keepInInbox(db, purpose, doneMeans)
+        if (text.isEmpty()) return keepInInbox(db, matterId, purpose, doneMeans)
         val now = System.currentTimeMillis()
         val closed = if (status == ua.mandat.data.TaskStatus.OPEN) null else (delegation.closedAt ?: now)
         val edited = delegation.copy(
@@ -174,12 +177,12 @@ class PromiseDraft(val promise: ua.mandat.data.Promise, val isNew: Boolean) {
 
     /** The remaining choices as they were when the sheet opened: changing only one of them still counts. */
     private val initialExtra = extra()
-    private fun extra(): List<Any?> = listOf(madeOn)
+    private fun extra(): List<Any?> = listOf(madeOn, status)
 
     suspend fun persist(db: MandatDb) {
         if (!isNew && !changed()) return
         val text = what.trim().take(2_000)
-        if (text.isEmpty()) return keepInInbox(db, toWhom, source, statusNote)
+        if (text.isEmpty()) return keepInInbox(db, matterId, toWhom, source, statusNote)
         val now = System.currentTimeMillis()
         val closed = if (status == ua.mandat.data.TaskStatus.OPEN) null else (promise.closedAt ?: now)
         val edited = promise.copy(
@@ -250,7 +253,7 @@ class DeadlineDraft(val deadline: ua.mandat.data.Deadline, val isNew: Boolean) {
                 basis = if (kind == ua.mandat.data.DeadlineKind.HARD) basis else "", matterId = matterId,
                 remindBefore = remindBefore, status = status.name, closedAt = closed,
             ),
-        ) ?: return keepInInbox(db, title, basis)
+        ) ?: return keepInInbox(db, matterId, title, basis)
         if (isNew) db.deadlines().insert(edited.copy(id = 0, createdAt = now)) else db.deadlines().update(edited)
     }
 }
@@ -310,7 +313,7 @@ class EventDraft(val event: ua.mandat.data.Event, val isNew: Boolean, people: Se
     suspend fun persist(db: MandatDb) {
         if (!isNew && !changed()) return
         val now = System.currentTimeMillis()
-        val edited = ua.mandat.data.cleanEvent(current(now)) ?: return keepInInbox(db, title, place, notes, outcome)
+        val edited = ua.mandat.data.cleanEvent(current(now)) ?: return keepInInbox(db, matterId, title, place, notes, outcome)
         db.withTransaction {
             val id = if (isNew) db.events().insert(edited.copy(id = 0, createdAt = now)) else edited.id.also { db.events().update(edited) }
             db.events().setPeople(id, people)
@@ -353,7 +356,7 @@ class ContactDraft(val contact: ua.mandat.data.Contact) {
     )
 
     suspend fun persist(db: MandatDb) {
-        val e = edited() ?: return keepInInbox(db, name, phones, emails, organization, jobTitle, notes)
+        val e = edited() ?: return keepInInbox(db, null, name, phones, emails, organization, jobTitle, notes)
         if (isNew) db.contacts().insert(e.copy(id = 0)) else db.contacts().update(e)
     }
 }
@@ -390,7 +393,7 @@ class InfoDraft(val item: ua.mandat.data.InfoItem, val isNew: Boolean) {
                 stage = stage.name, decision = decision?.name, notes = notes, result = result,
                 checks = ua.mandat.data.checksText(checks), closed = closed, updatedAt = now,
             ),
-        ) ?: return keepInInbox(db, title, source, notes, result)
+        ) ?: return keepInInbox(db, matterId, title, source, notes, result)
         if (isNew) db.info().insert(edited.copy(id = 0, createdAt = now)) else db.info().update(edited)
     }
 }
@@ -413,7 +416,7 @@ class MessageDraft(val message: ua.mandat.data.KeyMessage, val isNew: Boolean) {
     suspend fun persist(db: MandatDb) {
         if (!isNew && !changed()) return
         val now = System.currentTimeMillis()
-        val edited = ua.mandat.data.cleanMessage(message.copy(text = text, proof = proof, audience = audience, matterId = matterId, updatedAt = now)) ?: return keepInInbox(db, text, proof, audience)
+        val edited = ua.mandat.data.cleanMessage(message.copy(text = text, proof = proof, audience = audience, matterId = matterId, updatedAt = now)) ?: return keepInInbox(db, matterId, text, proof, audience)
         if (isNew) db.info().insertMessage(edited.copy(id = 0, createdAt = now)) else db.info().updateMessage(edited)
     }
 }
@@ -449,7 +452,7 @@ class AllianceDraft(val alliance: ua.mandat.data.Alliance, val isNew: Boolean) {
                 withWhom = withWhom, personId = personId, about = about, matterId = matterId, untilDay = untilDay,
                 gives = gives, gets = gets, status = status.name, notes = notes, updatedAt = now,
             ),
-        ) ?: return keepInInbox(db, withWhom, about, gives, gets, notes)
+        ) ?: return keepInInbox(db, matterId, withWhom, about, gives, gets, notes)
         if (isNew) db.info().insertAlliance(edited.copy(id = 0, createdAt = now)) else db.info().updateAlliance(edited)
     }
 }
@@ -491,8 +494,8 @@ class MoneyDraft(val entry: ua.mandat.data.MoneyEntry, val isNew: Boolean) {
     suspend fun persist(db: MandatDb) {
         if (!isNew && !changed()) return
         // A new entry only opened (its category is filled in already) leaves nothing in the Inbox
-        val a = amount() ?: return if (changed()) keepInInbox(db, category, amountText, note, toWhom) else Unit
-        if (!currency.matches(Regex("[A-Z]{3}")) || (currency != "UAH" && rate() == null)) return if (changed()) keepInInbox(db, category, amountText, note, toWhom) else Unit
+        val a = amount() ?: return if (changed()) keepInInbox(db, matterId, category, amountText, note, toWhom) else Unit
+        if (!currency.matches(Regex("[A-Z]{3}")) || (currency != "UAH" && rate() == null)) return if (changed()) keepInInbox(db, matterId, category, amountText, note, toWhom) else Unit
         val now = System.currentTimeMillis()
         val edited = ua.mandat.data.cleanMoney(
             entry.copy(
@@ -500,7 +503,7 @@ class MoneyDraft(val entry: ua.mandat.data.MoneyEntry, val isNew: Boolean) {
                 note = note, matterId = matterId, charityKind = charityKind?.name, toWhom = toWhom,
                 awaitingRefund = awaitingRefund, refunded = refunded, updatedAt = now,
             ),
-        ) ?: return keepInInbox(db, category, amountText, note, toWhom)
+        ) ?: return keepInInbox(db, matterId, category, amountText, note, toWhom)
         if (isNew) db.money().insert(edited.copy(id = 0, createdAt = now)) else db.money().update(edited)
     }
 }
@@ -534,7 +537,7 @@ class CommunityDraft(val community: ua.mandat.data.Community, val isNew: Boolean
         val now = System.currentTimeMillis()
         val edited = ua.mandat.data.cleanCommunity(
             community.copy(name = name, kind = kind.name, population = population.filter { it.isDigit() }.take(9).toIntOrNull(), head = head, notes = notes, updatedAt = now),
-        ) ?: return keepInInbox(db, name, head, notes)
+        ) ?: return keepInInbox(db, null, name, head, notes)
         if (isNew) db.communities().insert(edited.copy(id = 0, createdAt = now)) else db.communities().update(edited)
     }
 }

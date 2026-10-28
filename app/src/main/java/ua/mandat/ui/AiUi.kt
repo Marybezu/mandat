@@ -461,7 +461,7 @@ fun AiSplitSheet(db: ua.mandat.data.MandatDb, session: Session, onClose: () -> U
 fun InboxSortSheet(db: ua.mandat.data.MandatDb, session: Session, onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
     val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
-    val inbox by remember(db) { db.inbox().observeAll().hidingNamed(session, { null }) { it.text } }.collectAsStateWithLifecycle(emptyList())
+    val inbox by remember(db) { db.inbox().observeAll().hidingNamed(session, { null }, { it.createdAt }) { it.text } }.collectAsStateWithLifecycle(emptyList())
     var busy by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
     val picks = remember { mutableStateListOf<Pick>() }

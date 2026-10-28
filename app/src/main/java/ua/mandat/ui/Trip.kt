@@ -30,6 +30,22 @@ const val SETTING_TRIP = "trip_mode"
 /** When trip mode was last turned on (epoch milliseconds). */
 const val SETTING_TRIP_SINCE = "trip_since"
 
+/**
+ * The moment from which new records count as written in trip mode: now, or just after the newest
+ * time stored in any record if that is later (a clock once set ahead must not exempt old notes).
+ */
+suspend fun tripStart(db: ua.mandat.data.MandatDb): Long {
+    val newest = db.openHelper.readableDatabase.query(
+        "SELECT MAX(t) FROM (" + listOf(
+            "matters" to "updatedAt", "people" to "updatedAt", "inbox" to "createdAt", "delegations" to "createdAt",
+            "promises" to "createdAt", "deadlines" to "createdAt", "reviews" to "createdAt", "events" to "updatedAt",
+            "info_items" to "updatedAt", "key_messages" to "updatedAt", "alliances" to "updatedAt", "money" to "updatedAt",
+            "communities" to "updatedAt", "contacts" to "createdAt", "aid_records" to "createdAt",
+        ).joinToString(" UNION ALL ") { (t, c) -> "SELECT MAX(`$c`) AS t FROM `$t`" } + ")",
+    ).use { c -> if (c.moveToFirst() && !c.isNull(0)) c.getLong(0) else 0L }
+    return maxOf(System.currentTimeMillis(), newest + 1)
+}
+
 /** The moment trip mode was turned on, from its setting; unknown (older versions) counts as always. */
 fun tripSince(value: String?): Long = value?.toLongOrNull() ?: Long.MAX_VALUE
 

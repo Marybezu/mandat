@@ -86,7 +86,7 @@ private val FIELD = Regex("\\[[^\\[\\]\\n]{1,200}\\]")
 @Composable
 fun TextsScreen(db: MandatDb, session: Session) {
     BackHandler { session.showTexts = false }
-    val texts by remember(db) { db.texts().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.body } }.collectAsStateWithLifecycle(emptyList())
+    val texts by remember(db) { db.texts().observeAll().hidingNamed(session, { it.matterId }, { it.updatedAt }) { it.title + " " + it.body } }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val titleOf = titles.associate { it.id to it.title }
     var kind by rememberSaveable { mutableStateOf<String?>(null) }
@@ -310,7 +310,7 @@ fun TextEditor(db: MandatDb, session: Session, draft: TextDraft) {
 @Composable
 fun MatterTexts(db: MandatDb, session: Session, matterId: Long) {
     val texts by remember(db, matterId) { db.texts().observeForMatter(matterId) }.collectAsStateWithLifecycle(emptyList())
-    val own by remember(db) { db.texts().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.body } }.collectAsStateWithLifecycle(emptyList())
+    val own by remember(db) { db.texts().observeAll().hidingNamed(session, { it.matterId }, { it.updatedAt }) { it.title + " " + it.body } }.collectAsStateWithLifecycle(emptyList())
     var choosing by remember { mutableStateOf(false) }
     Text(stringResource(R.string.texts_title), style = MaterialTheme.typography.labelLarge)
     texts.forEach { t -> TextLine(t, null) { session.textDraft = TextDraft(t, isNew = false) } }

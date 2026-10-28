@@ -66,11 +66,12 @@ object Hiding {
     /** Diary days linked to a hidden matter or a hidden person, or whose text names a hidden matter. */
     fun reviews(hidden: Set<Long>, people: Set<Long>, names: HiddenNames, reviews: List<Review>, links: List<ReviewLink>, since: Long = Long.MAX_VALUE): Set<Long> {
         if (hidden.isEmpty()) return emptySet()
+        val now = System.currentTimeMillis()
         val out = HashSet<Long>()
         links.forEach { l ->
             if ((l.kind == "matter" && l.refId in hidden) || (l.kind == "person" && l.refId in people)) out += l.reviewId
         }
-        if (!names.isEmpty) reviews.forEach { r -> if (r.id !in out && r.createdAt < since && names.named(r.progress)) out += r.id }
+        if (!names.isEmpty) reviews.forEach { r -> if (r.id !in out && (r.createdAt < since || r.createdAt > now) && names.named(r.progress)) out += r.id }
         return out
     }
 

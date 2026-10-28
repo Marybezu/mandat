@@ -131,14 +131,14 @@ fun TeamCard(people: List<Person>, delegations: List<Delegation>, session: Sessi
 fun OneOnOneScreen(db: MandatDb, session: Session, personId: Long) {
     BackHandler { session.oneOnOne = null }
     val people by remember(db) { db.people().observeAll().hidingPeople(session) }.collectAsStateWithLifecycle(emptyList())
-    val delegations by remember(db, personId) { db.delegations().observeForPerson(personId).hidingNamed(session, { it.matterId }) { it.what + " " + it.purpose + " " + it.doneMeans } }.collectAsStateWithLifecycle(emptyList())
-    val promises by remember(db, personId) { db.promises().observeForPerson(personId).hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom + " " + it.source + " " + it.statusNote } }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db, personId) { db.delegations().observeForPerson(personId).hidingNamed(session, { it.matterId }, { it.createdAt }) { it.what + " " + it.purpose + " " + it.doneMeans } }.collectAsStateWithLifecycle(emptyList())
+    val promises by remember(db, personId) { db.promises().observeForPerson(personId).hidingNamed(session, { it.matterId }, { it.createdAt }) { it.what + " " + it.toWhom + " " + it.source + " " + it.statusNote } }.collectAsStateWithLifecycle(emptyList())
     val matters by remember(db, personId) { db.people().observeMattersOf(personId).hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
     val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val titleOf = titles.associate { it.id to it.title }
     val allMatters by remember(db) { db.matters().observeAll().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val nextOf = allMatters.associate { it.id to it.nextStep }
-    val events by remember(db, personId) { db.events().observeForPerson(personId).hidingNamed(session, { it.matterId }) { it.title + " " + it.notes + " " + it.place + " " + it.outcome } }.collectAsStateWithLifecycle(emptyList())
+    val events by remember(db, personId) { db.events().observeForPerson(personId).hidingNamed(session, { it.matterId }, { it.updatedAt }) { it.title + " " + it.notes + " " + it.place + " " + it.outcome } }.collectAsStateWithLifecycle(emptyList())
     val reviews by remember(db) { db.reviews().observeAll().hidingReviews(session) }.collectAsStateWithLifecycle(emptyList())
     val reviewLinks by remember(db) { db.reviews().observeLinks() }.collectAsStateWithLifecycle(emptyList())
     val hidden by session.hiddenMatters.collectAsStateWithLifecycle()

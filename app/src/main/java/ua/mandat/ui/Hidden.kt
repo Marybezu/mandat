@@ -32,10 +32,13 @@ class Hidden(
     fun item(matterId: Long?, vararg text: String): Boolean = matter(matterId) || (matterId == null && names.namedAny(*text))
 
     /** The same, for a record written or last changed at [at]: one written in trip mode stays in view. */
-    fun itemAt(matterId: Long?, at: Long, vararg text: String): Boolean = matter(matterId) || (matterId == null && at < since && names.namedAny(*text))
+    fun itemAt(matterId: Long?, at: Long, vararg text: String): Boolean = matter(matterId) || (matterId == null && !fresh(at) && names.namedAny(*text))
 
     /** Free text written at [at] names a hidden matter (and was written before trip mode was turned on). */
-    fun named(at: Long, text: String): Boolean = at < since && names.named(text)
+    fun named(at: Long, text: String): Boolean = !fresh(at) && names.named(text)
+
+    /** Written or changed since trip mode was turned on (a time in the future does not count). */
+    private fun fresh(at: Long): Boolean = at >= since && at <= System.currentTimeMillis()
 
     companion object {
         val NONE = Hidden(emptySet(), emptySet(), emptySet(), emptySet(), HiddenNames.NONE)

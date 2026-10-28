@@ -109,7 +109,7 @@ fun DirectoryScreen(db: MandatDb, session: Session) {
     BackHandler { session.showDirectory = false }
     // Sorted the way the language sorts (є, і, ї, ґ in their places), not by character codes; away from the screen thread
     val contacts by remember(db) {
-        db.contacts().observeAll().hidingNamed(session, { null }) { it.name + " " + it.organization + " " + it.jobTitle + " " + it.notes + " " + it.label }
+        db.contacts().observeAll().hidingNamed(session, { null }, { it.createdAt }) { it.name + " " + it.organization + " " + it.jobTitle + " " + it.notes + " " + it.label }
             .map { raw ->
                 val collator = java.text.Collator.getInstance(java.util.Locale.getDefault())
                 raw.map { it to collator.getCollationKey(it.name) }.sortedBy { it.second }.map { it.first }

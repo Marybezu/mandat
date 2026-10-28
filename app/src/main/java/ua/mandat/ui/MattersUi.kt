@@ -465,7 +465,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
     }
 
     if (confirmDelete) {
-        val aidRecords by remember(db, request.matter.id) { db.money().observeAidFor(request.matter.id).hidingNamed(session, { it.matterId }) { it.what + " " + it.party } }.collectAsStateWithLifecycle(emptyList())
+        val aidRecords by remember(db, request.matter.id) { db.money().observeAidFor(request.matter.id).hidingNamed(session, { it.matterId }, { it.createdAt }) { it.what + " " + it.party } }.collectAsStateWithLifecycle(emptyList())
         val matterTexts by remember(db, request.matter.id) { db.texts().observeForMatter(request.matter.id) }.collectAsStateWithLifecycle(emptyList())
         var deleteTexts by remember { mutableStateOf(false) }
         // A sensitive matter takes everything tied to it by default: left behind, it would no longer be hidden
@@ -556,8 +556,8 @@ fun <T> Picker(label: String, current: String, options: List<Pair<T, String>>, o
 private fun MatterLinks(db: MandatDb, session: Session, matterId: Long, draft: MatterDraft) {
     val linkedFlow = remember(db, matterId) { db.people().observeForMatter(matterId) }
     val peopleFlow = remember(db) { db.people().observeAll().hidingPeople(session) }
-    val delegationsFlow = remember(db, matterId) { db.delegations().observeForMatter(matterId).hidingNamed(session, { it.matterId }) { it.what + " " + it.purpose + " " + it.doneMeans } }
-    val promisesFlow = remember(db, matterId) { db.promises().observeForMatter(matterId).hidingNamed(session, { it.matterId }) { it.what + " " + it.toWhom + " " + it.source + " " + it.statusNote } }
+    val delegationsFlow = remember(db, matterId) { db.delegations().observeForMatter(matterId).hidingNamed(session, { it.matterId }, { it.createdAt }) { it.what + " " + it.purpose + " " + it.doneMeans } }
+    val promisesFlow = remember(db, matterId) { db.promises().observeForMatter(matterId).hidingNamed(session, { it.matterId }, { it.createdAt }) { it.what + " " + it.toWhom + " " + it.source + " " + it.statusNote } }
     val linked by linkedFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val people by peopleFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val delegations by delegationsFlow.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -592,13 +592,13 @@ private fun MatterLinks(db: MandatDb, session: Session, matterId: Long, draft: M
     }
     if (linked.any { it.stance != null } || draft.votesNeeded != null) VoteCounter(linked, draft, session)
 
-    val deadlinesFlow = remember(db, matterId) { db.deadlines().observeForMatter(matterId).hidingNamed(session, { it.matterId }) { it.title + " " + it.basis } }
+    val deadlinesFlow = remember(db, matterId) { db.deadlines().observeForMatter(matterId).hidingNamed(session, { it.matterId }, { it.createdAt }) { it.title + " " + it.basis } }
     val deadlines by deadlinesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     LinkSection(stringResource(R.string.deadlines))
     deadlines.forEach { DeadlineRow(it, null, session) }
     TextButton(onClick = { session.deadlineDraft = newDeadline(matterId = matterId) }) { Text("+ " + stringResource(R.string.add_deadline)) }
 
-    EventLinks(db, session, db.events().observeForMatter(matterId).hidingNamed(session, { it.matterId }) { it.title + " " + it.notes + " " + it.place + " " + it.outcome }, matterId = matterId)
+    EventLinks(db, session, db.events().observeForMatter(matterId).hidingNamed(session, { it.matterId }, { it.updatedAt }) { it.title + " " + it.notes + " " + it.place + " " + it.outcome }, matterId = matterId)
     MatterInfoLinks(db, session, matterId)
 
     LinkSection(stringResource(R.string.delegations))
@@ -673,8 +673,8 @@ private fun MatterLinks(db: MandatDb, session: Session, matterId: Long, draft: M
 @Composable
 private fun MatterStrip(db: MandatDb, matter: Matter, session: Session) {
     val linked by remember(db, matter.id) { db.people().observeForMatter(matter.id) }.collectAsStateWithLifecycle(emptyList())
-    val deadlines by remember(db, matter.id) { db.deadlines().observeForMatter(matter.id).hidingNamed(session, { it.matterId }) { it.title + " " + it.basis } }.collectAsStateWithLifecycle(emptyList())
-    val delegations by remember(db, matter.id) { db.delegations().observeForMatter(matter.id).hidingNamed(session, { it.matterId }) { it.what + " " + it.purpose + " " + it.doneMeans } }.collectAsStateWithLifecycle(emptyList())
+    val deadlines by remember(db, matter.id) { db.deadlines().observeForMatter(matter.id).hidingNamed(session, { it.matterId }, { it.createdAt }) { it.title + " " + it.basis } }.collectAsStateWithLifecycle(emptyList())
+    val delegations by remember(db, matter.id) { db.delegations().observeForMatter(matter.id).hidingNamed(session, { it.matterId }, { it.createdAt }) { it.what + " " + it.purpose + " " + it.doneMeans } }.collectAsStateWithLifecycle(emptyList())
     val topics = rememberTopics(db)
     val today = Dates.today()
     val open = ua.mandat.data.TaskStatus.OPEN

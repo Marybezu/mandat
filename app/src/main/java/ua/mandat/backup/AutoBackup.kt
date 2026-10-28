@@ -35,6 +35,9 @@ object AutoBackup {
     private const val KEY_FILES = PREFIX + "files"
     private const val KEY_PENDING = PREFIX + "pending"
     private const val KEY_TO_DELETE = PREFIX + "to_delete"
+    /** Copies made just before a restore: kept out of the rotation for [KEEP_SAFETY_MS]. */
+    private const val KEY_SAFETY = PREFIX + "safety"
+    private const val KEEP_SAFETY_MS = 30L * 24 * 60 * 60 * 1000
 
     const val KEEP = 7
     const val KEEP_WEEKS = 4
@@ -230,7 +233,14 @@ object AutoBackup {
                 return@withTransaction
             }
             val files = files(s) + (accepted.toString() to info.createdAt)
-            val kept = trimmed(files, keepNewest = accepted.toString())
+            val now = System.currentTimeMillis()
+            val safety = s.get(KEY_SAFETY)?.value.orEmpty().lines().mapNotNull { line ->
+                val parts = line.split('\t')
+                val t = parts.getOrNull(1)?.toLongOrNull() ?: return@mapNotNull null
+                parts[0].takeIf { it.isNotBlank() && now - t in 0 until KEEP_SAFETY_MS }?.let { it to t }
+            }
+            if (safety.isEmpty()) s.deletePrefix(KEY_SAFETY) else s.put(Setting(KEY_SAFETY, safety.joinToString("\n") { "${it.first}\t${it.second}" }))
+            val kept = trimmed(files, keepNewest = accepted.toString(), pinned = safety.map { it.first }.toSet())
             toDelete = files.filter { f -> kept.none { it.first == f.first } }.map { Uri.parse(it.first) }
             s.put(Setting(KEY_FILES, kept.joinToString("\n") { "${it.first}\t${it.second}" }))
             // Remembered until really deleted, so nothing stays behind if Mandat stops meanwhile
@@ -244,6 +254,13 @@ object AutoBackup {
 
     private suspend fun toDeleteList(s: ua.mandat.data.SettingDao): List<String> =
         s.get(KEY_TO_DELETE)?.value.orEmpty().lines().filter { it.isNotBlank() }
+
+    /** Marks a copy made just before a restore, so later copies do not push it out for a month. */
+    suspend fun keepAsSafety(db: MandatDb, uri: Uri, at: Long) {
+        val s = db.settings()
+        val old = s.get(KEY_SAFETY)?.value.orEmpty().lines().filter { it.isNotBlank() }
+        s.put(Setting(KEY_SAFETY, (old + "$uri\t$at").joinToString("\n")))
+    }
 
     /** Old copies chosen for removal and not yet removed. */
     suspend fun toDelete(db: MandatDb): List<Uri> = toDeleteList(db.settings()).map(Uri::parse)
@@ -265,7 +282,7 @@ object AutoBackup {
      * One copy per day (the newest) for the last [KEEP] days, and one per week for [KEEP_WEEKS] weeks
      * before that (a mistake noticed only weeks later can still be undone); the new copy always stays.
      */
-    internal fun trimmed(files: List<Pair<String, Long>>, keepNewest: String): List<Pair<String, Long>> {
+    internal fun trimmed(files: List<Pair<String, Long>>, keepNewest: String, pinned: Set<String> = emptySet()): List<Pair<String, Long>> {
         val zone = java.time.ZoneId.systemDefault()
         fun dayOf(ms: Long) = java.time.Instant.ofEpochMilli(ms).atZone(zone).toLocalDate()
         val newestPerDay = files.groupBy { dayOf(it.second) }.values.map { day -> day.maxBy { it.second } }
@@ -274,6 +291,8 @@ object AutoBackup {
             .groupBy { dayOf(it.second).with(java.time.DayOfWeek.MONDAY) }.values.map { week -> week.maxBy { it.second } }
             .sortedByDescending { it.second }.take(KEEP_WEEKS)
         val kept = (daily + weekly).toMutableList()
+        // A copy made before a restore stays a month, whatever else is made that day
+        files.filter { it.first in pinned && kept.none { k -> k.first == it.first } }.forEach { kept += it }
         if (kept.none { it.first == keepNewest }) files.firstOrNull { it.first == keepNewest }?.let { kept += it }
         return kept
     }

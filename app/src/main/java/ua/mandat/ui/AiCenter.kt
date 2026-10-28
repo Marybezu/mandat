@@ -156,7 +156,7 @@ fun AiCenter(db: MandatDb, session: Session) {
                 Button(onClick = { close(); session.optionsRequest = true }) { Text(stringResource(R.string.ai_turn_on)) }
             } else {
                 SheetGroup(stringResource(R.string.ai_ask_title)) {
-                    if (question.isNotBlank()) SaveOnLock(session, "ai-question") { db -> persistInboxDraft(db, question) }
+                    if (question.isNotBlank() && run.answer == null) SaveOnLock(session, "ai-question") { db -> persistInboxDraft(db, question) }
                     OutlinedTextField(question, { question = it.take(500) }, placeholder = { Text(stringResource(R.string.ai_ask_hint)) },
                         minLines = 2, maxLines = 5, modifier = Modifier.fillMaxWidth())
                     if (question.isNotBlank()) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -260,8 +260,8 @@ private fun AiPicker(db: MandatDb, session: Session, act: AiAct, onDismiss: () -
         when (act.pick) {
             AiPick.MATTER -> db.matters().observeActiveTitles().hiding(session) { it.id }.map { l -> l.map { PickItem(it.id, it.title) } }
             AiPick.PERSON -> db.people().observeAll().hidingPeople(session).map { l -> l.filter { it.name.isNotBlank() }.map { PickItem(it.id, it.name, it.organization) } }
-            AiPick.TEXT -> db.texts().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.body }.map { l -> l.map { PickItem(it.id, it.title) } }
-            AiPick.ATTACK -> db.info().observeAll().hidingNamed(session, { it.matterId }) { it.title + " " + it.notes + " " + it.source + " " + it.result }.map { l ->
+            AiPick.TEXT -> db.texts().observeAll().hidingNamed(session, { it.matterId }, { it.updatedAt }) { it.title + " " + it.body }.map { l -> l.map { PickItem(it.id, it.title) } }
+            AiPick.ATTACK -> db.info().observeAll().hidingNamed(session, { it.matterId }, { it.updatedAt }) { it.title + " " + it.notes + " " + it.source + " " + it.result }.map { l ->
                 l.filter { !it.closed && (it.kind == InfoKind.ATTACK.name || it.kind == InfoKind.CRITIQUE.name) }.map { PickItem(it.id, it.title, it.source) }
             }
             // Meetings from today on, for two weeks
@@ -269,7 +269,7 @@ private fun AiPicker(db: MandatDb, session: Session, act: AiAct, onDismiss: () -
                 l.filterNot { it.matterId == null && namesAny(it.title + " " + it.notes, ht) }.sortedWith(compareBy({ it.day }, { it.startMin ?: -1 })).map { PickItem(it.id, it.title, Dates.format(it.day) + (it.startMin?.let { m -> " " + timeText(m) } ?: "")) }
             }
             // Open delegations to someone: a reminder needs a person to write to
-            AiPick.DELEGATION -> kotlinx.coroutines.flow.combine(db.delegations().observeOpen().hidingNamed(session, { it.matterId }) { it.what + " " + it.purpose + " " + it.doneMeans }, db.people().observeAll().hidingPeople(session), hiddenTitles(db, session)) { ds, ps, ht ->
+            AiPick.DELEGATION -> kotlinx.coroutines.flow.combine(db.delegations().observeOpen().hidingNamed(session, { it.matterId }, { it.createdAt }) { it.what + " " + it.purpose + " " + it.doneMeans }, db.people().observeAll().hidingPeople(session), hiddenTitles(db, session)) { ds, ps, ht ->
                 val names = ps.associate { it.id to it.name }
                 ds.filter { it.personId != null && !(it.matterId == null && namesAny(it.what + " " + it.purpose, ht)) }.map { PickItem(it.id, it.what, names[it.personId].orEmpty() + (it.due?.let { d -> " · " + Dates.format(d) } ?: "")) }
             }
