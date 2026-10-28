@@ -47,22 +47,22 @@ internal suspend fun obsidianVault(
         visible(m.id) && (span == null || msIn(m.createdAt) || msIn(m.updatedAt) || m.id in movedIds)
     }
     val events = db.events().observeAll().first().filter { e ->
-        visible(e.matterId) && free(e.matterId, e.title, e.notes, e.outcome) && when {
+        visible(e.matterId) && free(e.matterId, e.title, e.notes, e.outcome, e.place) && when {
             span != null -> e.day <= span.to && e.lastDay >= span.from
             full -> true
             else -> e.lastDay >= today - 365 && e.day <= today + 365
         }
     }
     fun taskIn(created: Long, closed: Long?, due: Long?) = span == null || msIn(created) || msIn(closed) || (due != null && inSpan(due))
-    val delegations = db.delegations().observeAll().first().filter { visible(it.matterId) && free(it.matterId, it.what, it.purpose) && taskIn(it.createdAt, it.closedAt, it.due) }
-    val promises = db.promises().observeAll().first().filter { visible(it.matterId) && free(it.matterId, it.what, it.toWhom, it.statusNote) && taskIn(it.createdAt, it.closedAt, it.due) }
+    val delegations = db.delegations().observeAll().first().filter { visible(it.matterId) && free(it.matterId, it.what, it.purpose, it.doneMeans) && taskIn(it.createdAt, it.closedAt, it.due) }
+    val promises = db.promises().observeAll().first().filter { visible(it.matterId) && free(it.matterId, it.what, it.toWhom, it.statusNote, it.source) && taskIn(it.createdAt, it.closedAt, it.due) }
     val deadlines = db.deadlines().observeAll().first().filter { visible(it.matterId) && free(it.matterId, it.title, it.basis) && taskIn(it.createdAt, it.closedAt, it.day) }
     val eventPeople = db.events().observeLinks().first().groupBy({ it.eventId }, { it.personId })
     val links = db.people().observeLinks().first().filter { visible(it.matterId) }
     val info = if (full) db.info().observeAll().first().filter { visible(it.matterId) && free(it.matterId, it.title, it.source, it.notes, it.result) && (inSpan(it.day) || msIn(it.updatedAt)) } else emptyList()
-    val alliances = if (full) db.info().observeAlliances().first().filter { visible(it.matterId) && free(it.matterId, it.withWhom, it.about, it.notes) && (span == null || msIn(it.createdAt) || msIn(it.updatedAt)) } else emptyList()
+    val alliances = if (full) db.info().observeAlliances().first().filter { visible(it.matterId) && free(it.matterId, it.withWhom, it.about, it.notes, it.gives, it.gets) && (span == null || msIn(it.createdAt) || msIn(it.updatedAt)) } else emptyList()
     val messages = if (full) db.info().observeMessages().first().filter { visible(it.matterId) && free(it.matterId, it.text, it.proof) && (span == null || msIn(it.createdAt) || msIn(it.updatedAt)) } else emptyList()
-    val money = if (full) db.money().observeAll().first().filter { visible(it.matterId) && free(it.matterId, it.note, it.toWhom) && inSpan(it.day) } else emptyList()
+    val money = if (full) db.money().observeAll().first().filter { visible(it.matterId) && free(it.matterId, it.note, it.toWhom, it.category) && inSpan(it.day) } else emptyList()
     val texts = if (full) db.texts().observeAll().first().filter { visible(it.matterId) && free(it.matterId, it.title, it.body) && (span == null || msIn(it.createdAt) || msIn(it.updatedAt)) } else emptyList()
     val inbox = if (full) db.inbox().observeAll().first().filter { free(null, it.text) && (span == null || msIn(it.createdAt)) } else emptyList()
     val communityLinks = if (full) db.communities().observeLinks().first() else emptyList()
@@ -82,10 +82,17 @@ internal suspend fun obsidianVault(
     val people = if (allPeople || span == null) allVisiblePeople else allVisiblePeople.filter { it.id in tied }
     val contacts = if (full && allPeople) db.contacts().all() else emptyList()
     // A community whose every link leads to something hidden stays out too (its name could tell where)
-    val hiddenOnlyCommunities = communityLinks.groupBy { it.communityId }.filterValues { ls ->
-        ls.isNotEmpty() && ls.all { it.kind == ua.mandat.data.LinkKind.MATTER && it.refId in hidden }
-    }.keys
-    val communities = if (full) db.communities().observeAll().first().filter { it.id !in hiddenOnlyCommunities && free(null, it.name, it.notes) }.let { cs ->
+    val eventMatter = db.events().observeAll().first().associate { it.id to it.matterId }
+    val promiseMatter = db.promises().observeAll().first().associate { it.id to it.matterId }
+    fun linkHidden(l: ua.mandat.data.CommunityLink) = when (l.kind) {
+        ua.mandat.data.LinkKind.MATTER -> l.refId in hidden
+        ua.mandat.data.LinkKind.EVENT -> eventMatter[l.refId]?.let { it in hidden } ?: false
+        ua.mandat.data.LinkKind.PROMISE -> promiseMatter[l.refId]?.let { it in hidden } ?: false
+        ua.mandat.data.LinkKind.PERSON -> l.refId in onlyHidden
+        else -> false
+    }
+    val hiddenOnlyCommunities = communityLinks.groupBy { it.communityId }.filterValues { ls -> ls.isNotEmpty() && ls.all(::linkHidden) }.keys
+    val communities = if (full) db.communities().observeAll().first().filter { it.id !in hiddenOnlyCommunities && free(null, it.name, it.notes, it.head) }.let { cs ->
         if (span == null) cs else cs.filter { c ->
             msIn(c.updatedAt) || commLinksVisible.any { l -> l.communityId == c.id && when (l.kind) {
                 ua.mandat.data.LinkKind.MATTER -> l.refId in matterIds
@@ -157,8 +164,9 @@ internal suspend fun obsidianVault(
         note(fPeople, pName.getValue(p.id), if (p.teamRole != null) "person, mandat/team" else "person",
             yamlLine("organization", p.organization) + yamlLine("position", p.jobTitle),
             buildString {
-                if (p.contact.isNotBlank()) append(p.contact).append("\n\n")
-                if (p.notes.isNotBlank()) append(p.notes).append("\n\n")
+                // A person's own text that names a hidden matter is left out (the person stays)
+                if (p.contact.isNotBlank() && free(null, p.contact)) append(p.contact).append("\n\n")
+                if (p.notes.isNotBlank() && free(null, p.notes)) append(p.notes).append("\n\n")
                 val ms = links.filter { it.personId == p.id && it.matterId in mName }
                 if (ms.isNotEmpty()) {
                     append("## ").append(fMatters).append("\n")
