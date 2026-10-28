@@ -13,7 +13,7 @@ object Obsidian {
         // No leading dots (Obsidian hides such files), no trailing ones; cut by whole characters, never inside an emoji
         val spaced = s.replace(BAD, " ").replace(Regex("\\s+"), " ").trim().trimStart('.').trimEnd('.').trim()
         val cut = if (spaced.codePointCount(0, spaced.length) > 80) spaced.substring(0, spaced.offsetByCodePoints(0, 80)) else spaced
-        return cut.trim().ifEmpty { fallback }
+        return cut.trim().trimEnd('.').trim().ifEmpty { fallback }
     }
 
     /** Gives every key a unique note name: a repeated name gets " (2)", " (3)"… */

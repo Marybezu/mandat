@@ -419,15 +419,25 @@ private fun tableLabel(t: String): Int = when (t) {
 
 /** Files packed into one ZIP in memory (no encryption of its own). */
 private fun zipInMemory(files: List<Pair<String, ByteArray>>): ByteArray {
-    val buf = java.io.ByteArrayOutputStream()
-    java.util.zip.ZipOutputStream(buf).use { zip ->
-        files.forEach { (name, bytes) ->
-            zip.putNextEntry(java.util.zip.ZipEntry(name))
-            zip.write(bytes)
-            zip.closeEntry()
+    val buf = WipingBuffer()
+    try {
+        java.util.zip.ZipOutputStream(buf).use { zip ->
+            files.forEach { (name, bytes) ->
+                zip.putNextEntry(java.util.zip.ZipEntry(name))
+                zip.write(bytes)
+                zip.closeEntry()
+            }
         }
+        return buf.toByteArray()
+    } finally {
+        // The stream's own copy of the plain text is cleared too, not left for the garbage collector
+        buf.wipe()
     }
-    return buf.toByteArray()
+}
+
+/** A byte buffer that can clear what it held. */
+private class WipingBuffer : java.io.ByteArrayOutputStream() {
+    fun wipe() { buf.fill(0); count = 0 }
 }
 
 /**

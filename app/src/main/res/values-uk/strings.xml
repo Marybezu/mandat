@@ -305,7 +305,6 @@
     <string name="dash_moved">у русі</string>
     <string name="dash_started">нових справ</string>
     <string name="dash_finished">завершено</string>
-    <string name="dash_evenings">вечорів</string>
     <string name="dash_roles_title">Рух за ролями</string>
     <string name="dash_no_role">Без ролі</string>
     <string name="dash_idle">За цей період без жодного кроку: %1$s</string>

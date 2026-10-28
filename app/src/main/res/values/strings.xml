@@ -303,7 +303,6 @@
     <string name="dash_moved">moving</string>
     <string name="dash_started">new matters</string>
     <string name="dash_finished">completed</string>
-    <string name="dash_evenings">evenings</string>
     <string name="dash_roles_title">Movement by role</string>
     <string name="dash_no_role">No role</string>
     <string name="dash_idle">No step in this period: %1$s</string>
