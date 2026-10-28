@@ -1300,4 +1300,9 @@
     <string name="demo_exit">Exit</string>
     <string name="demo_options_note">This is the demo: backups, reminders, the phone calendar and security settings are off here, so the example never touches your data. Leaving the demo erases it completely.</string>
     <string name="demo_no_import">No import in the demo: a file brought in here would vanish with it.</string>
+    <string name="packet_check">Matters and tasks for a colleague\'s Mandat</string>
+    <string name="packet_one_matter">Only one matter (otherwise the matters that moved in the period)</string>
+    <string name="packet_hint">A packet for an assistant or colleague with Mandat: matters with their people, delegations, promises, deadlines and events. Sensitive and hidden matters stay out, and so do private notes on people. The colleague imports the file and it is added to what is there: matches are recognised, nothing is deleted.</string>
+    <string name="import_packet_summary">A packet from a colleague: %1$d matters, %2$d people, %3$d tasks, %4$d events, %5$d contacts. All of it is added to what is there: the same people and matters are recognised, nothing is changed or deleted, nothing is doubled.</string>
+    <string name="packet_done">Added: %1$d matters, %2$d people, %3$d tasks, %4$d events. Already here and skipped: %5$d.</string>
 </resources>

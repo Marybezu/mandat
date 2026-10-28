@@ -113,6 +113,9 @@ class Session(app: Application) : AndroidViewModel(app) {
     var oneOnOne by mutableStateOf<Long?>(null)
     var topicOpen by mutableStateOf<String?>(null)
 
+    /** What taking in a colleague's packet added, for one message afterwards. */
+    var packetResult by mutableStateOf<ua.mandat.data.Packet.Result?>(null)
+
     /** The search screen is open. */
     var searching by mutableStateOf(false)
     /** A word to search for when the search screen opens (from the word cloud). */

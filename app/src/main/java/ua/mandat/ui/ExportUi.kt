@@ -87,6 +87,10 @@ class ExportPlan {
     var vaultScope by mutableStateOf(VaultScope.BASIC)
     /** All people and the address book, not only the people tied to what is exported. */
     var allPeople by mutableStateOf(false)
+    /** A packet of matters and tasks for a colleague's Mandat (only inside Mandat's own file). */
+    var packet by mutableStateOf(false)
+    /** Set only on the copy of the plan used for Mandat's own file: the packet is built only there. */
+    var packetFile = false
     /** The period records are taken from (a whole backup is never cut by it). */
     var period by mutableStateOf(ExportPeriod.ALL)
     var periodFrom by mutableStateOf(Dates.today() - 30)
@@ -153,6 +157,10 @@ fun ExportScreen(db: MandatDb, session: Session) {
     var sealed by remember { mutableStateOf<ByteArray?>(null) }
     val hidden by session.hiddenMatters.collectAsStateWithLifecycle()
     androidx.compose.runtime.LaunchedEffect(hidden) { if (hidden.isNotEmpty()) plan.everything = false }
+    // After a colleague's packet was taken in: what was added, and what was already here
+    androidx.compose.runtime.LaunchedEffect(session.packetResult) {
+        session.packetResult?.let { r -> message = context.getString(R.string.packet_done, r.matters, r.people, r.tasks, r.events, r.skipped); session.packetResult = null }
+    }
     // A full copy is never cut by a period: choosing one turns the copy off rather than leave it ticked unseen
     androidx.compose.runtime.LaunchedEffect(plan.period) { if (plan.period != ExportPeriod.ALL) plan.everything = false }
     val cadenceSet by remember(db) { db.settings().observe(ua.mandat.data.SETTING_CADENCE_START) }.collectAsStateWithLifecycle(null)
@@ -217,7 +225,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
     }
     // Mandat's own file holds only what Mandat can take back in: contacts and the calendar
     val ownOnly = mode == PROTECT_MANDAT
-    val anyChosen = if (ownOnly) plan.people || plan.book || plan.calendar else plan.any()
+    val anyChosen = if (ownOnly) plan.people || plan.book || plan.calendar || plan.packet else plan.any()
     val passOk = !protect || (!ua.mandat.backup.BackupCrypto.isTooSimple(password) && password == repeat)
 
     Scaffold(
@@ -272,7 +280,19 @@ fun ExportScreen(db: MandatDb, session: Session) {
                         QuickChip(stringResource(l), plan.calendarSpan == i) { plan.calendarSpan = i }
                     }
                 }
-                if (ownOnly) Text(stringResource(R.string.export_mandat_only), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(start = 12.dp, top = 6.dp))
+                if (ownOnly) {
+                    // A packet for a colleague's Mandat: the chosen matter, or what moved in the period
+                    Check(stringResource(R.string.packet_check), plan.packet) { plan.packet = it }
+                    if (plan.packet) Column(Modifier.padding(start = 40.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = plan.matterId != null, onCheckedChange = { if (it) pickingMatter = true else plan.matterId = null })
+                            Text(plan.matterId?.let { id -> stringResource(R.string.export_matter_one, titles.firstOrNull { it.id == id }?.title.orEmpty()) }
+                                ?: stringResource(R.string.packet_one_matter), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.clickable { pickingMatter = true })
+                        }
+                        Text(stringResource(R.string.packet_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
+                    }
+                    Text(stringResource(R.string.export_mandat_only), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(start = 12.dp, top = 6.dp))
+                }
                 if (ownOnly && (plan.textId != null || plan.briefId != null)) Text(stringResource(R.string.export_mandat_no_docs), style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(start = 12.dp, top = 2.dp))
                 else {
@@ -520,10 +540,11 @@ private suspend fun runExport(context: Context, session: Session, plan: ExportPl
             p.people = plan.people; p.peopleCategory = plan.peopleCategory; p.book = plan.book; p.bookGroup = plan.bookGroup
             p.calendar = plan.calendar; p.calendarSpan = plan.calendarSpan; p.pdf = false
             p.period = plan.period; p.periodFrom = plan.periodFrom; p.periodTo = plan.periodTo
+            p.packet = plan.packet; p.packetFile = true; p.matterId = plan.matterId
         } else plan
         files = session.withOpenDb { db -> buildFiles(context, db, session.hiddenMatters.value, wanted) }.orEmpty()
         // Mandat's own file carries only what Mandat can take back in
-        if (own) files = files.filter { (name, bytes) -> (name.endsWith(".vcf") || name.endsWith(".ics")).also { keep -> if (!keep) bytes.fill(0) } }
+        if (own) files = files.filter { (name, bytes) -> (name.endsWith(".vcf") || name.endsWith(".ics") || name == ua.mandat.data.Packet.FILE).also { keep -> if (!keep) bytes.fill(0) } }
         if (files.isEmpty()) { discard(); return false }
         // Mandat's own file is sealed before anything is written, so a file too big to open again is never made
         val sealed: ByteArray? = if (password != null && own) {
@@ -718,6 +739,34 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
         addDoc("text", md)
     }
     plan.briefId?.let { id -> people.firstOrNull { it.id == id } }?.let { p -> addDoc("brief", briefDocument(context, db, p, hidden, titles)) }
+    if (plan.packet && plan.packetFile) {
+        // Matters: the one chosen, or those that moved in the period; never a sensitive or hidden one
+        val all = db.matters().observeAll().first()
+        val excluded = all.filter { it.sensitive || it.id in hidden }.map { it.id }.toSet()
+        fun ok(id: Long?) = id == null || id !in excluded
+        val matters = when (val one = plan.matterId) {
+            null -> all.filter { it.id !in excluded && (span == null || msIn(it.createdAt) || msIn(it.updatedAt) || it.id in movedIds) }
+            else -> all.filter { it.id == one && it.id !in excluded }
+        }
+        val ids = matters.map { it.id }.toSet()
+        // With one matter: its own tasks and events; otherwise everything of the period (also without a matter)
+        fun belongs(matterId: Long?) = ok(matterId) && if (plan.matterId != null) matterId in ids else (matterId == null || matterId in ids || span != null)
+        val dg = db.delegations().observeAll().first().filter { belongs(it.matterId) && free(it.matterId, it.what, it.purpose, it.doneMeans) && taskIn(it.createdAt, it.closedAt, it.due) }
+        val pr = db.promises().observeAll().first().filter { belongs(it.matterId) && free(it.matterId, it.what, it.toWhom, it.source) && taskIn(it.createdAt, it.closedAt, it.due) }
+        val dl = db.deadlines().observeAll().first().filter { belongs(it.matterId) && free(it.matterId, it.title, it.basis) && taskIn(it.createdAt, it.closedAt, it.day) }
+        val ev = events.filter { belongs(it.matterId) }
+        val evIds = ev.map { it.id }.toSet()
+        val eventPeople = db.events().observeLinks().first().filter { it.eventId in evIds }
+        val links = db.people().observeLinks().first().filter { it.matterId in ids }
+        // People who take part in what goes in; never private notes
+        val personIds = (links.map { it.personId } + dg.mapNotNull { it.personId } + pr.mapNotNull { it.personId } + eventPeople.map { it.personId }).toSet()
+        val persons = people.filter { it.id in personIds }
+        val packetPeople = persons.map { it.id }.toSet()
+        val roles = db.roles().observeAll().first().associate { it.id to it.name }
+        val packet = ua.mandat.data.Packet.P(matters, persons, links.filter { it.personId in packetPeople }, dg, pr, dl, ev,
+            eventPeople.filter { it.personId in packetPeople }, roles.filterKeys { k -> matters.any { it.roleId == k } })
+        if (!packet.isEmpty) add(ua.mandat.data.Packet.FILE, ua.mandat.data.Packet.encode(packet))
+    }
     if (plan.obsidian) obsidianVault(context, db, hidden, onlyHidden, plan.vaultScope, span, plan.allPeople).forEach { (name, text) -> add(name, text) }
     // A whole copy of everything is never cut by a period
     if (plan.everything && hidden.isEmpty() && span == null) out += "everything.json" to ua.mandat.backup.BackupData.dump(db)
@@ -880,6 +929,7 @@ private fun openMandatExport(file: ByteArray, password: String, stop: () -> Bool
         val mark = ua.mandat.backup.BackupCrypto.EXPORT_MARK.size
         val events = ArrayList<ua.mandat.data.IcsReader.Item>()
         val contacts = ArrayList<ua.mandat.data.Contact>()
+        var packet: ua.mandat.data.Packet.P? = null
         var skipped = 0
         var total = 0L
         val chunk = ByteArray(64 * 1024)
@@ -901,6 +951,12 @@ private fun openMandatExport(file: ByteArray, password: String, stop: () -> Bool
                 val entry = zip.nextEntry ?: break
                 if (++count > MAX_INNER_FILES) break
                 val ext = entry.name.substringAfterLast('/').substringAfterLast('.', "").lowercase()
+                // A packet of matters and tasks from a colleague's Mandat
+                if (!entry.isDirectory && entry.name == ua.mandat.data.Packet.FILE && packet == null) {
+                    val buf = WipingBuffer()
+                    try { drain(buf); packet = ua.mandat.data.Packet.decode(String(buf.toByteArray(), Charsets.UTF_8)) } finally { buf.wipe() }
+                    continue
+                }
                 if (entry.isDirectory || ext !in setOf("ics", "vcf")) { skipped++; drain(null); continue }
                 val buf = java.io.ByteArrayOutputStream()
                 drain(buf)
@@ -911,7 +967,15 @@ private fun openMandatExport(file: ByteArray, password: String, stop: () -> Bool
                 }
             }
         }
-        Opened.Ok(PendingImport(R.string.import_mandat_summary, events.size + contacts.size, args = listOf(events.size, contacts.size, skipped)) { s ->
+        val pk = packet
+        if (pk != null) Opened.Ok(PendingImport(R.string.import_packet_summary, pk.matters.size + pk.tasks + pk.events.size + events.size + contacts.size,
+            args = listOf(pk.matters.size, pk.people.size, pk.tasks, pk.events.size + events.size, contacts.size)) { s ->
+            // Added to what is there: matching people and matters are used, nothing is changed or deleted
+            s.write { d -> s.packetResult = ua.mandat.data.Packet.apply(d, pk) }
+            if (events.isNotEmpty()) importEvents(s, events)
+            if (contacts.isNotEmpty()) s.previewContacts(contacts, null)
+        })
+        else Opened.Ok(PendingImport(R.string.import_mandat_summary, events.size + contacts.size, args = listOf(events.size, contacts.size, skipped)) { s ->
             if (events.isNotEmpty()) importEvents(s, events)
             if (contacts.isNotEmpty()) s.previewContacts(contacts, null)
         })
