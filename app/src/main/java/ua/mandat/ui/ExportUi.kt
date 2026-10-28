@@ -228,7 +228,6 @@ fun ExportScreen(db: MandatDb, session: Session) {
             else -> "md"
         }
     }
-    }
     // Mandat's own file holds only what Mandat can take back in: contacts and the calendar
     val ownOnly = mode == PROTECT_MANDAT
     val anyChosen = if (ownOnly) plan.people || plan.book || plan.calendar || plan.packet else plan.any()
@@ -245,6 +244,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
             session.pickingFile = true
             try { save.launch(fileName()) } catch (e: Exception) { session.pickingFile = false }
         }
+    }
 
     Scaffold(
         topBar = {
