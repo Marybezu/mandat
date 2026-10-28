@@ -519,6 +519,8 @@ class Session(app: Application) : AndroidViewModel(app) {
      * false if it failed, null if it is still being written (tried again next time).
      */
     suspend fun reconcileAuto(db: MandatDb): Boolean? {
+        // Never with the demo's database
+        if (db === demoDb || demo || demoOpening) return null
         val auto = ua.mandat.backup.AutoBackup
         val app = getApplication<Application>()
         // Old copies that were chosen for removal but not yet removed (Mandat stopped meanwhile)
@@ -687,12 +689,14 @@ class Session(app: Application) : AndroidViewModel(app) {
     var demo by mutableStateOf(false)
         private set
     /** The demo is being opened (set before loading, so a lock meanwhile treats it as the demo). */
-    private var demoOpening = false
+    @Volatile private var demoOpening = false
+    /** The demo's own database while it is open, so backups can tell it from the owner's. */
+    @Volatile private var demoDb: MandatDb? = null
     /** Where closing the demo returns: the first screen or the lock screen. */
     private var demoReturn: LockState = LockState.Locked
 
     /** Runs [block] with the owner's own database only; never with the demo (for backups). */
-    suspend fun <T> withRealDb(block: suspend (MandatDb) -> T): T? = withOpenDb { db -> if (demo || demoOpening) null else block(db) }
+    suspend fun <T> withRealDb(block: suspend (MandatDb) -> T): T? = withOpenDb { db -> if (demo || demoOpening || db === demoDb) null else block(db) }
 
     /**
      * Opens the demo: the invented records shipped with the app go into an encrypted database that
@@ -726,6 +730,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                     startedAt != generation -> background.launch { db.close(); passphrase.fill(0) }
                     else -> {
                         key = passphrase
+                        demoDb = db
                         demoOpening = false
                         demo = true
                         tripOn.value = false
@@ -857,6 +862,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                         prepared?.let { autoWrite = startAutoWrite(it, lazy = true) }
                     }
                     current.db.close()
+                    if (current.db === demoDb) demoDb = null
                     oldKey?.fill(0)
                 }
                 // The database is closed: a slow folder can only delay writing encrypted bytes

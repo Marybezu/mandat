@@ -491,7 +491,8 @@ fun EventDialog(db: MandatDb, session: Session, draft: EventDraft) {
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = { toPhone = true }, enabled = draft.valid()) { Text(stringResource(R.string.event_to_phone)) }
+            // An invented event never goes into the phone's real calendar
+            if (!session.demo) TextButton(onClick = { toPhone = true }, enabled = draft.valid()) { Text(stringResource(R.string.event_to_phone)) }
             Spacer(Modifier.weight(1f))
             if (!draft.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
         }
