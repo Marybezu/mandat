@@ -130,6 +130,7 @@ fun RetroScreen(db: MandatDb, session: Session) {
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.retro_title)) },
+                actions = { HowItWorks(R.string.how_retro) },
                 navigationIcon = { IconButton(onClick = { session.showRetro = false }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back)) } },
             )
         },

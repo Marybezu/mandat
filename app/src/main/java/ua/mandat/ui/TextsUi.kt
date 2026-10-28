@@ -100,6 +100,7 @@ fun TextsScreen(db: MandatDb, session: Session) {
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.texts_title)) },
+                actions = { HowItWorks(R.string.how_texts) },
                 navigationIcon = { IconButton(onClick = { session.showTexts = false }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back)) } },
             )
         },

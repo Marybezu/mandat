@@ -160,7 +160,7 @@ fun DistrictScreen(db: MandatDb, session: Session) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
-                actions = { TextButton(onClick = { session.communityDraft = newCommunity() }) { Text("+ " + stringResource(R.string.community_new)) } },
+                actions = { HowItWorks(R.string.how_district); TextButton(onClick = { session.communityDraft = newCommunity() }) { Text("+ " + stringResource(R.string.community_new)) } },
             )
         },
     ) { padding ->

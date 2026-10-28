@@ -80,6 +80,7 @@ fun GraphScreen(db: MandatDb, session: Session) {
     Scaffold(topBar = {
         TopAppBar(
             title = { Text(stringResource(R.string.graph_title)) },
+            actions = { HowItWorks(R.string.how_graph) },
             navigationIcon = { IconButton(onClick = { session.showGraph = false }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back)) } },
         )
     }) { padding ->
@@ -137,8 +138,13 @@ fun GraphScreen(db: MandatDb, session: Session) {
                     val label = node.isMatter || node.degree >= 3 || scale >= 1.8f || (neighbours != null && i in neighbours)
                     if (label && on) {
                         val text = if (node.label.length > 26) node.label.take(25) + "…" else node.label
-                        drawText(measurer, text, at(i) + Offset(r.dp.toPx() + 3.dp.toPx(), -7.dp.toPx()),
-                            style = TextStyle(fontSize = (if (node.isMatter) 11 else 10).sp, color = labelColor.copy(alpha = if (node.isMatter) 0.9f else 0.7f)))
+                        val topLeft = at(i) + Offset(r.dp.toPx() + 3.dp.toPx(), -7.dp.toPx())
+                        // Measured on its own, without the space left on the canvas: a label near the edge (or zoomed
+                        // past it) would otherwise get a negative width and stop the whole screen
+                        if (topLeft.x < size.width && topLeft.y < size.height) {
+                            val laid = measurer.measure(text, TextStyle(fontSize = (if (node.isMatter) 11 else 10).sp, color = labelColor.copy(alpha = if (node.isMatter) 0.9f else 0.7f)))
+                            drawText(laid, topLeft = topLeft)
+                        }
                     }
                 }
             }

@@ -69,6 +69,7 @@ fun TriageScreen(db: MandatDb, session: Session) {
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.triage_title)) },
+                actions = { HowItWorks(R.string.how_triage) },
                 navigationIcon = {
                     IconButton(onClick = { session.showTriage = false }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))

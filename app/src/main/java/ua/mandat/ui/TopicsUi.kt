@@ -100,6 +100,7 @@ fun TopicsScreen(db: MandatDb, session: Session) {
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.topics)) },
+                actions = { HowItWorks(R.string.how_topics) },
                 navigationIcon = {
                     IconButton(onClick = { session.showTopics = false }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))

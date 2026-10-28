@@ -144,6 +144,7 @@ fun DirectoryScreen(db: MandatDb, session: Session) {
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.directory)) },
+                actions = { HowItWorks(R.string.how_directory) },
                 navigationIcon = {
                     IconButton(onClick = { session.showDirectory = false }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))

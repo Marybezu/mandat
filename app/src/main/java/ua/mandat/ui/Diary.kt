@@ -172,6 +172,7 @@ fun DiaryScreen(db: MandatDb, session: Session) {
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.diary_title)) },
+                actions = { HowItWorks(R.string.how_diary) },
                 navigationIcon = {
                     IconButton(onClick = { session.showDiary = false }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))

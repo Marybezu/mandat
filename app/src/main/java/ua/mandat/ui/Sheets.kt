@@ -295,6 +295,21 @@ fun protectWindow(window: android.view.Window) {
     }
 }
 
+/**
+ * "How it works": a small ⓘ in a screen's top bar that opens a plain explanation of the screen.
+ * Paragraphs are separated by an empty line in the text.
+ */
+@Composable
+fun HowItWorks(text: Int) {
+    var open by remember { mutableStateOf(false) }
+    IconButton(onClick = { open = true }) { Icon(Sym.info, contentDescription = stringResource(R.string.how_title), tint = Muted) }
+    if (open) EditSheet(title = stringResource(R.string.how_title), onDismiss = { open = false }, onSave = null) {
+        SheetGroup {
+            stringResource(text).split("\n\n").forEach { Text(it, style = MaterialTheme.typography.bodyMedium) }
+        }
+    }
+}
+
 /** A short question with two answers (delete?, continue?): compact, the risky answer in the warning colour. */
 @Composable
 fun ConfirmDialog(title: String?, text: String, confirmText: String, danger: Boolean = false, onConfirm: () -> Unit, onCancel: () -> Unit) {

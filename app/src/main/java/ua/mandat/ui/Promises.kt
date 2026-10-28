@@ -120,7 +120,7 @@ fun PromisesScreen(db: MandatDb, session: Session) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
-                actions = {
+                actions = { HowItWorks(R.string.how_promises);
                     IconButton(onClick = { session.promiseDraft = newPromise() }) {
                         Icon(androidx.compose.ui.graphics.vector.ImageVector.vectorResource(R.drawable.sym_add), contentDescription = stringResource(R.string.add_promise))
                     }

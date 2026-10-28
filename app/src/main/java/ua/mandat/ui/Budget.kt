@@ -155,6 +155,7 @@ fun BudgetScreen(db: MandatDb, session: Session) {
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.budget_title)) },
+                actions = { HowItWorks(R.string.how_budget) },
                 navigationIcon = {
                     IconButton(onClick = { session.showBudget = false }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))

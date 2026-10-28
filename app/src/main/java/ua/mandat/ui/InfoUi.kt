@@ -113,6 +113,7 @@ fun InfoScreen(db: MandatDb, session: Session) {
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.info_title)) },
+                actions = { HowItWorks(R.string.how_info) },
                 navigationIcon = {
                     IconButton(onClick = { session.showInfo = false }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
@@ -432,7 +433,7 @@ fun AlliancesScreen(db: MandatDb, session: Session) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
-                actions = { TextButton(onClick = { session.allianceDraft = newAlliance() }) { Text("+ " + stringResource(R.string.alliance_new)) } },
+                actions = { HowItWorks(R.string.how_alliances); TextButton(onClick = { session.allianceDraft = newAlliance() }) { Text("+ " + stringResource(R.string.alliance_new)) } },
             )
         },
     ) { padding ->
