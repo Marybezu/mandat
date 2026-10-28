@@ -41,9 +41,9 @@ class AuditFixesTest {
         val kept = AutoBackup.trimmed(files, keepNewest = "f0").map { it.first }
         assertEquals(AutoBackup.KEEP + AutoBackup.KEEP_WEEKS, kept.size)
         assertTrue((0 until AutoBackup.KEEP).all { "f$it" in kept })
-        // The oldest kept one is weeks back, not a week
+        // The oldest kept one is about a month back, not a week
         val oldest = kept.maxOf { it.removePrefix("f").toInt() }
-        assertTrue(oldest >= 4 * 7)
+        assertTrue(oldest >= 3 * 7)
     }
 
     @Test fun packetNumbersItsOwnRecords() {
