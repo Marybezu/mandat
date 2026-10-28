@@ -97,7 +97,8 @@ class KeyVault(context: Context) {
     }
 
     fun abandonRewrap(alias: String) {
-        try { if (alias != currentAlias() && keyStore.containsAlias(alias)) keyStore.deleteEntry(alias) } catch (e: Exception) { }
+        // Only when the key in use is known for sure and is another one; on any doubt the spare key stays
+        try { if (alias != readWrapped().alias && keyStore.containsAlias(alias)) keyStore.deleteEntry(alias) } catch (e: Exception) { }
     }
 
     /**

@@ -182,8 +182,10 @@ fun copyToClipboard(context: Context, text: String) {
 
 /** What Mandat put on the clipboard is taken off it again on lock. */
 object AiClipboard {
-    // A neutral label: the clipboard does not name the app
-    const val LABEL = "text"
+    // A neutral label that other apps are unlikely to use; it does not name the app
+    const val LABEL = "note-copy-n7"
+    /** The label of copies made by earlier versions, cleared too. */
+    private const val OLD_LABEL = "mandat"
     /** Only a yes/no mark (never the text), kept on disk so a copy is cleared even after Android closed Mandat. */
     private const val PREFS = "clipboard"
     private const val KEY = "copied"
@@ -211,7 +213,7 @@ object AiClipboard {
             val label = cm.primaryClipDescription?.label?.toString()
             if (label == null && !screenOff) return
             forget(context)
-            if (label == null || label == LABEL) cm.clearPrimaryClip()
+            if (label == null || label == LABEL || label == OLD_LABEL) cm.clearPrimaryClip()
         }
     }
 }

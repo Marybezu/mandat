@@ -905,6 +905,8 @@ class Session(app: Application) : AndroidViewModel(app) {
     fun lock(): Boolean {
         generation++
         idleJob?.cancel()
+        // A step confirmed just before the lock never runs after it without a new confirmation
+        confirmed = null
         backups.cancelRestore()
         background.launch { runCatching { ai.stopAndRelease() } }
         // Text pasted for the AI to split is kept in the Inbox, not lost

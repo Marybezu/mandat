@@ -22,7 +22,8 @@ class HiddenNames(titles: Collection<String>) {
         return stems.any { title -> title.all { s -> words.any { w ->
             when {
                 s.all(Char::isDigit) -> w == s
-                // A short stem ("пар" from "Парк") matches only near forms ("парку"), never "партія"
+                // A short stem ("пар" from "Парк") matches only words of up to six letters ("парку", "парків";
+                // also "партія": hiding a little too much is the safe side)
                 s.length == 3 -> w.startsWith(s) && w.length <= 6
                 else -> w.startsWith(s)
             }
