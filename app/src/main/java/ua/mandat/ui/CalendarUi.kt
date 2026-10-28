@@ -120,7 +120,7 @@ fun EventKind.icon(): androidx.compose.ui.graphics.vector.ImageVector = when (th
 }
 
 /** Text that stays readable on a coloured block: dark on light colours, white on dark ones (contrast 4.5:1 or more). */
-fun textOn(bg: Color): Color = if (bg.luminance() > 0.179f) Color(0xFF1B1B1F) else Color.White
+fun textOn(bg: Color): Color = if (bg.luminance() > 0.179f) Color.Black else Color.White
 
 fun EventKind.color(): Color = when (this) {
     EventKind.MEETING -> ChartColors.blue

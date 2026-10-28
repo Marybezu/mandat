@@ -872,6 +872,7 @@
     <string name="import_notes">Notes (.txt, .md) into the Inbox</string>
     <string name="import_csv">Contacts (.csv) into the address book</string>
     <string name="import_failed">Could not read the file (too big, or not the right format).</string>
+    <string name="import_save_failed">The file was read, but saving failed (Mandat may have locked). Nothing was added, and the file stays where it was.</string>
     <string name="import_ics_summary">Events found: %1$d. Already existing ones are skipped.</string>
     <string name="import_notes_summary">Notes found: %1$d (split at blank lines).</string>
     <string name="import_csv_summary">Contacts found: %1$d. Next you can choose which to add.</string>

@@ -32,6 +32,9 @@ class StabilityTest {
         assertFalse(names.named("Ремонт дороги"))
         assertFalse(names.named("Тестова справа №13"))
         assertFalse(HiddenNames.NONE.named("будь-що"))
+        // Short linking words are left out, four-letter words match their other forms
+        assertTrue(HiddenNames(listOf("Ремонт для школи")).named("ремонт школи"))
+        assertTrue(HiddenNames(listOf("Чиста вода")).named("про чисту воду"))
         // Words shorter than three letters say nothing alone
         assertTrue(HiddenNames(listOf("Ра")).isEmpty)
     }

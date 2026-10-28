@@ -59,6 +59,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import ua.mandat.R
 import ua.mandat.backup.BackupCrypto
 import java.text.DateFormat
@@ -251,7 +253,7 @@ fun Options(session: Session, onBack: () -> Unit) {
                     PhoneCalendarSwitch(session)
                 }
 
-                OptionGroup(stringResource(R.string.ai_title), stringResource(R.string.opt_ai_hint), Sym.info) {
+                OptionGroup(stringResource(R.string.ai_title), stringResource(R.string.opt_ai_hint), Sym.info, keepComposed = true) {
                     AiSection(session)
                 }
             }
@@ -378,7 +380,12 @@ fun Options(session: Session, onBack: () -> Unit) {
 }
 
 @Composable
-private fun OptionGroup(title: String, hint: String, icon: androidx.compose.ui.graphics.vector.ImageVector, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+private fun OptionGroup(
+    title: String, hint: String, icon: androidx.compose.ui.graphics.vector.ImageVector,
+    // Kept alive while folded, for work that must not stop when the group folds (copying the AI model)
+    keepComposed: Boolean = false,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
     // Folded by default, so the whole list fits on a screen; the choice survives turning the phone
     var open by androidx.compose.runtime.saveable.rememberSaveable(title) { mutableStateOf(false) }
     val stateText = stringResource(if (open) R.string.opt_open else R.string.opt_closed)
@@ -396,6 +403,7 @@ private fun OptionGroup(title: String, hint: String, icon: androidx.compose.ui.g
             Icon(if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, contentDescription = null, tint = Muted)
         }
         if (open) Column(Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
+        else if (keepComposed) Column(Modifier.height(0.dp).clipToBounds().clearAndSetSemantics { }, content = content)
     }
 }
 

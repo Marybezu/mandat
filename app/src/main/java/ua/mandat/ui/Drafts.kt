@@ -97,7 +97,7 @@ class PersonDraft(val person: ua.mandat.data.Person, val isNew: Boolean) {
 /** A delegation being edited in its dialog. */
 class DelegationDraft(val delegation: ua.mandat.data.Delegation, val isNew: Boolean) {
     /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
-    fun changed(): Boolean = what != delegation.what || purpose != delegation.purpose || doneMeans != delegation.doneMeans || personId != delegation.personId || matterId != delegation.matterId || due != delegation.due
+    fun changed(): Boolean = what != delegation.what || purpose != delegation.purpose || doneMeans != delegation.doneMeans || personId != delegation.personId || matterId != delegation.matterId || due != delegation.due || status.name != delegation.status || freedom?.name != delegation.freedom
 
     var what by mutableStateOf(delegation.what)
     var personId by mutableStateOf(delegation.personId)
@@ -127,7 +127,7 @@ class DelegationDraft(val delegation: ua.mandat.data.Delegation, val isNew: Bool
 /** A promise being edited in its dialog. */
 class PromiseDraft(val promise: ua.mandat.data.Promise, val isNew: Boolean) {
     /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
-    fun changed(): Boolean = what != promise.what || toWhom != promise.toWhom || source != promise.source || statusNote != promise.statusNote || personId != promise.personId || matterId != promise.matterId || due != promise.due
+    fun changed(): Boolean = what != promise.what || toWhom != promise.toWhom || source != promise.source || statusNote != promise.statusNote || personId != promise.personId || matterId != promise.matterId || due != promise.due || publicity != promise.level || origin?.name != promise.origin || risk != promise.risk
 
     var what by mutableStateOf(promise.what)
     var personId by mutableStateOf(promise.personId)
@@ -243,8 +243,9 @@ suspend fun persistReview(db: MandatDb, text: String?, append: Boolean = false) 
 
 /** An event being edited in its dialog; the people taking part are saved with it. */
 class EventDraft(val event: ua.mandat.data.Event, val isNew: Boolean, people: Set<Long> = emptySet(), val communityId: Long? = null) {
+    private val initialPeople = people
     /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
-    fun changed(): Boolean = title != event.title || notes != event.notes || outcome != event.outcome || place != event.place || day != event.day || startMin != event.startMin || matterId != event.matterId
+    fun changed(): Boolean = title != event.title || notes != event.notes || outcome != event.outcome || place != event.place || day != event.day || startMin != event.startMin || matterId != event.matterId || endDay != event.endDay || endMin != event.endMin || kind.name != event.kind || remind != event.remind || people != initialPeople
 
     var title by mutableStateOf(event.title)
     var day by mutableStateOf(event.day)
@@ -409,7 +410,7 @@ fun newAlliance(matterId: Long? = null) = AllianceDraft(
 /** A money entry being edited: the amount is kept as typed until it is saved. */
 class MoneyDraft(val entry: ua.mandat.data.MoneyEntry, val isNew: Boolean) {
     /** Something was typed or chosen since the sheet opened: closing it asks before throwing that away. */
-    fun changed(): Boolean = note != entry.note || category != entry.category || toWhom != entry.toWhom || matterId != entry.matterId || (amountText.isNotBlank() && amountText != (if (entry.amount > 0) ua.mandat.data.formatAmount(entry.amount).replace(" ", "") else ""))
+    fun changed(): Boolean = note != entry.note || category != entry.category || toWhom != entry.toWhom || matterId != entry.matterId || day != entry.day || kind != entry.kind || currency != entry.currency || (amountText.isNotBlank() && amountText != (if (entry.amount > 0) ua.mandat.data.formatAmount(entry.amount).replace(" ", "") else ""))
 
     var kind by mutableStateOf(entry.kind)
     var day by mutableStateOf(entry.day)

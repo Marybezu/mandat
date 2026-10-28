@@ -412,10 +412,15 @@ class Session(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private suspend fun storeReminderDays(db: MandatDb, h: Hidden = hidden.value) {
+    private suspend fun storeReminderDays(db: MandatDb, tripNow: Boolean = tripOn.value) {
         if (!Reminders.isOn(getApplication())) return
         val today = Dates.today()
-        // What is hidden (trip mode) gives no reminder either: a reminder with nothing to show would tell
+        // What trip mode hides gives no reminder either: a reminder with nothing to show would tell.
+        // Only trip mode counts here, never the lens: looking through one role keeps the others' reminders
+        val sensitive = if (tripNow) db.matters().sensitiveIds().toSet() else emptySet()
+        val names = if (sensitive.isEmpty()) ua.mandat.data.HiddenNames.NONE
+            else ua.mandat.data.HiddenNames(db.matters().observeAllTitles().first().filter { it.id in sensitive }.map { it.title })
+        val h = Hidden(sensitive, emptySet(), emptySet(), emptySet(), names)
         val days = reminderDays(
             db.deadlines().open().filterNot { h.item(it.matterId, it.title, it.basis) },
             db.delegations().open().filterNot { h.item(it.matterId, it.what, it.purpose) },
@@ -837,11 +842,13 @@ class Session(app: Application) : AndroidViewModel(app) {
         val screens = closeScreens()
         // Titles of hidden matters are content: only the numbers stay while locked (worked out again on unlock)
         val hiddenAtLock = hidden.value
+        val tripAtLock = tripOn.value
         hidden.value = Hidden(hiddenAtLock.matters, hiddenAtLock.people, hiddenAtLock.reviews, hiddenAtLock.communities, ua.mandat.data.HiddenNames.NONE)
         // Where the owner was: only the tab and the numbers of open cards (never their content),
         // so the same card opens again after unlocking
         // The demo never leaves a resume point: its numbers belong to invented records
-        if (!wasDemo) resume = Resume(
+        // Only an open Mandat leaves a resume point; locking again (screen off after leaving) keeps the one there is
+        if (!wasDemo && current is LockState.Open) resume = Resume(
             at = System.currentTimeMillis(),
             matterId = draft?.request?.takeIf { !it.isNew }?.matter?.id,
             personId = personDraft?.takeIf { !it.isNew }?.person?.id,
@@ -852,7 +859,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                 ?: promiseDraft?.takeIf { !it.isNew }?.let { "promise" to it.promise.id }
                 ?: deadlineDraft?.takeIf { !it.isNew }?.let { "deadline" to it.deadline.id },
             screens = screens,
-        ).takeIf { current is LockState.Open }
+        )
         val openInbox = inboxDraft
         val openPerson = personDraft
         val openDelegation = delegationDraft
@@ -919,7 +926,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                             { openContact?.takeIf { !it.isNew || it.touched }?.persist(current.db) },
                             { persistReview(current.db, openReview, openReviewAppend) },
                             // Last: only the days on which something is due, for reminders (never from the demo)
-                            { if (!wasDemo) storeReminderDays(current.db, hiddenAtLock) },
+                            { if (!wasDemo) storeReminderDays(current.db, tripAtLock) },
                         ).forEach { save ->
                             try {
                                 save()

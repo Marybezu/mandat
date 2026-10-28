@@ -442,7 +442,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
                         // Deleting the file is offered only after it is written: locked or failed meanwhile, the file stays
                         val ok = p.apply(session)
                         when {
-                            !ok -> message = context.getString(R.string.import_failed)
+                            !ok -> message = context.getString(R.string.import_save_failed)
                             p.source != null -> offerDelete = p.source
                             else -> message = context.getString(R.string.import_done, p.count)
                         }

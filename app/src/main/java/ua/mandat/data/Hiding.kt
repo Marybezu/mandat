@@ -32,9 +32,16 @@ class HiddenNames(titles: Collection<String>) {
         fun wordsOf(text: String): List<String> = WORD.findAll(text.lowercase()).map { it.value }.toList()
 
         /** Words of three letters or more, cut to a stem; numbers (any length) stay whole and must match exactly. */
-        fun stemsOf(title: String): List<String> = wordsOf(title).filter { it.length >= 3 || it.all(Char::isDigit) }.map { w ->
-            if (w.length <= 4 || w.all(Char::isDigit)) w else w.take(maxOf(4, w.length - 2))
+        fun stemsOf(title: String): List<String> = wordsOf(title).filter { (it.length >= 3 && it !in SMALL) || it.all(Char::isDigit) }.map { w ->
+            when {
+                w.all(Char::isDigit) || w.length == 3 -> w
+                w.length == 4 -> w.take(3) // "вода" → "вод": also "води", "воді"
+                else -> w.take(maxOf(4, w.length - 2))
+            }
         }.distinct()
+
+        /** Short words that say nothing about a matter and are often left out when it is named. */
+        private val SMALL = setOf("для", "про", "від", "під", "при", "між", "над", "без", "або", "щодо", "and", "the", "for")
     }
 }
 
