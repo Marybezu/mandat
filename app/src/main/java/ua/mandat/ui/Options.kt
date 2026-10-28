@@ -212,12 +212,16 @@ fun Options(session: Session, onBack: () -> Unit) {
             }
 
             Spacer(Modifier.height(8.dp))
-            Section(stringResource(R.string.ai_title))
-            AiSection(session)
+            if (!session.demo) {
+                Section(stringResource(R.string.ai_title))
+                AiSection(session)
+            }
 
             Spacer(Modifier.height(8.dp))
-            Section(stringResource(R.string.look_title))
-            LookSection(session)
+            if (!session.demo) {
+                Section(stringResource(R.string.look_title))
+                LookSection(session)
+            }
 
             Spacer(Modifier.height(8.dp))
             if (!session.demo) {

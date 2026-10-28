@@ -607,7 +607,8 @@ class Session(app: Application) : AndroidViewModel(app) {
     fun open(secret: ByteArray, startedAt: Int) {
         val passphrase = sqlCipherRawKey(secret)
         secret.fill(0)
-        if (startedAt != generation) {
+        // Only from the lock (or first) screen: never over an open demo or another open database
+        if (startedAt != generation || demo || demoOpening || state is LockState.Open || state == LockState.Opening) {
             passphrase.fill(0)
             return
         }
@@ -685,6 +686,13 @@ class Session(app: Application) : AndroidViewModel(app) {
     /** The demo is open: invented records in an in-memory database, not the owner's data. */
     var demo by mutableStateOf(false)
         private set
+    /** The demo is being opened (set before loading, so a lock meanwhile treats it as the demo). */
+    private var demoOpening = false
+    /** Where closing the demo returns: the first screen or the lock screen. */
+    private var demoReturn: LockState = LockState.Locked
+
+    /** Runs [block] with the owner's own database only; never with the demo (for backups). */
+    suspend fun <T> withRealDb(block: suspend (MandatDb) -> T): T? = withOpenDb { db -> if (demo || demoOpening) null else block(db) }
 
     /**
      * Opens the demo: the invented records shipped with the app go into an encrypted database that
@@ -693,8 +701,12 @@ class Session(app: Application) : AndroidViewModel(app) {
      */
     fun openDemo() {
         val before = state
-        if (before is LockState.Open || before == LockState.Opening) return
+        if (before is LockState.Open || before == LockState.Opening || prompting) return
+        // A new generation: an unlock answer arriving now is for the old one and is refused
+        generation++
         val startedAt = generation
+        demoOpening = true
+        demoReturn = if (before == LockState.FirstRun) LockState.FirstRun else LockState.Locked
         state = LockState.Opening
         background.launch {
             val passphrase = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) }
@@ -710,10 +722,11 @@ class Session(app: Application) : AndroidViewModel(app) {
             }
             withContext(Dispatchers.Main) {
                 when {
-                    db == null -> { passphrase.fill(0); if (startedAt == generation) state = before }
+                    db == null -> { passphrase.fill(0); if (startedAt == generation) { demoOpening = false; state = before } }
                     startedAt != generation -> background.launch { db.close(); passphrase.fill(0) }
                     else -> {
                         key = passphrase
+                        demoOpening = false
                         demo = true
                         tripOn.value = false
                         hiddenMatters.value = emptySet()
@@ -739,10 +752,12 @@ class Session(app: Application) : AndroidViewModel(app) {
         aiTextHelp = false
         val current = state
         // Closing the demo: nothing of it is kept (no backup, no reminder days, no resume point)
-        val wasDemo = demo
+        val wasDemo = demo || demoOpening
         demo = false
+        demoOpening = false
         val wasInUse = current is LockState.Open || current == LockState.Opening
-        if (wasInUse) state = LockState.Locked
+        // Closing the demo returns where it was opened from (the first screen before set-up)
+        if (wasInUse) state = if (wasDemo) demoReturn else LockState.Locked
         // Anything still being typed is saved first, in the same step as closing,
         // so leaving the app for a moment never loses it
         val openDraft = draft

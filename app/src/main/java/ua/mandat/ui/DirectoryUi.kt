@@ -163,7 +163,7 @@ fun DirectoryScreen(db: MandatDb, session: Session) {
             }
             item(key = "actions") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 6.dp)) {
-                    Button(onClick = {
+                    if (!session.demo) Button(onClick = {
                         pickedAt = session.generationNow()
                         session.pickingFile = true
                         openVcf.launch(arrayOf("text/vcard", "text/x-vcard", "text/directory", "application/octet-stream", "*/*"))

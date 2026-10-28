@@ -472,7 +472,8 @@ private fun Main(db: MandatDb, session: Session) {
 
     if (session.inboxDraft != null) AddDialog(db, session)
 
-    if (session.inboxDraft == null) session.sharedText?.let { shared ->
+    // Text shared from another app waits for the owner's own data: in the demo it would vanish
+    if (session.inboxDraft == null && !session.demo) session.sharedText?.let { shared ->
         AlertDialog(
             onDismissRequest = { session.sharedText = null },
             title = { Text(stringResource(R.string.share_title)) },

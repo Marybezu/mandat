@@ -55,7 +55,7 @@ class Backups(private val context: Context, private val session: Session) {
 
     fun refreshAuto() {
         scope.launch {
-            val st = try { session.withOpenDb { ua.mandat.backup.AutoBackup.status(it) } } catch (e: Exception) { null }
+            val st = try { session.withRealDb { ua.mandat.backup.AutoBackup.status(it) } } catch (e: Exception) { null }
             withContext(Dispatchers.Main) { auto = st }
         }
     }
@@ -64,13 +64,13 @@ class Backups(private val context: Context, private val session: Session) {
     fun enableAuto(folder: Uri, password: String) = run(onCrash = { BackupNotice.AutoFailed }) {
         val auto = ua.mandat.backup.AutoBackup
         val db = (session.state as? LockState.Open)?.db ?: return@run BackupNotice.AutoFailed
-        val prepared = session.withOpenDb {
+        val prepared = session.withRealDb {
             auto.setUp(context, it, folder, password)
             auto.prepareIfDue(it, force = true)
         }
         if (prepared == null) {
-            val tooBig = session.withOpenDb { auto.status(it).failReason == auto.REASON_TOO_BIG } == true
-            session.withOpenDb { auto.disable(context, it) }
+            val tooBig = session.withRealDb { auto.status(it).failReason == auto.REASON_TOO_BIG } == true
+            session.withRealDb { auto.disable(context, it) }
             refreshAuto()
             return@run if (tooBig) BackupNotice.AutoTooBig else BackupNotice.AutoFailed
         }
@@ -82,7 +82,7 @@ class Backups(private val context: Context, private val session: Session) {
             session.reconcileAuto(db)
         } else {
             // Off first, so nothing counts the discarded file as a good copy
-            session.withOpenDb { auto.disable(context, it) }
+            session.withRealDb { auto.disable(context, it) }
             if (result != null) result.uri?.let { auto.discard(context, it) }
             // Still writing after a minute: remove the file once it is finished
             else scope.launch { job.await().uri?.let { auto.discard(context, it) } }
@@ -92,7 +92,7 @@ class Backups(private val context: Context, private val session: Session) {
     }
 
     fun disableAuto() = run(onCrash = { BackupNotice.AutoOff }) {
-        session.withOpenDb { ua.mandat.backup.AutoBackup.disable(context, it) }
+        session.withRealDb { ua.mandat.backup.AutoBackup.disable(context, it) }
         refreshAuto()
         BackupNotice.AutoOff
     }
@@ -103,10 +103,10 @@ class Backups(private val context: Context, private val session: Session) {
         val db = (session.state as? LockState.Open)?.db ?: return@run BackupNotice.AutoFailed
         // An earlier copy still waiting to be recorded comes first
         session.reconcileAuto(db)
-        val prepared = session.withOpenDb { auto.prepareIfDue(it, force = true) }
+        val prepared = session.withRealDb { auto.prepareIfDue(it, force = true) }
         if (prepared == null) {
             refreshAuto()
-            val tooBig = session.withOpenDb { auto.status(it).failReason == auto.REASON_TOO_BIG } == true
+            val tooBig = session.withRealDb { auto.status(it).failReason == auto.REASON_TOO_BIG } == true
             return@run if (tooBig) BackupNotice.AutoTooBig else BackupNotice.AutoFailed
         }
         withTimeoutOrNull(60_000) { session.startAutoWrite(prepared).await() }
@@ -127,7 +127,7 @@ class Backups(private val context: Context, private val session: Session) {
         var touched = false
         run(onCrash = { if (touched) deleteQuietly(uri); BackupNotice.SaveFailed }) {
         val json = try {
-            session.withOpenDb { BackupData.dump(it) }
+            session.withRealDb { BackupData.dump(it) }
         } catch (e: Exception) {
             null
         }
@@ -199,7 +199,7 @@ class Backups(private val context: Context, private val session: Session) {
         pending = null
         run(onCrash = { restore.json.fill(0); BackupNotice.RestoreFailed }) {
             try {
-                session.withOpenDb { BackupData.restore(it, restore.json) }
+                session.withRealDb { BackupData.restore(it, restore.json) }
                     ?.let { BackupNotice.Restored(restore.summary.rows) }
                     ?: BackupNotice.RestoreFailed
             } catch (e: BackupData.Incompatible) {

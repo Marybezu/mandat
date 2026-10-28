@@ -198,9 +198,11 @@ fun ExportScreen(db: MandatDb, session: Session) {
         val date = java.time.LocalDate.now().toString()
         val single = !plan.obsidian && listOf(plan.people || plan.book, plan.calendar, plan.tables.isNotEmpty(), plan.diary, plan.matterId != null, plan.everything, plan.textId != null).count { it } == 1 &&
             plan.tables.size <= 1 && !(plan.people && plan.book) && plan.textId == null && plan.briefId == null && !((plan.diary || plan.matterId != null) && plan.pdf)
-        if (mode == PROTECT_MANDAT) return "mandat-$date.$MANDAT_EXPORT_EXT"
-        if (protect || !single) return "mandat-$date.zip"
-        return "mandat-$date." + when {
+        // A file from the demo says so in its name, so it is never taken for real data
+        val base = if (session.demo) "mandat-demo" else "mandat"
+        if (mode == PROTECT_MANDAT) return "$base-$date.$MANDAT_EXPORT_EXT"
+        if (protect || !single) return "$base-$date.zip"
+        return "$base-$date." + when {
             plan.people || plan.book -> "vcf"
             plan.calendar -> "ics"
             plan.tables.isNotEmpty() -> "csv"
@@ -349,7 +351,9 @@ fun ExportScreen(db: MandatDb, session: Session) {
                 Text(stringResource(R.string.export_go))
             }
             Spacer(Modifier.height(Space.section))
-            SectionCard(Sym.inbox, stringResource(R.string.import_title)) {
+            // No import in the demo: a real file brought in would vanish with it (and might be deleted as "imported")
+            if (session.demo) Text(stringResource(R.string.demo_no_import), style = MaterialTheme.typography.labelMedium, color = Muted)
+            else SectionCard(Sym.inbox, stringResource(R.string.import_title)) {
                 Text(stringResource(R.string.import_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
                 listOf(
                     "mandat" to R.string.import_mandat, "ics" to R.string.import_ics, "notes" to R.string.import_notes, "csv" to R.string.import_csv, "vcf" to R.string.vcf_import,

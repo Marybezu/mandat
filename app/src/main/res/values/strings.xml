@@ -1299,4 +1299,5 @@
     <string name="demo_banner">DEMO · an invented MP, Ostap Nevtomnyi</string>
     <string name="demo_exit">Exit</string>
     <string name="demo_options_note">This is the demo: backups, reminders, the phone calendar and security settings are off here, so the example never touches your data. Leaving the demo erases it completely.</string>
+    <string name="demo_no_import">No import in the demo: a file brought in here would vanish with it.</string>
 </resources>
