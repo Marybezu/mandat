@@ -1311,4 +1311,8 @@
     <string name="obs_period">Період</string>
     <string name="obs_period_all">Усі записи</string>
     <string name="export_vault_all_people_basic">Усі люди, а не лише пов\'язані з експортованим</string>
+    <string name="demo_open">Подивитися на прикладі</string>
+    <string name="demo_banner">ДЕМО · вигаданий депутат Остап Невтомний</string>
+    <string name="demo_exit">Вийти</string>
+    <string name="demo_options_note">Це демо: резервні копії, нагадування, календар телефона й налаштування безпеки тут вимкнені, щоб приклад не торкався ваших даних. Вихід із демо стирає його повністю.</string>
 </resources>

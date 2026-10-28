@@ -180,7 +180,8 @@ fun CalendarScreenForTest(db: MandatDb, session: Session, view0: Int) {
     // In trip mode the phone's own events are not shown either: they may copy hidden ones
     val trip by session.tripOn.collectAsStateWithLifecycle()
     val phone by produceState(emptyList<PhoneEvent>(), from, to, trip) {
-        value = if (trip) emptyList() else withContext(Dispatchers.IO) { PhoneCalendar.events(context, from, to) }
+        // The phone's own calendar is not mixed into the demo
+        value = if (trip || session.demo) emptyList() else withContext(Dispatchers.IO) { PhoneCalendar.events(context, from, to) }
     }
 
     fun eventsOn(d: Long) = events.filter { it.covers(d) }.sortedWith(compareBy({ it.startMin != null }, { it.startMin }))

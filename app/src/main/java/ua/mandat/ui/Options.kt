@@ -122,6 +122,9 @@ fun Options(session: Session, onBack: () -> Unit) {
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // In the demo, nothing that reaches beyond it: no backups, reminders, phone calendar or security switches
+            if (session.demo) Text(stringResource(R.string.demo_options_note), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+            if (!session.demo) {
             Section(stringResource(R.string.backup_title))
             Text(stringResource(R.string.backup_text), style = MaterialTheme.typography.bodyLarge)
             if (backups.busy) {
@@ -191,6 +194,7 @@ fun Options(session: Session, onBack: () -> Unit) {
                 }
                 TextButton(onClick = { backups.autoNow() }, enabled = !backups.busy) { Text(stringResource(R.string.auto_now)) }
             }
+            }
 
             (session.state as? LockState.Open)?.db?.let { db ->
                 Spacer(Modifier.height(8.dp))
@@ -216,6 +220,7 @@ fun Options(session: Session, onBack: () -> Unit) {
             LookSection(session)
 
             Spacer(Modifier.height(8.dp))
+            if (!session.demo) {
             Section(stringResource(R.string.reminders_title))
             RemindersSection(session)
 
@@ -224,10 +229,13 @@ fun Options(session: Session, onBack: () -> Unit) {
             PhoneCalendarSwitch(session)
 
             Spacer(Modifier.height(8.dp))
+            }
             Section(stringResource(R.string.security_title))
             Text(stringResource(R.string.security_text), style = MaterialTheme.typography.bodyLarge)
-            ScreenshotsSwitch(session)
-            PinOnlySwitch()
+            if (!session.demo) {
+                ScreenshotsSwitch(session)
+                PinOnlySwitch()
+            }
             (session.state as? LockState.Open)?.db?.let { TripSwitch(it, session) }
 
             Spacer(Modifier.height(8.dp))

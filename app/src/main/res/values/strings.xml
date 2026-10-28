@@ -1295,4 +1295,8 @@
     <string name="obs_period">Period</string>
     <string name="obs_period_all">All records</string>
     <string name="export_vault_all_people_basic">All people, not only those tied to what is exported</string>
+    <string name="demo_open">See an example</string>
+    <string name="demo_banner">DEMO · an invented MP, Ostap Nevtomnyi</string>
+    <string name="demo_exit">Exit</string>
+    <string name="demo_options_note">This is the demo: backups, reminders, the phone calendar and security settings are off here, so the example never touches your data. Leaving the demo erases it completely.</string>
 </resources>

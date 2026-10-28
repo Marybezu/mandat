@@ -80,6 +80,19 @@ abstract class MandatDb : RoomDatabase() {
             return db
         }
 
+        /**
+         * The demo database: encrypted with a random key and kept only in memory, so it never
+         * touches the owner's file and disappears when it is closed. Call off the main thread.
+         */
+        fun openDemo(context: Context, passphrase: ByteArray): MandatDb {
+            System.loadLibrary("sqlcipher")
+            val db = Room.inMemoryDatabaseBuilder(context.applicationContext, MandatDb::class.java)
+                .openHelperFactory(SupportOpenHelperFactory(passphrase))
+                .build()
+            db.openHelper.writableDatabase
+            return db
+        }
+
         /** Deletes the database files; only after the owner explicitly confirmed a fresh start. */
         fun deleteFiles(context: Context) {
             context.deleteDatabase(FILE_NAME)

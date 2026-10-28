@@ -682,6 +682,48 @@ class Session(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** The demo is open: invented records in an in-memory database, not the owner's data. */
+    var demo by mutableStateOf(false)
+        private set
+
+    /**
+     * Opens the demo: the invented records shipped with the app go into an encrypted database that
+     * lives only in memory, with a random key. Backups, reminders and the resume point are never
+     * touched, and closing it (the banner, or leaving the app) leaves nothing behind.
+     */
+    fun openDemo() {
+        val before = state
+        if (before is LockState.Open || before == LockState.Opening) return
+        val startedAt = generation
+        state = LockState.Opening
+        background.launch {
+            val passphrase = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) }
+            val db = try {
+                val app = getApplication<Application>()
+                val gz = app.assets.open(ua.mandat.data.DemoData.ASSET).use { it.readBytes() }
+                val json = ua.mandat.data.DemoData.prepare(gz, Dates.today())
+                MandatDb.openDemo(app, passphrase).also { d ->
+                    try { ua.mandat.backup.BackupData.restore(d, json) } catch (e: Exception) { d.close(); throw e }
+                }
+            } catch (e: Exception) {
+                null
+            }
+            withContext(Dispatchers.Main) {
+                when {
+                    db == null -> { passphrase.fill(0); if (startedAt == generation) state = before }
+                    startedAt != generation -> background.launch { db.close(); passphrase.fill(0) }
+                    else -> {
+                        key = passphrase
+                        demo = true
+                        tripOn.value = false
+                        hiddenMatters.value = emptySet()
+                        state = LockState.Open(db)
+                    }
+                }
+            }
+        }
+    }
+
     /** Closes the database and wipes the key until the next unlock. True if it was open or opening. */
     fun lock(): Boolean {
         generation++
@@ -696,6 +738,9 @@ class Session(app: Application) : AndroidViewModel(app) {
         showInboxSort = false
         aiTextHelp = false
         val current = state
+        // Closing the demo: nothing of it is kept (no backup, no reminder days, no resume point)
+        val wasDemo = demo
+        demo = false
         val wasInUse = current is LockState.Open || current == LockState.Opening
         if (wasInUse) state = LockState.Locked
         // Anything still being typed is saved first, in the same step as closing,
@@ -703,7 +748,8 @@ class Session(app: Application) : AndroidViewModel(app) {
         val openDraft = draft
         // Where the owner was: only the tab and the numbers of open cards (never their content),
         // so the same card opens again after unlocking
-        resume = Resume(
+        // The demo never leaves a resume point: its numbers belong to invented records
+        if (!wasDemo) resume = Resume(
             at = System.currentTimeMillis(),
             matterId = draft?.request?.takeIf { !it.isNew }?.matter?.id,
             personId = personDraft?.takeIf { !it.isNew }?.person?.id,
@@ -777,8 +823,8 @@ class Session(app: Application) : AndroidViewModel(app) {
                             { persistInboxDraft(current.db, openSplit) },
                             { openContact?.takeIf { !it.isNew || it.touched }?.persist(current.db) },
                             { persistReview(current.db, openReview) },
-                            // Last: only the days on which something is due, for reminders
-                            { storeReminderDays(current.db) },
+                            // Last: only the days on which something is due, for reminders (never from the demo)
+                            { if (!wasDemo) storeReminderDays(current.db) },
                         ).forEach { save ->
                             try {
                                 save()
@@ -787,7 +833,7 @@ class Session(app: Application) : AndroidViewModel(app) {
                             }
                         }
                         // Automatic backup, if turned on and due: only encrypted here, written after closing
-                        prepared = try {
+                        prepared = if (wasDemo) null else try {
                             ua.mandat.backup.AutoBackup.prepareIfDue(current.db)
                         } catch (e: Throwable) {
                             null

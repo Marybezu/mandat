@@ -96,16 +96,18 @@ fun App(session: Session, onUnlock: () -> Unit, onStartOver: () -> Unit) {
       Column(Modifier.fillMaxSize()) {
         // Over every screen, the lock screen included: screenshots are allowed right now
         if (session.screenshotsAllowed) ScreenshotsBanner(session)
+        // The demo is always marked, so invented records are never taken for real ones
+        if (session.demo) DemoBanner(session)
         Box(
             Modifier.weight(1f).let {
-                if (session.screenshotsAllowed) it.consumeWindowInsets(androidx.compose.foundation.layout.WindowInsets.statusBars) else it
+                if (session.screenshotsAllowed || session.demo) it.consumeWindowInsets(androidx.compose.foundation.layout.WindowInsets.statusBars) else it
             },
         ) {
         when (val state = session.state) {
             LockState.NeedsScreenLock -> Message(stringResource(R.string.no_screen_lock))
             LockState.KeyLost -> KeyLost(onStartOver)
-            LockState.FirstRun -> Welcome(onUnlock)
-            LockState.Locked -> Locked(session.lastError, onUnlock)
+            LockState.FirstRun -> Welcome(onUnlock) { session.openDemo() }
+            LockState.Locked -> Locked(session.lastError, onUnlock) { session.openDemo() }
             LockState.Opening -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
             is LockState.Open -> PrivateKeyboard { Main(state.db, session) }
         }
@@ -164,7 +166,7 @@ private fun KeyLost(onStartOver: () -> Unit) {
 }
 
 @Composable
-private fun Welcome(onStart: () -> Unit) = Centered {
+private fun Welcome(onStart: () -> Unit, onDemo: () -> Unit) = Centered {
     Text(stringResource(R.string.first_run_title), style = MaterialTheme.typography.titleLarge)
     Spacer(Modifier.height(16.dp))
     Text(
@@ -174,17 +176,20 @@ private fun Welcome(onStart: () -> Unit) = Centered {
     )
     Spacer(Modifier.height(32.dp))
     Button(onClick = onStart) { Text(stringResource(R.string.first_run_start)) }
+    Spacer(Modifier.height(8.dp))
+    TextButton(onClick = onDemo) { Text(stringResource(R.string.demo_open)) }
     Notice()
 }
 
 @Composable
-private fun Locked(failed: Boolean, onUnlock: () -> Unit) = Centered {
+private fun Locked(failed: Boolean, onUnlock: () -> Unit, onDemo: () -> Unit) = Centered {
     Icon(Sym.lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
     Spacer(Modifier.height(16.dp))
     Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge)
     Text(stringResource(R.string.tagline), style = MaterialTheme.typography.bodyMedium)
     Spacer(Modifier.height(32.dp))
     Button(onClick = onUnlock) { Text(stringResource(R.string.unlock)) }
+    TextButton(onClick = onDemo) { Text(stringResource(R.string.demo_open)) }
     if (failed) {
         Spacer(Modifier.height(16.dp))
         Text(stringResource(R.string.unlock_failed), color = MaterialTheme.colorScheme.error)
@@ -776,6 +781,20 @@ private fun AddDialog(db: MandatDb, session: Session) {
                     }
                 }
         }
+    }
+}
+
+/** The demo's mark over every screen; "Exit" closes the demo and leaves nothing of it. */
+@Composable
+private fun DemoBanner(session: Session) {
+    Row(
+        Modifier.fillMaxWidth().background(ChartColors.amber.copy(alpha = 0.25f))
+            .let { if (session.screenshotsAllowed) it else it.statusBarsPadding() }
+            .padding(horizontal = Space.screen, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(stringResource(R.string.demo_banner), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+        TextButton(onClick = { session.lock() }) { Text(stringResource(R.string.demo_exit)) }
     }
 }
 
