@@ -671,7 +671,11 @@ private fun AddDialog(db: MandatDb, session: Session) {
     val matters by remember(db) { db.matters().observeActiveTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
     val text = session.inboxDraft.orEmpty()
     // Smart input: what the note looks like (rules only); the owner decides
-    val hint = remember(text, people, matters) { ua.mandat.data.suggest(text, people, matters, Dates.today()) }
+    // Guessed away from the screen thread, a moment after typing pauses (hundreds of names and titles to compare)
+    val hint by androidx.compose.runtime.produceState(ua.mandat.data.Suggestion(ua.mandat.data.NoteKind.NOTE), text, people, matters) {
+        kotlinx.coroutines.delay(150)
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { ua.mandat.data.suggest(text, people, matters, Dates.today()) }
+    }
     val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
     // The AI's guess (kind, role, matter), asked for on a tap; it belongs to the text it was made from
     var aiHint by remember(text) { mutableStateOf<ua.mandat.ai.Hint?>(null) }

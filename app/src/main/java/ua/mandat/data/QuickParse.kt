@@ -18,10 +18,12 @@ data class Suggestion(
     val matterType: MatterType? = null,
 )
 
+private val NOT_WORD = Regex("[^\\p{L}\\p{N}'.]+")
+
 /** Lower case, apostrophes unified, letters and digits only. */
 internal fun words(text: String): List<String> =
     text.lowercase().replace('’', '\'').replace('ʼ', '\'').replace('`', '\'')
-        .split(Regex("[^\\p{L}\\p{N}'.]+")).map { it.trim('.', '\'') }.filter { it.isNotEmpty() }
+        .split(NOT_WORD).map { it.trim('.', '\'') }.filter { it.isNotEmpty() }
 
 /**
  * A rough stem for Ukrainian words: drops a typical ending so that "Тарас", "Тарасу",

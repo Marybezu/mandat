@@ -283,12 +283,16 @@ fun InfluenceMapScreen(db: MandatDb, session: Session, matterId: Long?) {
     val outside = people.filter { it.teamRole == null }
 
     // Stance per person: on this matter, or their general stance, or the most common one across matters
-    val stanceOf: Map<Long, Stance?> = if (matterId != null) {
-        links.filter { it.matterId == matterId }.associate { it.personId to Stance.of(it.stance) }
-    } else {
-        outside.associate { p ->
-            p.id to (Stance.of(p.stance) ?: links.filter { it.personId == p.id }.mapNotNull { Stance.of(it.stance) }
-                .groupingBy { it }.eachCount().maxByOrNull { it.value }?.key)
+    // Worked out once per change of the data (links grouped once), not on every redraw
+    val stanceOf: Map<Long, Stance?> = remember(matterId, links, people) {
+        if (matterId != null) {
+            links.filter { it.matterId == matterId }.associate { it.personId to Stance.of(it.stance) }
+        } else {
+            val byPerson = links.groupBy { it.personId }
+            outside.associate { p ->
+                p.id to (Stance.of(p.stance) ?: byPerson[p.id].orEmpty().mapNotNull { Stance.of(it.stance) }
+                    .groupingBy { it }.eachCount().maxByOrNull { it.value }?.key)
+            }
         }
     }
     val shown = outside.filter { it.id in stanceOf.keys || (matterId == null && it.influence != null) }
@@ -345,7 +349,10 @@ fun InfluenceMapScreen(db: MandatDb, session: Session, matterId: Long?) {
                                     Text("${stringResource(title)} · ${members.size}", style = MaterialTheme.typography.labelLarge, color = colors.second)
                                     Spacer(Modifier.height(6.dp))
                                     FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        members.forEach { p ->
+                                        // A long cell shows the first ones and how many more; hundreds of chips would freeze the screen
+                                        var all by remember(cellKind) { mutableStateOf(false) }
+                                        val visible = if (all) members else members.take(CELL_CHIPS)
+                                        visible.forEach { p ->
                                             Text(
                                                 (if (p.isGroup) "◎ " else "") + p.name,
                                                 style = MaterialTheme.typography.labelMedium,
@@ -355,6 +362,8 @@ fun InfluenceMapScreen(db: MandatDb, session: Session, matterId: Long?) {
                                                     .padding(horizontal = 6.dp, vertical = 2.dp),
                                             )
                                         }
+                                        if (!all && members.size > CELL_CHIPS) Text("+${members.size - CELL_CHIPS}", style = MaterialTheme.typography.labelMedium,
+                                            color = colors.second, modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { all = true }.padding(horizontal = 6.dp, vertical = 2.dp))
                                     }
                                 }
                             }
@@ -385,3 +394,6 @@ fun InfluenceMapScreen(db: MandatDb, session: Session, matterId: Long?) {
         }
     }
 }
+
+/** How many names a cell of the influence map shows before "+N". */
+private const val CELL_CHIPS = 30

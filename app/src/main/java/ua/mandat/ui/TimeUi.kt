@@ -344,11 +344,16 @@ fun SearchScreen(db: MandatDb, session: Session) {
     // Hidden matters and what is tied to them (people, diary days, communities, notes naming them) stay out
     val flow = remember(db) {
         kotlinx.coroutines.flow.combine(db.search().everything().hiding(session) { it.matterId }, session.hidden) { rows, h ->
-            visibleRows(rows, h)
+            // Lower-cased once here, not on every keystroke
+            visibleRows(rows, h).map { it.copy(haystack = it.haystack.lowercase()) }
         }.flowOn(kotlinx.coroutines.Dispatchers.Default)
     }
     val rows by flow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val hits = remember(rows, trimmed) { ua.mandat.data.search(rows, trimmed) }
+    // Searched away from the screen thread, a moment after typing pauses
+    val hits by androidx.compose.runtime.produceState(emptyList<ua.mandat.data.SearchHit>(), rows, trimmed) {
+        kotlinx.coroutines.delay(120)
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { ua.mandat.data.search(rows, trimmed, lowered = true) }
+    }
 
     Scaffold(
         topBar = {

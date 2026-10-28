@@ -75,8 +75,9 @@ fun Dashboard(db: MandatDb, session: Session) {
     var pickingCadence by remember { mutableStateOf(false) }
 
     val today = Dates.today()
-    val earliest = remember(matters, promises, delegations, deadlines, reviews) {
-        earliestDay(matters, promises, delegations, deadlines, reviews)
+    // Worked out away from the screen thread (thousands of dates)
+    val earliest by androidx.compose.runtime.produceState<Long?>(null, matters, promises, delegations, deadlines, reviews) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { earliestDay(matters, promises, delegations, deadlines, reviews) }
     }
     val span = spanOf(period, today, back, cadenceStart, earliest)
     val long = period == Period.CADENCE || period == Period.ALL

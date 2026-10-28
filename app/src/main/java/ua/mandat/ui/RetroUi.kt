@@ -296,14 +296,17 @@ fun RetroScreen(db: MandatDb, session: Session) {
 
             // What the work was about: the words that came up most in matters, events, the diary and media
             item(key = "words") {
-                val words = remember(span, matters, events, reviews, infoItems, hidden) {
-                    // Free text naming a hidden matter is left out while it is hidden
-                    val hiddenTitles = hidden.names
-                    val texts = matters.filter { Dates.dayOf(it.updatedAt) in span || Dates.dayOf(it.createdAt) in span }.map { it.title + " " + it.goal } +
-                        events.filter { it.day in span && !(it.matterId == null && namesAny(it.title + " " + it.outcome, hiddenTitles)) }.map { it.title + " " + it.outcome } +
-                        reviews.filter { it.day in span }.map { it.progress }.filter { p -> !namesAny(p, hiddenTitles) } +
-                        infoItems.filter { it.day in span && !(it.matterId == null && namesAny(it.title, hiddenTitles)) }.map { it.title }
-                    ua.mandat.data.Words.top(texts, 30)
+                // Counted away from the screen thread (thousands of texts over a year)
+                val words by produceState(emptyList<Pair<String, Int>>(), span, matters, events, reviews, infoItems, hidden) {
+                    value = withContext(Dispatchers.Default) {
+                        // Free text naming a hidden matter is left out while it is hidden
+                        val hiddenTitles = hidden.names
+                        val texts = matters.filter { Dates.dayOf(it.updatedAt) in span || Dates.dayOf(it.createdAt) in span }.map { it.title + " " + it.goal } +
+                            events.filter { it.day in span && !(it.matterId == null && namesAny(it.title + " " + it.outcome, hiddenTitles)) }.map { it.title + " " + it.outcome } +
+                            reviews.filter { it.day in span }.map { it.progress }.filter { p -> !namesAny(p, hiddenTitles) } +
+                            infoItems.filter { it.day in span && !(it.matterId == null && namesAny(it.title, hiddenTitles)) }.map { it.title }
+                        ua.mandat.data.Words.top(texts, 30)
+                    }
                 }
                 if (words.isNotEmpty()) SectionCard(Sym.explore, stringResource(R.string.retro_words), foldKey = "retro:words") {
                     Text(stringResource(R.string.retro_words_hint), style = MaterialTheme.typography.labelMedium, color = Muted, modifier = Modifier.padding(bottom = 6.dp))

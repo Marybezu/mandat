@@ -109,6 +109,21 @@ fun TopicsScreen(db: MandatDb, session: Session) {
             )
         },
     ) { padding ->
+        // Counted away from the screen thread: matching every record against every topic takes a while with years of records
+        val topicCounts by androidx.compose.runtime.produceState(emptyMap<String, List<Pair<Int, Int>>>(), topics, matters, delegations, promises, deadlines, inbox, reviews) {
+            value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                topics.associate { t ->
+                    t.name to listOf(
+                        R.string.topic_matters to matters.count { matches("${it.title} ${it.goal} ${it.nextStep} ${it.description}", t) },
+                        R.string.delegations to delegations.count { matches(it.what, t) },
+                        R.string.promises to promises.count { matches("${it.what} ${it.toWhom}", t) },
+                        R.string.deadlines to deadlines.count { matches("${it.title} ${it.basis}", t) },
+                        R.string.inbox to inbox.count { matches(it.text, t) },
+                        R.string.topic_evenings to reviews.count { matches(it.progress, t) },
+                    ).filter { it.second > 0 }
+                }
+            }
+        }
         LazyColumn(
             Modifier.padding(padding).fillMaxSize(),
             contentPadding = PaddingValues(start = Space.screen, end = Space.screen, bottom = 32.dp),
@@ -119,14 +134,7 @@ fun TopicsScreen(db: MandatDb, session: Session) {
                 SectionCard(Sym.layers, stringResource(R.string.topics), count = topics.size) {
                     topics.forEachIndexed { i, t ->
                         if (i > 0) RowDivider()
-                        val counts = listOf(
-                            R.string.topic_matters to matters.count { matches("${it.title} ${it.goal} ${it.nextStep} ${it.description}", t) },
-                            R.string.delegations to delegations.count { matches(it.what, t) },
-                            R.string.promises to promises.count { matches("${it.what} ${it.toWhom}", t) },
-                            R.string.deadlines to deadlines.count { matches("${it.title} ${it.basis}", t) },
-                            R.string.inbox to inbox.count { matches(it.text, t) },
-                            R.string.topic_evenings to reviews.count { matches(it.progress, t) },
-                        ).filter { it.second > 0 }
+                        val counts = topicCounts[t.name].orEmpty()
                         Column(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
@@ -234,12 +242,21 @@ private fun TopicDetail(db: MandatDb, session: Session, name: String) {
         },
     ) { padding ->
         if (topic == null) return@Scaffold
-        val m = matters.filter { matches("${it.title} ${it.goal} ${it.nextStep} ${it.description}", topic) }
-        val d = delegations.filter { matches(it.what, topic) }
-        val p = promises.filter { matches("${it.what} ${it.toWhom}", topic) }
-        val dl = deadlines.filter { matches("${it.title} ${it.basis}", topic) }
-        val ib = inbox.filter { matches(it.text, topic) }
-        val rv = reviews.filter { matches(it.progress, topic) }
+        // Matched away from the screen thread
+        val found by androidx.compose.runtime.produceState<TopicFound?>(null, topic, matters, delegations, promises, deadlines, inbox, reviews) {
+            value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                TopicFound(
+                    matters.filter { matches("${it.title} ${it.goal} ${it.nextStep} ${it.description}", topic) },
+                    delegations.filter { matches(it.what, topic) },
+                    promises.filter { matches("${it.what} ${it.toWhom}", topic) },
+                    deadlines.filter { matches("${it.title} ${it.basis}", topic) },
+                    inbox.filter { matches(it.text, topic) },
+                    reviews.filter { matches(it.progress, topic) },
+                )
+            }
+        }
+        val f = found ?: return@Scaffold
+        val m = f.m; val d = f.d; val p = f.p; val dl = f.dl; val ib = f.ib; val rv = f.rv
         val slices = listOf(
             Slice("m", stringResource(R.string.topic_matters), m.size, ChartColors.purple),
             Slice("d", stringResource(R.string.delegations), d.count { TaskStatus.of(it.status) == TaskStatus.OPEN }, ChartColors.teal),
@@ -321,3 +338,9 @@ fun TextTile(text: String, label: String? = null, onClick: (() -> Unit)? = null)
         Text(text, style = MaterialTheme.typography.bodyMedium, maxLines = 4, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
     }
 }
+
+/** What one topic gathers, matched in the background. */
+private class TopicFound(
+    val m: List<ua.mandat.data.Matter>, val d: List<ua.mandat.data.Delegation>, val p: List<ua.mandat.data.Promise>,
+    val dl: List<ua.mandat.data.Deadline>, val ib: List<ua.mandat.data.InboxItem>, val rv: List<ua.mandat.data.Review>,
+)

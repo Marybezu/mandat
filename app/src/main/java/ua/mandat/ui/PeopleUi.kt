@@ -112,16 +112,17 @@ fun PeopleList(db: MandatDb, session: Session) {
         Slice(r.name, stringResource(r.label()), team.count { it.teamRole == r.name }, SeriesColors[i % SeriesColors.size])
     }.sortedByDescending { it.value }
 
-    val stanceOf = links.groupBy { it.personId }.mapValues { (_, l) -> l.mapNotNull { it.stance }.toSet() }
+    // Grouped once per change of the data, not on every keystroke
+    val stanceOf = remember(links) { links.groupBy { it.personId }.mapValues { (_, l) -> l.mapNotNull { it.stance }.toSet() } }
     val shown = people.filter { p ->
         (query.isBlank() || listOf(p.name, p.organization, p.jobTitle).any { f -> f.contains(query.trim(), ignoreCase = true) }) &&
             (pick == null || (if (byTeam) p.teamRole == pick else categoryKey(p) == pick || pick in p.allCategories)) &&
             (stance == null || stanceOf[p.id]?.contains(stance) == true) &&
             (letter == null || p.name.trim().uppercase().startsWith(letter!!))
     }
-    val openBy = delegations.filter { ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.OPEN }.groupBy { it.personId }
+    val openD = remember(delegations) { delegations.filter { ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.OPEN } }
+    val openBy = remember(openD) { openD.groupBy { it.personId } }
 
-    val openD = delegations.filter { ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.OPEN }
     val overdue = openD.count { ua.mandat.data.isOverdue(it.due, it.status, today) }
     val done30 = delegations.count {
         ua.mandat.data.TaskStatus.of(it.status) == ua.mandat.data.TaskStatus.DONE && it.closedAt != null && Dates.dayOf(it.closedAt) > today - 30

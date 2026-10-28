@@ -1,5 +1,7 @@
 package ua.mandat.ui
 
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -105,12 +107,14 @@ private fun letterOf(name: String): String = name.trim().firstOrNull()?.uppercas
 @Composable
 fun DirectoryScreen(db: MandatDb, session: Session) {
     BackHandler { session.showDirectory = false }
-    val raw by remember(db) { db.contacts().observeAll().hidingNamed(session, { null }) { it.name + " " + it.organization + " " + it.jobTitle + " " + it.notes + " " + it.label } }.collectAsStateWithLifecycle(emptyList())
-    // Sorted the way the language sorts (є, і, ї, ґ in their places), not by character codes
-    val contacts = remember(raw) {
-        val collator = java.text.Collator.getInstance(java.util.Locale.getDefault())
-        raw.sortedWith { a, b -> collator.compare(a.name, b.name) }
-    }
+    // Sorted the way the language sorts (є, і, ї, ґ in their places), not by character codes; away from the screen thread
+    val contacts by remember(db) {
+        db.contacts().observeAll().hidingNamed(session, { null }) { it.name + " " + it.organization + " " + it.jobTitle + " " + it.notes + " " + it.label }
+            .map { raw ->
+                val collator = java.text.Collator.getInstance(java.util.Locale.getDefault())
+                raw.map { it to collator.getCollationKey(it.name) }.sortedBy { it.second }.map { it.first }
+            }.flowOn(kotlinx.coroutines.Dispatchers.Default)
+    }.collectAsStateWithLifecycle(emptyList())
     var query by rememberSaveable { mutableStateOf("") }
     var label by rememberSaveable { mutableStateOf<String?>(null) }
     var pickedAt by remember { mutableStateOf(-1) }

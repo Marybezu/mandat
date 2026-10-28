@@ -98,6 +98,13 @@ fun GraphScreen(db: MandatDb, session: Session) {
                 return@Column
             }
             val neighbours = picked?.let { p -> g.edges.mapNotNull { (a, b) -> if (a == p) b else if (b == p) a else null }.toSet() + p }
+            // Every label measured once per map, not on every frame while zooming
+            val labels = remember(g, labelColor) {
+                g.nodes.map { node ->
+                    val text = if (node.label.length > 26) node.label.take(25) + "…" else node.label
+                    measurer.measure(text, TextStyle(fontSize = (if (node.isMatter) 11 else 10).sp, color = labelColor.copy(alpha = if (node.isMatter) 0.9f else 0.7f)))
+                }
+            }
             Canvas(
                 Modifier.weight(1f).fillMaxWidth()
                     .pointerInput(g) {
@@ -137,13 +144,11 @@ fun GraphScreen(db: MandatDb, session: Session) {
                     // Names where they help: matters, people who connect several matters, and everything when zoomed in or picked
                     val label = node.isMatter || node.degree >= 3 || scale >= 1.8f || (neighbours != null && i in neighbours)
                     if (label && on) {
-                        val text = if (node.label.length > 26) node.label.take(25) + "…" else node.label
                         val topLeft = at(i) + Offset(r.dp.toPx() + 3.dp.toPx(), -7.dp.toPx())
                         // Measured on its own, without the space left on the canvas: a label near the edge (or zoomed
                         // past it) would otherwise get a negative width and stop the whole screen
                         if (topLeft.x < size.width && topLeft.y < size.height) {
-                            val laid = measurer.measure(text, TextStyle(fontSize = (if (node.isMatter) 11 else 10).sp, color = labelColor.copy(alpha = if (node.isMatter) 0.9f else 0.7f)))
-                            drawText(laid, topLeft = topLeft)
+                            drawText(labels[i], topLeft = topLeft)
                         }
                     }
                 }

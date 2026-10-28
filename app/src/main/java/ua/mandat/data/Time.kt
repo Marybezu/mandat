@@ -165,11 +165,11 @@ interface SearchDao {
  * Case-insensitive search that also works for Cyrillic (SQLite LIKE ignores case only for
  * Latin letters). The data is small, so filtering in memory is fine.
  */
-fun search(rows: List<SearchRow>, text: String): List<SearchHit> {
+fun search(rows: List<SearchRow>, text: String, lowered: Boolean = false): List<SearchHit> {
     val q = text.trim().lowercase()
     if (q.length < 2) return emptyList()
     return rows.asSequence()
-        .filter { it.haystack.lowercase().contains(q) }
+        .filter { (if (lowered) it.haystack else it.haystack.lowercase()).contains(q) }
         .take(200)
         .map { SearchHit(it.kind, it.id, it.title, it.detail) }
         .toList()
