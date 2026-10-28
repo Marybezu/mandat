@@ -234,3 +234,11 @@ fun ua.mandat.data.AllianceStatus.label(): Int = when (this) {
     ua.mandat.data.AllianceStatus.ENDED -> R.string.alliance_ended
     ua.mandat.data.AllianceStatus.BROKEN -> R.string.alliance_broken
 }
+
+fun ua.mandat.data.RolePost.label(): Int = when (this) {
+    ua.mandat.data.RolePost.LEAD -> R.string.post_LEAD
+    ua.mandat.data.RolePost.DEPUTY -> R.string.post_DEPUTY
+    ua.mandat.data.RolePost.SECRETARY -> R.string.post_SECRETARY
+    ua.mandat.data.RolePost.MEMBER -> R.string.post_MEMBER
+    ua.mandat.data.RolePost.OTHER -> R.string.post_OTHER
+}

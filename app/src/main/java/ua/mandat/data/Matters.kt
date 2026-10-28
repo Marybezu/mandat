@@ -15,7 +15,46 @@ data class Role(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val position: Int,
+    /** The owner's post in this body ([RolePost] key), or null if not said. */
+    val post: String? = null,
 )
+
+/**
+ * The owner's post in a body. Only a leading post (chair, co-chair, head) runs that body's
+ * meetings; with any other the owner takes part in them.
+ */
+enum class RolePost {
+    LEAD, DEPUTY, SECRETARY, MEMBER, OTHER;
+
+    companion object {
+        fun of(key: String?) = entries.firstOrNull { it.name == key }
+
+        /**
+         * A post guessed from a role's name ("Chair — Committee …", "Group B — head of the group"):
+         * each part around the dash is checked for the words it begins with.
+         */
+        fun guess(name: String): RolePost? {
+            val parts = name.split('—', '–').map { it.trim().lowercase() }
+            // "Subcommittee chair" leads when the role is that subcommittee itself, not when it names the parent committee
+            val bodyIsSub = parts.any { (it.startsWith("підкомітет") || it.startsWith("subcommittee")) && !it.startsWith("subcommittee chair") }
+            for (part in parts) {
+                /** A whole word (or words) at the start, not the beginning of a longer word ("Секретаріат"). */
+                fun starts(vararg w: String) = w.any { part == it || part.startsWith("$it ") || part.startsWith("$it,") }
+                when {
+                    starts("заступник", "заступниця", "перший заступник", "перша заступниця", "deputy", "first deputy") ||
+                        part.startsWith("заступник ") || part.startsWith("заступниця ") -> return DEPUTY
+                    starts("голова підкомітету", "subcommittee chair") -> return if (bodyIsSub) LEAD else OTHER
+                    starts("голова", "співголова", "керівник", "керівниця", "chair", "co-chair", "chairperson", "head") ||
+                        part.startsWith("голова ") || part.startsWith("керівник ") || part.startsWith("керівниця ") -> return LEAD
+                    starts("секретар", "секретарка", "secretary") || part.startsWith("секретар ") -> return SECRETARY
+                    starts("член", "членкиня", "member") || part.startsWith("член ") || part.startsWith("членкиня ") -> return MEMBER
+                    starts("представник", "представниця", "representative") -> return OTHER
+                }
+            }
+            return null
+        }
+    }
+}
 
 /** The central unit of work. Stored values of type, attention and status are stable keys. */
 @Entity(tableName = "matters")
@@ -86,6 +125,9 @@ interface RoleDao {
 
     @Query("UPDATE roles SET name = :name WHERE id = :id")
     suspend fun rename(id: Long, name: String)
+
+    @Query("UPDATE roles SET post = :post WHERE id = :id")
+    suspend fun setPost(id: Long, post: String?)
 
     @Query("DELETE FROM roles WHERE id = :id")
     suspend fun delete(id: Long)

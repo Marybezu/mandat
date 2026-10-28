@@ -610,7 +610,7 @@ internal fun Today(db: MandatDb, session: Session, onOpen: (Matter) -> Unit, onT
         }
 
         SectionCard(Sym.target, stringResource(R.string.focus_title), Modifier.bringIntoViewRequester(focusAt),
-            count = focus.size, attention = focus.size > FOCUS_LIMIT) {
+            count = focus.size, attention = focus.size > FOCUS_LIMIT, canvas = ChartColors.focus) {
             if (focus.isEmpty()) EmptyHint(Sym.target, stringResource(R.string.focus_empty))
             focus.forEachIndexed { i, m ->
                 if (i > 0) RowDivider()
@@ -644,6 +644,26 @@ private fun AddDialog(db: MandatDb, session: Session) {
     val text = session.inboxDraft.orEmpty()
     // Smart input: what the note looks like (rules only); the owner decides
     val hint = remember(text, people, matters) { ua.mandat.data.suggest(text, people, matters, Dates.today()) }
+    val roles by remember(db) { db.roles().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    // The AI's guess (kind, role, matter), asked for on a tap; it belongs to the text it was made from
+    var aiHint by remember(text) { mutableStateOf<ua.mandat.ai.Hint?>(null) }
+    var hinting by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    /** Opens the record the AI suggests, with the person and date the rules found. */
+    fun takeAi(h: ua.mandat.ai.Hint) {
+        val clean = text.trim().take(2_000)
+        val matterId = h.matter?.let { t -> matters.firstOrNull { it.title == t }?.id } ?: hint.matterId
+        val roleId = h.role?.let { r -> roles.firstOrNull { it.name == r }?.id }
+        session.inboxDraft = null
+        when (h.kind) {
+            "delegation" -> session.delegationDraft = newDelegation(hint.personId, matterId).also { it.what = clean; it.due = hint.due }
+            "promise" -> session.promiseDraft = newPromise(hint.personId, matterId).also { it.what = clean; it.due = hint.due }
+            "deadline" -> session.deadlineDraft = newDeadline(matterId).also { d -> d.title = clean; hint.due?.let { d.day = it } }
+            "matter" -> session.draft = MatterDraft(EditRequest(matterFromNote(clean, System.currentTimeMillis()).copy(roleId = roleId), isNew = true))
+            else -> session.inboxDraft = text
+        }
+    }
 
     fun take() {
         val clean = text.trim().take(2_000)
@@ -680,7 +700,37 @@ private fun AddDialog(db: MandatDb, session: Session) {
                 // A longer text (a letter, meeting notes) can be split into separate items by the on-device AI
                 val aiReady by session.ai.models.ready.collectAsStateWithLifecycle()
                 // What was typed goes along into the split sheet
-                if (aiReady && text.isNotBlank()) AiChip(stringResource(R.string.ai_split_go)) { session.aiSplitText = text; session.inboxDraft = null; session.showAiSplit = true }
+                if (aiReady && text.isNotBlank()) androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AiChip(stringResource(R.string.ai_split_go)) { session.aiSplitText = text; session.inboxDraft = null; session.showAiSplit = true }
+                    if (aiHint == null && !hinting) AiChip(stringResource(R.string.ai_hint)) {
+                        hinting = true
+                        val asked = text
+                        scope.launch {
+                            val h = runCatching { session.ai.hint(asked, roles.map { it.name }, matters.map { it.title }) }.getOrNull()
+                            hinting = false
+                            if (session.inboxDraft == asked) aiHint = h
+                        }
+                    }
+                }
+                if (hinting) AiBusy()
+                aiHint?.let { h ->
+                    val kindLabel = stringResource(when (h.kind) {
+                        "delegation" -> R.string.looks_delegation
+                        "promise" -> R.string.looks_promise
+                        "deadline" -> R.string.looks_deadline
+                        "matter" -> R.string.looks_matter
+                        else -> R.string.ai_hint_note
+                    })
+                    Column(
+                        Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                            .background(AiViolet.copy(alpha = 0.10f)).clickable { takeAi(h) }.padding(12.dp),
+                    ) {
+                        Text("$AI_MARK $kindLabel", style = MaterialTheme.typography.titleSmall, color = AiViolet)
+                        val parts = listOfNotNull(h.role, h.matter)
+                        if (parts.isNotEmpty()) Text(parts.joinToString(" · "), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 2.dp))
+                        Text(stringResource(if (h.kind == "note") R.string.ai_hint_keep else R.string.looks_tap), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(top = 4.dp))
+                    }
+                }
                 if (hint.kind != ua.mandat.data.NoteKind.NOTE && text.isNotBlank()) {
                     val kindLabel = stringResource(
                         when (hint.kind) {
@@ -718,18 +768,19 @@ private fun AddDialog(db: MandatDb, session: Session) {
 private fun ScreenshotsBanner(session: Session) {
     val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity ?: return
     var failed by remember { mutableStateOf(false) }
+    // Quiet but always there: a thin grey line with a camera mark, so the risk is not forgotten
     Row(
-        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.errorContainer).statusBarsPadding()
+        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).statusBarsPadding()
             .clickable {
                 failed = !Appearance.setScreenshotsAllowed(activity, false)
                 session.screenshotsAllowed = Appearance.screenshotsAllowed(activity)
             }
-            .padding(horizontal = Space.screen, vertical = 6.dp),
+            .padding(horizontal = Space.screen, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(stringResource(if (failed) R.string.screenshots_off_failed else R.string.screenshots_banner), style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.weight(1f))
-        Text(stringResource(R.string.screenshots_turn_off), style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onErrorContainer)
+        Text("◉ " + stringResource(if (failed) R.string.screenshots_off_failed else R.string.screenshots_banner), style = MaterialTheme.typography.labelMedium,
+            color = if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        Text(stringResource(R.string.screenshots_turn_off), style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary)
     }
 }

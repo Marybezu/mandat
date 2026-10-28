@@ -343,10 +343,22 @@ val MIGRATION_14_15 = object : Migration(14, 15) {
     }
 }
 
+val MIGRATION_15_16 = object : Migration(15, 16) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // The owner's post in each body; for roles made before, guessed from the name ("Chair — …")
+        db.execSQL("ALTER TABLE `roles` ADD COLUMN `post` TEXT")
+        val found = ArrayList<Pair<Long, String>>()
+        db.query("SELECT id, name FROM roles").use { c ->
+            while (c.moveToNext()) RolePost.guess(c.getString(1))?.let { found.add(c.getLong(0) to it.name) }
+        }
+        found.forEach { (id, post) -> db.execSQL("UPDATE roles SET post = ? WHERE id = ?", arrayOf<Any>(post, id)) }
+    }
+}
+
 val MIGRATIONS = arrayOf(
     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
-    MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15,
+    MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
 )
 
 /** The current database layout version; raise it together with a new migration. */
-const val DB_VERSION = 15
+const val DB_VERSION = 16

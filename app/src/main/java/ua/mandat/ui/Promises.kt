@@ -159,6 +159,7 @@ fun PromisesScreen(db: MandatDb, session: Session) {
             if (risky.isNotEmpty()) item(key = "risky") {
                 SectionCard(Sym.warning, stringResource(R.string.promises_risky), count = risky.size, attention = true) {
                     Text(stringResource(R.string.promises_risky_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
+                    AiAnswer(session, ua.mandat.ai.LocalAi.Task.RISK, facts = { session.withOpenDb { riskFacts(it, session) }.orEmpty() })
                     Spacer(Modifier.height(4.dp))
                     Paged(risky, page = 5) { row(it) }
                 }

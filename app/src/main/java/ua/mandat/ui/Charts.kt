@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -192,8 +193,16 @@ private fun Ring(
                     start += sweep
                 }
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(center, style = MaterialTheme.typography.titleLarge)
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(size * 0.62f)) {
+                // A long value ("30 h 15 min") goes on two lines in a smaller size, so it stays inside the ring
+                val long = center.length > 6
+                val shown = if (long && ' ' in center) {
+                    val spaces = center.indices.filter { center[it] == ' ' }
+                    val cut = spaces.minByOrNull { kotlin.math.abs(it - center.length / 2) }!!
+                    center.substring(0, cut) + "\n" + center.substring(cut + 1)
+                } else center
+                Text(shown, style = if (long) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleLarge,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(centerLabel, style = MaterialTheme.typography.labelSmall, color = Muted)
             }
         }
@@ -347,12 +356,14 @@ fun SectionCard(
     tint: Color? = null,
     /** With a fixed name, the card can be folded by tapping its title, and stays so. */
     foldKey: String? = null,
+    /** A muted colour for the whole card: a level of attention as a canvas the items lie on. */
+    canvas: Color? = null,
     content: @Composable () -> Unit,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var folded by androidx.compose.runtime.remember(foldKey) { androidx.compose.runtime.mutableStateOf(foldKey != null && Appearance.isFolded(context, foldKey)) }
-    MCard(modifier) {
-        val color = if (attention) MaterialTheme.colorScheme.error else Muted
+    val body: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+        val color = if (attention) MaterialTheme.colorScheme.error else if (canvas != null) canvas else Muted
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp).let { m ->
@@ -364,9 +375,21 @@ fun SectionCard(
             Text(title + (count?.let { " · $it" } ?: ""), style = MaterialTheme.typography.labelLarge, color = color, modifier = Modifier.weight(1f))
             if (foldKey != null) Text(if (folded) "▸" else "▾", color = Muted)
         }
-        if (!folded) content()
+        if (!folded) androidx.compose.runtime.CompositionLocalProvider(LocalOnCanvas provides (canvas != null)) { content() }
+    }
+    if (canvas == null) MCard(modifier, content = body)
+    else {
+        val shape = RoundedCornerShape(12.dp)
+        androidx.compose.material3.Surface(
+            modifier = modifier.fillMaxWidth(), shape = shape,
+            color = canvas.copy(alpha = 0.13f).compositeOver(MaterialTheme.colorScheme.surface),
+            border = androidx.compose.foundation.BorderStroke(1.dp, canvas.copy(alpha = 0.35f)),
+        ) { Column(Modifier.padding(Space.card), content = body) }
     }
 }
+
+/** True inside a coloured canvas: rows there are drawn on plain surface, so they stand out from it. */
+val LocalOnCanvas = androidx.compose.runtime.compositionLocalOf { false }
 
 /** The gap between tiles inside a [SectionCard]. */
 @Composable
@@ -471,5 +494,25 @@ fun StatLink(value: Int, label: String, onClick: () -> Unit) {
         Text(groupDigits(value), style = MaterialTheme.typography.titleSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
         Spacer(Modifier.width(6.dp))
         Text("$label →", style = MaterialTheme.typography.labelMedium, color = Muted)
+    }
+}
+
+/** One number of a [CompactStats] line. */
+class CompactStat(val value: String, val label: String, val accent: Color, val onClick: (() -> Unit)? = null)
+
+/** A compact line of a few numbers, each in its own colour, split by hairlines; each can open its list. */
+@Composable
+fun CompactStats(stats: List<CompactStat>) {
+    Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
+        stats.forEachIndexed { i, s ->
+            if (i > 0) Box(Modifier.width(1.dp).fillMaxHeight().padding(vertical = 8.dp).background(MaterialTheme.colorScheme.outlineVariant))
+            Column(
+                Modifier.weight(1f).clip(RoundedCornerShape(8.dp)).let { m -> s.onClick?.let { m.clickable(onClick = it) } ?: m }.padding(horizontal = 4.dp, vertical = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(s.value, style = MaterialTheme.typography.titleLarge, color = s.accent, maxLines = 1)
+                Text(s.label, style = MaterialTheme.typography.labelSmall, color = Muted, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            }
+        }
     }
 }

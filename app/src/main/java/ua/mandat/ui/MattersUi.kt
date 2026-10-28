@@ -230,7 +230,7 @@ fun MattersList(db: MandatDb, onOpen: (Matter) -> Unit, onTopics: () -> Unit = {
         Attention.entries.forEach { lv ->
             val group = active.filter { Attention.of(it.attention) == lv && visible(it) }
             if (group.isNotEmpty()) item(key = "g_$lv") {
-                SectionCard(lv.icon(), stringResource(lv.label()), count = group.size, attention = lv == Attention.FOCUS && group.size > FOCUS_LIMIT, tint = lv.color()) {
+                SectionCard(lv.icon(), stringResource(lv.label()), count = group.size, attention = lv == Attention.FOCUS && group.size > FOCUS_LIMIT, tint = lv.color(), canvas = lv.color()) {
                     Text(stringResource(lv.hint()), style = MaterialTheme.typography.labelMedium, color = Muted,
                         modifier = Modifier.padding(bottom = 6.dp))
                     Paged(group) { m -> MatterLine(m, roleNames[m.roleId]) { onOpen(m) } }
@@ -289,7 +289,7 @@ fun MatterLine(m: Matter, roleName: String?, onOpen: () -> Unit) {
     val type = MatterType.of(m.type)
     Row(
         Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+            .background(if (LocalOnCanvas.current) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
             .clickable(onClick = onOpen).padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -320,6 +320,7 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
     val roles by rolesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val focus by focusFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     var confirmDelete by remember { mutableStateOf(false) }
+    var openAlike by remember { mutableStateOf<Long?>(null) }
 
     val otherFocus = focus.count { it.id != request.matter.id }
 
@@ -353,6 +354,28 @@ fun MatterEditor(db: MandatDb, session: Session, draft: MatterDraft) {
                 label = { Text(stringResource(R.string.matter_title)) },
                 modifier = Modifier.fillMaxWidth(),
             )
+            // A new matter that looks like one already kept: offer to open that one instead (what was typed is dropped only after asking)
+            if (request.isNew) {
+                openAlike?.let { id ->
+                    ConfirmDialog(null, stringResource(R.string.matter_alike_confirm), stringResource(R.string.matter_alike_open),
+                        onConfirm = { openAlike = null; session.draft = null; session.openMatter(id) }, onCancel = { openAlike = null })
+                }
+                val titles by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
+                val alike = remember(draft.title, titles) { ua.mandat.data.Words.similar(draft.title, titles) }
+                alike.forEach { m ->
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(ChartColors.amber.copy(alpha = 0.12f))
+                            .clickable { openAlike = m.id }.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.matter_alike), style = MaterialTheme.typography.labelMedium, color = Muted)
+                            Text(m.title, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+                        }
+                        Text(stringResource(R.string.matter_alike_open), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
             Picker(
                 label = stringResource(R.string.matter_type),
                 current = stringResource(draft.type.label()),

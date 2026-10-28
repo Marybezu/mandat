@@ -27,6 +27,20 @@ internal suspend fun MandatDb.namesHidden(session: Session): (String) -> Boolean
     return { text -> val t = text.lowercase(); titles.any { t.contains(it) } }
 }
 
+/** The owner's post in words for the model; only "голова" means the owner runs that body's meetings. */
+private fun postWord(post: String?): String = when (ua.mandat.data.RolePost.of(post)) {
+    ua.mandat.data.RolePost.LEAD -> "голова"
+    ua.mandat.data.RolePost.DEPUTY -> "заступник"
+    ua.mandat.data.RolePost.SECRETARY -> "секретар"
+    ua.mandat.data.RolePost.MEMBER -> "член"
+    ua.mandat.data.RolePost.OTHER -> "інше"
+    null -> "не вказано"
+}
+
+/** Each role with the owner's post in it, keyed by id: "Committee … (посада: член)". */
+private suspend fun MandatDb.roleLines(): Map<Long, String> =
+    roles().observeAll().first().associate { it.id to it.name + " (посада власника: " + postWord(it.post) + ")" }
+
 /** What today holds: dated items due, focus matters, today's meetings and what was promised to those people. */
 suspend fun todayFacts(db: MandatDb, session: Session): String {
     val okId = db.hiddenOk(session)
@@ -39,13 +53,18 @@ suspend fun todayFacts(db: MandatDb, session: Session): String {
     val pr = db.promises().observeOpen().first().filter { ok(it.matterId, it.what + " " + it.toWhom) }
     val focus = db.matters().observeAll().first().filter { okId(it.id) && it.attention == "FOCUS" && MatterStatus.of(it.status) == MatterStatus.ACTIVE }
     val events = db.events().observeRange(today, today).first().filter { ok(it.matterId, it.title + " " + it.notes) }.sortedBy { it.startMin ?: -1 }
+    val roleOf = db.roleLines()
+    val matterRole = db.matters().observeAll().first().associate { it.id to it.roleId }
     return buildString {
         append("Сьогодні ").append(Dates.format(today)).append(".\n")
+        if (roleOf.isNotEmpty()) append("Ролі власника: ").append(roleOf.values.joinToString("; ")).append("\n")
         if (events.isNotEmpty()) {
             append("Зустрічі сьогодні:\n")
             events.forEach { e ->
                 val who = db.events().peopleOf(e.id).mapNotNull { names[it] }
                 append("- ").append(e.startMin?.let { timeText(it) + " " } ?: "").append(e.title)
+                // Whose meeting it is: the matter's role and the owner's post there (unknown: the owner takes part)
+                e.matterId?.let { matterRole[it] }?.let { roleOf[it] }?.let { append(" [роль: ").append(it).append("]") }
                 if (who.isNotEmpty()) append(" (з: ").append(who.joinToString(", ")).append(")")
                 append("\n")
                 who.forEach { n ->
@@ -96,6 +115,7 @@ suspend fun matterFacts(db: MandatDb, session: Session, matterId: Long): String 
     val ev = db.events().observeForMatter(matterId).first().sortedByDescending { it.day }.take(6)
     return buildString {
         append("Справа: ").append(m.title).append("\n")
+        m.roleId?.let { db.roleLines()[it] }?.let { append("Роль: ").append(it).append("\n") }
         if (m.goal.isNotBlank()) append("Мета: ").append(m.goal).append("\n")
         if (m.nextStep.isNotBlank()) append("Записаний наступний крок: ").append(m.nextStep).append("\n")
         if (m.description.isNotBlank()) append("Опис: ").append(m.description.take(800)).append("\n")
@@ -161,3 +181,105 @@ suspend fun askFacts(db: MandatDb, session: Session, question: String): Pair<Str
 /** Common question words that say nothing about the topic. */
 private val STOP = setOf("що", "хто", "коли", "де", "скіль", "які", "який", "яка", "чи", "як", "чому", "мені", "мене", "моїх", "мої", "мій", "моя",
     "було", "буде", "були", "цього", "цей", "ця", "для", "про", "від", "якщо", "щодо", "всі", "усі", "весь")
+
+/** Before a meeting: the event as it stands in the sheet, its matter, and each person taking part. */
+suspend fun meetingFacts(db: MandatDb, session: Session, title: String, day: Long, startMin: Int?, matterId: Long?, people: Set<Long>, notes: String): String {
+    val ok = db.hiddenOk(session)
+    if (!ok(matterId)) return ""
+    val named = db.namesHidden(session)
+    // An event not tied to a matter but naming a hidden one stays out while it is hidden
+    if (matterId == null && named(title + " " + notes)) return ""
+    val persons = db.people().all().filter { it.id in people }
+    val open = { s: String -> TaskStatus.of(s) == TaskStatus.OPEN }
+    return buildString {
+        append("Подія: ").append(title).append(", ").append(Dates.format(day)).append(startMin?.let { " " + timeText(it) } ?: "").append("\n")
+        if (notes.isNotBlank() && !named(notes)) append("Нотатки до події: ").append(notes.take(800)).append("\n")
+        matterId?.let { append(matterFacts(db, session, it)) }
+        persons.forEach { p ->
+            append("\nУчасник: ").append(p.name)
+            listOf(p.jobTitle, p.organization).filter { it.isNotBlank() }.takeIf { it.isNotEmpty() }?.let { append(" (").append(it.joinToString(", ")).append(")") }
+            append("\n")
+            matterId?.let { m -> db.people().observeForMatter(m).first().firstOrNull { it.personId == p.id }?.stance?.let { append("  позиція у справі: ").append(it).append("\n") } }
+            val promised = db.promises().observeForPerson(p.id).first().filter { ok(it.matterId) && open(it.status) && !(it.matterId == null && named(it.what)) }
+            if (promised.isNotEmpty()) append("  ви обіцяли: ").append(promised.take(4).joinToString("; ") { it.what }).append("\n")
+            val asked = db.delegations().observeForPerson(p.id).first().filter { ok(it.matterId) && open(it.status) && !(it.matterId == null && named(it.what)) }
+            if (asked.isNotEmpty()) append("  чекаєте від людини: ").append(asked.take(4).joinToString("; ") { it.what }).append("\n")
+        }
+    }
+}
+
+/** Promises in danger: open, of high risk, or public and due within two weeks. */
+suspend fun riskFacts(db: MandatDb, session: Session): String {
+    val ok = db.hiddenOk(session)
+    val named = db.namesHidden(session)
+    val today = Dates.today()
+    val names = db.people().all().associate { it.id to it.name }
+    val risky = db.promises().observeAll().first().filter { ok(it.matterId) && !(it.matterId == null && named(it.what + " " + it.toWhom + " " + it.statusNote)) && isRisky(it, today) }
+        .sortedWith(compareBy({ it.due == null }, { it.due })).take(10)
+    if (risky.isEmpty()) return ""
+    return buildString {
+        append("Сьогодні ").append(Dates.format(today)).append(".\nОбіцянки під загрозою:\n")
+        risky.forEach { p ->
+            append("- ").append(p.what)
+            val whom = p.personId?.let(names::get) ?: p.toWhom.takeIf { it.isNotBlank() }
+            if (whom != null) append("; кому: ").append(whom)
+            p.due?.let { append("; строк: ").append(Dates.format(it)).append(if (it < today) " (прострочено)" else "") }
+            append("; публічність: ").append(p.level.name.lowercase())
+            if (p.risk == 3) append("; ризик високий")
+            if (p.statusNote.isNotBlank()) append("; стан: ").append(p.statusNote.take(200))
+            append("\n")
+        }
+    }
+}
+
+/** The last 30 days of time by role against the wished shares, and what is in focus, for next week's plan. */
+suspend fun planFacts(db: MandatDb, session: Session): String {
+    val ok = db.hiddenOk(session)
+    val today = Dates.today()
+    val span = ua.mandat.data.Span(today - 29, today)
+    val matters = db.matters().observeAll().first().filter { ok(it.id) }
+    val events = db.events().observeAll().first().filter { ok(it.matterId) }
+    val entries = db.time().observeAll().first().filter { ok(it.matterId) }
+    val byRole = ua.mandat.data.minutesByRole(span, events, entries, matters.associate { it.id to it.roleId })
+    val total = byRole.values.sum().coerceAtLeast(1)
+    val shares = db.time().observeShares().first().associate { it.key.removePrefix(ua.mandat.data.TIME_SHARE_PREFIX).toLongOrNull() to (it.value.toIntOrNull() ?: 0) }
+    val roles = db.roles().observeAll().first()
+    val focus = matters.filter { it.attention == "FOCUS" && MatterStatus.of(it.status) == MatterStatus.ACTIVE }
+    return buildString {
+        append("Час за 30 днів за ролями (факт → бажано):\n")
+        roles.forEach { r ->
+            val pct = Math.round((byRole[r.id] ?: 0) * 100f / total)
+            append("- ").append(r.name).append(": ").append(pct).append(" %").append(shares[r.id]?.let { " → $it %" } ?: "").append("\n")
+        }
+        byRole[0L]?.let { append("- без ролі: ").append(Math.round(it * 100f / total)).append(" %\n") }
+        if (focus.isNotEmpty()) append("У фокусі: ").append(focus.joinToString("; ") { m -> m.title + (m.roleId?.let { id -> roles.firstOrNull { it.id == id }?.name }?.let { " ($it)" } ?: "") }).append("\n")
+        val stale = matters.filter { ua.mandat.data.isStale(it, today) && it.attention != "SLEEPING" }
+        if (stale.isNotEmpty()) append("Без руху понад місяць: ").append(stale.take(8).joinToString("; ") { it.title }).append("\n")
+    }
+}
+
+/** A delegation to remind someone of: what, by when, what it is for. */
+suspend fun reminderFacts(db: MandatDb, session: Session, delegationId: Long): String {
+    val d = db.delegations().get(delegationId) ?: return ""
+    if (!db.hiddenOk(session)(d.matterId)) return ""
+    if (d.matterId == null && db.namesHidden(session)(d.what + " " + d.purpose)) return ""
+    val name = d.personId?.let { db.people().get(it)?.name }
+    return reminderText(d.what, d.due, name, d.purpose)
+}
+
+/** The same facts from what is in the delegation sheet now. */
+fun reminderText(what: String, due: Long?, name: String?, purpose: String): String = buildString {
+    append("Доручення: ").append(what).append("\n")
+    if (name != null) append("Кому: ").append(name).append("\n")
+    due?.let { append("Строк: ").append(Dates.format(it)).append(if (it < Dates.today()) " (минув)" else "").append("\n") }
+    if (purpose.isNotBlank()) append("Навіщо: ").append(purpose.take(300)).append("\n")
+}
+
+/** Titles of the matters hidden now, kept current; for lists that must not offer what names them. */
+fun hiddenTitles(db: MandatDb, session: Session): kotlinx.coroutines.flow.Flow<List<String>> =
+    kotlinx.coroutines.flow.combine(db.matters().observeAll(), session.hiddenMatters) { ms, hidden ->
+        ms.filter { it.id in hidden }.map { it.title.trim().lowercase() }.filter { it.length >= 3 }
+    }
+
+/** True when free text names one of [titles]. */
+fun namesAny(text: String, titles: List<String>): Boolean { val t = text.lowercase(); return titles.any { t.contains(it) } }

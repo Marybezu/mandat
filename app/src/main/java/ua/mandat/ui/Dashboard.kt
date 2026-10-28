@@ -2,6 +2,7 @@
 
 package ua.mandat.ui
 
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -228,13 +229,15 @@ private class DashData(val o: Overview, val prev: Overview?, val weekly: List<In
 @Composable
 private fun MovedBlock(o: Overview, prev: Overview?, weekly: List<Int>, open: (PeriodKind) -> Unit) = Block(Sym.checkCircle, stringResource(R.string.dash_moved_title)) {
     Column(verticalArrangement = Arrangement.spacedBy(Space.gap)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
-            DeltaTile(o.moved, prev?.moved, stringResource(R.string.dash_moved)) { open(PeriodKind.MOVED) }
-            DeltaTile(o.started, prev?.started, stringResource(R.string.dash_started)) { open(PeriodKind.STARTED) }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
-            DeltaTile(o.finished, prev?.finished, stringResource(R.string.dash_finished)) { open(PeriodKind.FINISHED) }
-            DeltaTile(o.evenings, prev?.evenings, stringResource(R.string.dash_evenings)) { open(PeriodKind.EVENINGS) }
+        // One compact line of four numbers, each in its own colour, with the change since the last period
+        Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
+            DeltaTile(o.moved, prev?.moved, stringResource(R.string.dash_moved), ChartColors.blue) { open(PeriodKind.MOVED) }
+            StatDivider()
+            DeltaTile(o.started, prev?.started, stringResource(R.string.dash_started_short), ChartColors.teal) { open(PeriodKind.STARTED) }
+            StatDivider()
+            DeltaTile(o.finished, prev?.finished, stringResource(R.string.dash_finished), ChartColors.green) { open(PeriodKind.FINISHED) }
+            StatDivider()
+            DeltaTile(o.evenings, prev?.evenings, stringResource(R.string.dash_evenings), ChartColors.purple) { open(PeriodKind.EVENINGS) }
         }
         if (weekly.any { it > 0 }) {
             Text(stringResource(R.string.dash_trend), style = MaterialTheme.typography.labelSmall, color = Muted)
@@ -243,25 +246,29 @@ private fun MovedBlock(o: Overview, prev: Overview?, weekly: List<Int>, open: (P
     }
 }
 
-/** A number with the change since the previous period (↑ or ↓), in calm colours. */
+/** A number with the change since the previous period: ↑ green, ↓ coral; tapping opens the list behind it. */
 @Composable
-private fun androidx.compose.foundation.layout.RowScope.DeltaTile(value: Int, prev: Int?, label: String, onClick: () -> Unit) {
+private fun androidx.compose.foundation.layout.RowScope.DeltaTile(value: Int, prev: Int?, label: String, accent: Color, onClick: () -> Unit) {
     Column(
-        Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(enabled = value > 0, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+        Modifier.weight(1f).clip(RoundedCornerShape(8.dp)).clickable(enabled = value > 0, onClick = onClick).padding(horizontal = 4.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(value.toString(), style = MaterialTheme.typography.titleLarge)
+            Text(value.toString(), style = MaterialTheme.typography.titleLarge, color = if (value > 0) accent else Muted)
             if (prev != null && prev != value) {
                 val up = value > prev
-                Spacer(Modifier.width(6.dp))
-                Text((if (up) "↑" else "↓") + kotlin.math.abs(value - prev), style = MaterialTheme.typography.labelMedium,
-                    color = if (up) ChartColors.teal else Muted, modifier = Modifier.padding(bottom = 3.dp))
+                Spacer(Modifier.width(3.dp))
+                Text((if (up) "↑" else "↓") + kotlin.math.abs(value - prev), style = MaterialTheme.typography.labelSmall,
+                    color = if (up) ChartColors.teal else ChartColors.coral, modifier = Modifier.padding(bottom = 3.dp))
             }
         }
-        Text(label, style = MaterialTheme.typography.labelMedium, color = Muted)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = Muted, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
+}
+
+@Composable
+private fun StatDivider() {
+    Box(Modifier.width(1.dp).fillMaxHeight().padding(vertical = 8.dp).background(MaterialTheme.colorScheme.outlineVariant))
 }
 
 /** A small line of weekly values, oldest on the left; the last point is marked. */

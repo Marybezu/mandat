@@ -332,7 +332,8 @@ fun ReviewScreen(db: MandatDb, session: Session) {
 @Composable
 fun SearchScreen(db: MandatDb, session: Session) {
     BackHandler { session.searching = false }
-    var query by remember { mutableStateOf("") }
+    var query by remember { mutableStateOf(session.searchSeed.orEmpty()) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { session.searchSeed = null }
     val trimmed = query.trim()
     val flow = remember(db) { db.search().everything().hiding(session) { it.matterId } }
     val rows by flow.collectAsStateWithLifecycle(initialValue = emptyList())

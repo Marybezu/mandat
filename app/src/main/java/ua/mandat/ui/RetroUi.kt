@@ -1,5 +1,6 @@
 package ua.mandat.ui
 
+import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -84,6 +85,10 @@ fun RetroScreen(db: MandatDb, session: Session) {
     val people by remember(db) { db.people().observeAll() }.collectAsStateWithLifecycle(emptyList())
     val links by remember(db) { db.people().observeLinks() }.collectAsStateWithLifecycle(emptyList())
     val cadence by remember(db) { db.settings().observe(SETTING_CADENCE_START) }.collectAsStateWithLifecycle(null)
+    val reviews by remember(db) { db.reviews().observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val infoItems by remember(db) { db.info().observeAll().hiding(session) { it.matterId } }.collectAsStateWithLifecycle(emptyList())
+    val hidden by session.hiddenMatters.collectAsStateWithLifecycle()
+    val allMatters by remember(db) { db.matters().observeAll() }.collectAsStateWithLifecycle(emptyList())
     var range by rememberSaveable { mutableStateOf(RetroSpan.HALF) }
     val today = Dates.today()
     val start = when (range) {
@@ -160,16 +165,14 @@ fun RetroScreen(db: MandatDb, session: Session) {
                 val avg = if (d.durations.isEmpty()) null else d.durations.values.average().toInt()
                 val due = d.flow.sumOf { it.dueDeadlines }
                 val onTime = d.flow.sumOf { it.onTime }
+                // One compact line of four numbers, as on the Review screen
                 MCard {
-                    Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
-                        StatTile(d.flow.sumOf { it.started }, stringResource(R.string.retro_started)) { session.periodView = PeriodKind.STARTED to span }
-                        StatTile(d.finishedIds.size, stringResource(R.string.retro_finished)) { session.periodView = PeriodKind.FINISHED to span }
-                    }
-                    Spacer(Modifier.height(Space.gap))
-                    Row(horizontalArrangement = Arrangement.spacedBy(Space.gap)) {
-                        StatTile(avg ?: 0, stringResource(R.string.retro_avg_days)) { session.periodView = PeriodKind.FINISHED to span }
-                        StatTile(if (due == 0) 0 else onTime * 100 / due, stringResource(R.string.retro_on_time_pct)) { session.periodView = PeriodKind.ON_TIME to span }
-                    }
+                    CompactStats(listOf(
+                        CompactStat(d.flow.sumOf { it.started }.toString(), stringResource(R.string.retro_started_s), ChartColors.blue) { session.periodView = PeriodKind.STARTED to span },
+                        CompactStat(d.finishedIds.size.toString(), stringResource(R.string.retro_finished_s), ChartColors.green) { session.periodView = PeriodKind.FINISHED to span },
+                        CompactStat((avg ?: 0).toString(), stringResource(R.string.retro_avg_s), ChartColors.purple) { session.periodView = PeriodKind.FINISHED to span },
+                        CompactStat((if (due == 0) 0 else onTime * 100 / due).toString() + " %", stringResource(R.string.retro_on_time_s), ChartColors.teal) { session.periodView = PeriodKind.ON_TIME to span },
+                    ))
                 }
             }
 
@@ -259,6 +262,35 @@ fun RetroScreen(db: MandatDb, session: Session) {
                         StatLink(made, stringResource(R.string.stat_prom_made)) { session.periodView = PeriodKind.PROM_MADE to span }
                         StatLink(kept, stringResource(R.string.stat_prom_kept)) { session.periodView = PeriodKind.PROM_KEPT to span }
                         StatLink(oldOpen, stringResource(R.string.retro_old_open)) { session.showPromises = true }
+                    }
+                }
+            }
+
+            // What the work was about: the words that came up most in matters, events, the diary and media
+            item(key = "words") {
+                val words = remember(span, matters, events, reviews, infoItems, hidden, allMatters) {
+                    // The diary is free text: an entry naming a hidden matter is left out while it is hidden
+                    val hiddenTitles = allMatters.filter { it.id in hidden }.map { it.title.lowercase() }.filter { it.length >= 3 }
+                    val texts = matters.filter { Dates.dayOf(it.updatedAt) in span || Dates.dayOf(it.createdAt) in span }.map { it.title + " " + it.goal } +
+                        events.filter { it.day in span && !(it.matterId == null && namesAny(it.title + " " + it.outcome, hiddenTitles)) }.map { it.title + " " + it.outcome } +
+                        reviews.filter { it.day in span }.map { it.progress }.filter { p -> !namesAny(p, hiddenTitles) } +
+                        infoItems.filter { it.day in span && !(it.matterId == null && namesAny(it.title, hiddenTitles)) }.map { it.title }
+                    ua.mandat.data.Words.top(texts, 30)
+                }
+                if (words.isNotEmpty()) SectionCard(Sym.explore, stringResource(R.string.retro_words), foldKey = "retro:words") {
+                    Text(stringResource(R.string.retro_words_hint), style = MaterialTheme.typography.labelMedium, color = Muted, modifier = Modifier.padding(bottom = 6.dp))
+                    WordCloud(words) { w -> session.searchSeed = w; session.searching = true; session.showRetro = false }
+                    Text(stringResource(R.string.retro_themes), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
+                    val max = words.first().second
+                    words.take(5).forEach { (w, n) ->
+                        Row(Modifier.fillMaxWidth().clickable { session.searchSeed = w; session.searching = true; session.showRetro = false }.padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Text(w, style = MaterialTheme.typography.bodyMedium, maxLines = 1, modifier = Modifier.width(120.dp))
+                            Box(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(5.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
+                                Box(Modifier.fillMaxWidth(n.toFloat() / max).height(10.dp).clip(RoundedCornerShape(5.dp)).background(ChartColors.blue))
+                            }
+                            Text(" $n", style = MaterialTheme.typography.labelMedium, color = Muted)
+                        }
                     }
                 }
             }
@@ -380,5 +412,25 @@ fun voterReport(h: ReportHeads, span: Span, matters: List<ua.mandat.data.Matter>
     if (active.isNotEmpty()) {
         append("## ").append(h.inWork).append("\n")
         active.forEach { m -> append("- ").append(m.title).append("\n") }
+    }
+}
+
+/** Words sized by how often they came up, in calm colours; tapping one searches for it. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun WordCloud(words: List<Pair<String, Int>>, onPick: (String) -> Unit) {
+    val max = words.maxOf { it.second }.toFloat()
+    val min = words.minOf { it.second }.toFloat()
+    val colors = listOf(ChartColors.blue, ChartColors.teal, ChartColors.purple, ChartColors.amber, ChartColors.coral, ChartColors.green)
+    // Shuffled the same way each time, so the biggest words are not all in one corner
+    val shown = words.sortedBy { (it.first.hashCode() and 0x7fffffff) % 97 }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        shown.forEach { (w, n) ->
+            val k = if (max > min) (n - min) / (max - min) else 1f
+            Text(w, color = colors[(w.hashCode() and 0x7fffffff) % colors.size].copy(alpha = 0.6f + 0.4f * k),
+                fontSize = (13 + 15 * kotlin.math.sqrt(k)).sp,
+                fontWeight = if (k > 0.6f) androidx.compose.ui.text.font.FontWeight.SemiBold else androidx.compose.ui.text.font.FontWeight.Normal,
+                modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { onPick(w) }.padding(horizontal = 2.dp))
+        }
     }
 }

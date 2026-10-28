@@ -461,6 +461,10 @@ fun EventDialog(db: MandatDb, session: Session, draft: EventDraft) {
                 briefable.forEach { p -> MiniChip(p.name, onClick = { session.saveEventDraft(); session.oneOnOne = p.id }) }
             }
             MatterPicker(matters, allMatters, draft.matterId) { draft.matterId = it }
+            // One AI moment here: before a coming meeting, a preparation sheet on everyone taking part
+            if (draft.day >= Dates.today() && (draft.people.isNotEmpty() || draft.matterId != null)) AiAnswer(session, ua.mandat.ai.LocalAi.Task.MEETING,
+                facts = { session.withOpenDb { meetingFacts(it, session, draft.title, draft.day, draft.startMin, draft.matterId, draft.people, draft.notes) }.orEmpty() },
+                key = draft.people to draft.matterId)
         }
         SheetGroup(stringResource(R.string.event_notes_group)) {
             OutlinedTextField(value = draft.notes, onValueChange = { draft.notes = it },
@@ -468,6 +472,12 @@ fun EventDialog(db: MandatDb, session: Session, draft: EventDraft) {
             if (draft.day <= Dates.today()) {
                 OutlinedTextField(value = draft.outcome, onValueChange = { draft.outcome = it },
                     label = { Text(stringResource(R.string.event_outcome)) }, minLines = 2, modifier = Modifier.fillMaxWidth())
+                // After the meeting: what was agreed becomes delegations, promises and deadlines (only what is ticked)
+                val aiReady by session.ai.models.ready.collectAsStateWithLifecycle()
+                if (aiReady && draft.outcome.isNotBlank() && draft.day <= Dates.today()) AiChip(stringResource(R.string.ai_after_meeting)) {
+                    session.aiSplitText = draft.outcome.take(ua.mandat.ai.LocalAi.MAX_INPUT)
+                    session.showAiSplit = true
+                }
             }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { draft.remind = !draft.remind }) {
                 Text(stringResource(R.string.event_remind), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))

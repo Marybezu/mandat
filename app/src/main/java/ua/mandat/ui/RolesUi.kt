@@ -5,6 +5,7 @@ package ua.mandat.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -106,7 +107,7 @@ fun RolesSetup(session: Session) {
         val names = if (save) added.toList() else emptyList()
         session.write { db ->
             db.withTransaction {
-                names.forEachIndexed { i, name -> db.roles().insert(Role(name = name, position = i + 1)) }
+                names.forEachIndexed { i, name -> db.roles().insert(Role(name = name, position = i + 1, post = ua.mandat.data.RolePost.guess(name)?.name)) }
                 db.settings().put(Setting(SETTING_ROLES_ASKED, "1"))
             }
         }
@@ -151,11 +152,19 @@ fun RolesManager(db: MandatDb, session: Session) {
     val roles by rolesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     var renaming by remember { mutableStateOf<Role?>(null) }
     var deleting by remember { mutableStateOf<Role?>(null) }
+    var posting by remember { mutableStateOf<Role?>(null) }
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         roles.forEach { role ->
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(role.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Column(Modifier.weight(1f)) {
+                    Text(role.name, style = MaterialTheme.typography.bodyLarge)
+                    // The owner's post here: the AI writes "run" a meeting only where the owner leads
+                    val post = ua.mandat.data.RolePost.of(role.post)
+                    Text(stringResource(R.string.role_post) + ": " + stringResource(post?.label() ?: R.string.post_none),
+                        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable { posting = role }.padding(vertical = 4.dp))
+                }
                 IconButton(onClick = { renaming = role }) {
                     Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.rename))
                 }
@@ -167,7 +176,7 @@ fun RolesManager(db: MandatDb, session: Session) {
         Spacer(Modifier.height(8.dp))
         RoleBuilder(onAdd = { name ->
             if (roles.none { it.name == name }) {
-                session.write { it.roles().insert(Role(name = name, position = it.roles().maxPosition() + 1)) }
+                session.write { it.roles().insert(Role(name = name, position = it.roles().maxPosition() + 1, post = ua.mandat.data.RolePost.guess(name)?.name)) }
             }
         })
     }
@@ -185,6 +194,22 @@ fun RolesManager(db: MandatDb, session: Session) {
         ) {
             SheetGroup {
 OutlinedTextField(value = name, onValueChange = { name = it }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            }
+        }
+    }
+
+    posting?.let { role ->
+        EditSheet(title = stringResource(R.string.role_post), onDismiss = { posting = null }, onSave = null) {
+            SheetGroup(role.name) {
+                Text(stringResource(R.string.role_post_hint), style = MaterialTheme.typography.labelMedium, color = Muted)
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ua.mandat.data.RolePost.entries.forEach { p ->
+                        QuickChip(stringResource(p.label()), role.post == p.name) {
+                            session.write { it.roles().setPost(role.id, p.name) }
+                            posting = null
+                        }
+                    }
+                }
             }
         }
     }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -38,7 +39,7 @@ import ua.mandat.data.MandatDb
 import ua.mandat.data.SearchRow
 
 /** What an AI action needs chosen first. */
-enum class AiPick { NONE, MATTER, PERSON, TEXT, ATTACK }
+enum class AiPick { NONE, MATTER, PERSON, TEXT, ATTACK, EVENT, DELEGATION }
 
 /** The groups of the AI Center, in the order of a working day. */
 enum class AiGroup(val title: Int) {
@@ -50,24 +51,30 @@ enum class AiGroup(val title: Int) {
 enum class AiAct(val group: AiGroup, val title: Int, val hint: Int, val pick: AiPick, val task: LocalAi.Task?) {
     MORNING(AiGroup.DAY, R.string.ai_morning, R.string.ai_morning_hint, AiPick.NONE, LocalAi.Task.MORNING),
     EVENING(AiGroup.DAY, R.string.ai_evening, R.string.ai_evening_hint, AiPick.NONE, LocalAi.Task.EVENING),
+    MEETING(AiGroup.DAY, R.string.ai_meeting, R.string.ai_meeting_hint, AiPick.EVENT, LocalAi.Task.MEETING),
     SPLIT(AiGroup.RECORDS, R.string.ai_split_title, R.string.ai_split_short, AiPick.NONE, null),
     SORT(AiGroup.RECORDS, R.string.ai_sort_inbox, R.string.ai_sort_short, AiPick.NONE, null),
     NEXT(AiGroup.MATTERS, R.string.ai_next_step, R.string.ai_next_hint, AiPick.MATTER, LocalAi.Task.NEXT_STEP),
     SUMMARY(AiGroup.MATTERS, R.string.ai_matter_summary, R.string.ai_summary_hint, AiPick.MATTER, LocalAi.Task.MATTER_SUMMARY),
+    RISK(AiGroup.MATTERS, R.string.ai_risk, R.string.ai_risk_hint, AiPick.NONE, LocalAi.Task.RISK),
     BRIEF(AiGroup.PEOPLE, R.string.ai_brief, R.string.ai_brief_hint, AiPick.PERSON, LocalAi.Task.BRIEF),
+    REMINDER(AiGroup.PEOPLE, R.string.ai_reminder, R.string.ai_reminder_hint, AiPick.DELEGATION, LocalAi.Task.REMINDER),
     TEXT_HELP(AiGroup.TEXTS, R.string.ai_text_help, R.string.ai_text_help_hint, AiPick.TEXT, null),
+    REPLY(AiGroup.TEXTS, R.string.ai_reply, R.string.ai_reply_hint, AiPick.NONE, null),
+    DIGEST(AiGroup.TEXTS, R.string.ai_digest, R.string.ai_digest_hint, AiPick.NONE, null),
     REBUTTAL(AiGroup.MEDIA, R.string.ai_rebuttal, R.string.ai_rebuttal_hint, AiPick.ATTACK, LocalAi.Task.REBUTTAL),
     MESSAGES(AiGroup.MEDIA, R.string.ai_messages, R.string.ai_messages_hint, AiPick.MATTER, LocalAi.Task.MESSAGES),
     WEEK(AiGroup.REVIEW, R.string.ai_week_center, R.string.ai_week_hint, AiPick.NONE, LocalAi.Task.WEEK),
+    PLAN(AiGroup.REVIEW, R.string.ai_plan, R.string.ai_plan_hint, AiPick.NONE, LocalAi.Task.PLAN),
 }
 
 /** Two or three actions that fit the screen the Center was opened from. */
 fun contextActs(tab: String?): List<AiAct> = when (tab) {
-    "Today" -> listOf(AiAct.MORNING, AiAct.SORT, AiAct.SPLIT)
-    "Matters" -> listOf(AiAct.NEXT, AiAct.SUMMARY, AiAct.MESSAGES)
-    "Review" -> listOf(AiAct.WEEK, AiAct.EVENING, AiAct.REBUTTAL)
-    "People" -> listOf(AiAct.BRIEF)
-    "Time" -> listOf(AiAct.MORNING, AiAct.EVENING)
+    "Today" -> listOf(AiAct.MORNING, AiAct.MEETING, AiAct.SORT)
+    "Matters" -> listOf(AiAct.NEXT, AiAct.SUMMARY, AiAct.RISK)
+    "Review" -> listOf(AiAct.WEEK, AiAct.PLAN, AiAct.EVENING)
+    "People" -> listOf(AiAct.BRIEF, AiAct.REMINDER)
+    "Time" -> listOf(AiAct.MEETING, AiAct.MORNING, AiAct.EVENING)
     else -> emptyList()
 }
 
@@ -79,6 +86,12 @@ private suspend fun factsFor(act: AiAct, db: MandatDb, session: Session, id: Lon
     AiAct.BRIEF -> id?.let { briefFacts(db, session, it) }.orEmpty()
     AiAct.REBUTTAL -> id?.let { attackFacts(db, session, it) }.orEmpty()
     AiAct.WEEK -> weekFacts(db, session)
+    AiAct.RISK -> riskFacts(db, session)
+    AiAct.PLAN -> planFacts(db, session)
+    AiAct.MEETING -> id?.let { db.events().get(it) }?.let { e ->
+        meetingFacts(db, session, e.title, e.day, e.startMin, e.matterId, db.events().peopleOf(e.id).toSet(), e.notes)
+    }.orEmpty()
+    AiAct.REMINDER -> id?.let { reminderFacts(db, session, it) }.orEmpty()
     else -> ""
 }
 
@@ -100,6 +113,8 @@ fun AiCenter(db: MandatDb, session: Session) {
     var question by remember { mutableStateOf("") }
     var hits by remember(run) { mutableStateOf<List<SearchRow>>(emptyList()) }
     var picking by remember { mutableStateOf<AiAct?>(null) }
+    // A sheet of its own for an action that needs a pasted text (a letter to answer, a long document)
+    var sheet by remember { mutableStateOf<AiAct?>(null) }
     // What the answer on screen belongs to, so "Apply" knows where it goes
     var asked by remember(run) { mutableStateOf<Pair<AiAct, Long?>?>(null) }
     val from = session.aiCenter
@@ -110,6 +125,7 @@ fun AiCenter(db: MandatDb, session: Session) {
         when (act) {
             AiAct.SPLIT -> { close(); session.aiSplitText = ""; session.showAiSplit = true }
             AiAct.SORT -> { close(); session.showInboxSort = true }
+            AiAct.REPLY, AiAct.DIGEST -> sheet = act
             AiAct.TEXT_HELP -> if (id != null) session.readThenShow({ d -> d.texts().get(id) }) { t ->
                 session.textDraft = TextDraft(t, isNew = false)
                 session.aiTextHelp = true
@@ -130,6 +146,11 @@ fun AiCenter(db: MandatDb, session: Session) {
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = Space.screen, vertical = Space.gap),
             verticalArrangement = Arrangement.spacedBy(Space.gap + 4.dp),
         ) {
+            // Said first, so nobody wonders where the data goes
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                androidx.compose.material3.Icon(Sym.lock, contentDescription = null, tint = AiViolet, modifier = Modifier.size(16.dp))
+                Text(stringResource(R.string.ai_local), style = MaterialTheme.typography.labelLarge, color = AiViolet)
+            }
             if (!ready) SheetGroup {
                 Text(stringResource(R.string.ai_off), style = MaterialTheme.typography.bodyMedium)
                 Button(onClick = { close(); session.optionsRequest = true }) { Text(stringResource(R.string.ai_turn_on)) }
@@ -203,6 +224,11 @@ fun AiCenter(db: MandatDb, session: Session) {
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp))
         }
     }
+    when (sheet) {
+        AiAct.REPLY -> ReplySheet(db, session, onDone = { sheet = null; close() }) { sheet = null }
+        AiAct.DIGEST -> DigestSheet(session, onDone = { sheet = null; close() }) { sheet = null }
+        else -> {}
+    }
     picking?.let { act -> AiPicker(db, session, act, onDismiss = { picking = null }) { id -> picking = null; runAct(act, id) } }
 }
 
@@ -233,6 +259,15 @@ private fun AiPicker(db: MandatDb, session: Session, act: AiAct, onDismiss: () -
             AiPick.ATTACK -> db.info().observeAll().hiding(session) { it.matterId }.map { l ->
                 l.filter { !it.closed && (it.kind == InfoKind.ATTACK.name || it.kind == InfoKind.CRITIQUE.name) }.map { PickItem(it.id, it.title, it.source) }
             }
+            // Meetings from today on, for two weeks
+            AiPick.EVENT -> kotlinx.coroutines.flow.combine(db.events().observeRange(Dates.today(), Dates.today() + 14).hiding(session) { it.matterId }, hiddenTitles(db, session)) { l, ht ->
+                l.filterNot { it.matterId == null && namesAny(it.title + " " + it.notes, ht) }.sortedWith(compareBy({ it.day }, { it.startMin ?: -1 })).map { PickItem(it.id, it.title, Dates.format(it.day) + (it.startMin?.let { m -> " " + timeText(m) } ?: "")) }
+            }
+            // Open delegations to someone: a reminder needs a person to write to
+            AiPick.DELEGATION -> kotlinx.coroutines.flow.combine(db.delegations().observeOpen().hiding(session) { it.matterId }, db.people().observeAll(), hiddenTitles(db, session)) { ds, ps, ht ->
+                val names = ps.associate { it.id to it.name }
+                ds.filter { it.personId != null && !(it.matterId == null && namesAny(it.what + " " + it.purpose, ht)) }.map { PickItem(it.id, it.what, names[it.personId].orEmpty() + (it.due?.let { d -> " · " + Dates.format(d) } ?: "")) }
+            }
             AiPick.NONE -> kotlinx.coroutines.flow.flowOf(emptyList())
         }
     }.collectAsStateWithLifecycle(emptyList())
@@ -240,9 +275,89 @@ private fun AiPicker(db: MandatDb, session: Session, act: AiAct, onDismiss: () -
         AiPick.MATTER -> R.string.ai_pick_matter
         AiPick.PERSON -> R.string.ai_pick_person
         AiPick.TEXT -> R.string.ai_pick_text
+        AiPick.EVENT -> R.string.ai_pick_event
+        AiPick.DELEGATION -> R.string.ai_pick_delegation
         else -> R.string.ai_pick_attack
     })
     PickSheet(title, items, onPick = onPick, onDismiss = onDismiss, footer = if (items.isEmpty()) ({
         Text(stringResource(R.string.ai_pick_empty), style = MaterialTheme.typography.bodyMedium, color = Muted, modifier = Modifier.padding(12.dp))
     }) else null)
 }
+
+/** A letter to answer: pasted, with the matter it belongs to; the draft becomes a text on a tap. */
+@Composable
+private fun ReplySheet(db: MandatDb, session: Session, onDone: () -> Unit, onDismiss: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val matters by remember(db) { db.matters().observeActiveTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
+    val allMatters by remember(db) { db.matters().observeAllTitles().hiding(session) { it.id } }.collectAsStateWithLifecycle(emptyList())
+    var letter by remember { mutableStateOf("") }
+    var matterId by remember { mutableStateOf<Long?>(null) }
+    val run = rememberAiRun(session, letter to matterId)
+    val label = stringResource(R.string.ai_reply)
+    val title = stringResource(R.string.ai_reply_title)
+    EditSheet(title = "$AI_MARK $label", onDismiss = onDismiss, onSave = null) {
+        SheetGroup {
+            Text(stringResource(R.string.ai_reply_explain), style = MaterialTheme.typography.labelMedium, color = Muted)
+            OutlinedTextField(letter, { letter = it.take(LocalAi.MAX_INPUT - 1500) }, label = { Text(stringResource(R.string.ai_reply_letter)) },
+                minLines = 6, readOnly = run.busy, modifier = Modifier.fillMaxWidth())
+            MatterPicker(matters, allMatters, matterId) { matterId = it }
+            if (letter.isNotBlank() && !run.busy && run.answer == null) AiChip(stringResource(R.string.ai_reply_go)) {
+                val l = letter; val m = matterId
+                run.start(scope, session, LocalAi.Task.REPLY, label) {
+                    "Вхідний лист:\n" + l + "\n\n" + (m?.let { id -> session.withOpenDb { d -> matterFacts(d, session, id) } }.orEmpty().ifBlank { "Фактів справи немає." })
+                }
+            }
+            AiResult(run, onApply = { a ->
+                session.textDraft = newText(matterId, ua.mandat.data.TextKind.LETTER, title, a)
+                onDone()
+            }, applyText = stringResource(R.string.ai_to_text))
+        }
+    }
+}
+
+/** A long document (a bill, a report) cut down to its points, part by part, on the phone. */
+@Composable
+private fun DigestSheet(session: Session, onDone: () -> Unit, onDismiss: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var text by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var part by remember { mutableStateOf(0 to 0) }
+    var answer by remember { mutableStateOf<String?>(null) }
+    var failed by remember { mutableStateOf(false) }
+    var job by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { job?.cancel() } }
+    val title = stringResource(R.string.ai_digest_title)
+    EditSheet(title = "$AI_MARK " + stringResource(R.string.ai_digest), onDismiss = onDismiss, onSave = null) {
+        SheetGroup {
+            Text(stringResource(R.string.ai_digest_explain), style = MaterialTheme.typography.labelMedium, color = Muted)
+            OutlinedTextField(text, { text = it.take(DIGEST_FIELD_MAX) }, label = { Text(stringResource(R.string.ai_digest_text)) },
+                minLines = 8, maxLines = 14, readOnly = busy, modifier = Modifier.fillMaxWidth())
+            // Said before reading, never silently: a document longer than what is read is cut at its end
+            val parts = remember(text) { LocalAi.chunks(text, LocalAi.MAX_INPUT - 400).size }
+            if (parts > LocalAi.DIGEST_PARTS) Text(stringResource(R.string.ai_digest_cut, LocalAi.DIGEST_PARTS, parts), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+            if (busy) {
+                AiBusy()
+                if (part.second > 1) Text(stringResource(R.string.ai_digest_part, part.first, part.second), style = MaterialTheme.typography.labelMedium, color = AiViolet)
+            } else if (text.isNotBlank() && answer == null) AiChip(stringResource(R.string.ai_digest_go)) {
+                busy = true; failed = false
+                val t = text
+                job = scope.launch {
+                    answer = try { session.ai.digest(t) { i, n -> part = i to n }.takeIf { it.isNotBlank() } }
+                        catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Throwable) { null }
+                    failed = answer == null
+                    busy = false
+                }
+            }
+            if (failed) Text(stringResource(R.string.ai_digest_failed), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            answer?.let { a ->
+                AiCard(a, title = stringResource(R.string.ai_digest), onApply = {
+                    session.textDraft = newText(null, ua.mandat.data.TextKind.NOTE, title, a)
+                    onDone()
+                }, applyText = stringResource(R.string.ai_to_text), onDismiss = { answer = null })
+            }
+        }
+    }
+}
+
+/** The digest field keeps what was pasted (up to a generous cap), so the warning counts the whole document. */
+private const val DIGEST_FIELD_MAX = 400_000

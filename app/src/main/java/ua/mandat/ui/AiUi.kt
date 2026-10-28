@@ -73,7 +73,7 @@ fun AiSection(session: Session) {
     val scope = rememberCoroutineScope()
     var state by remember { mutableStateOf(session.ai.models.state()) }
     var importing by remember { mutableStateOf<Float?>(null) }
-    var deleteOriginal by remember { mutableStateOf(true) }
+    var deleteOriginal by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf<String?>(null) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -274,6 +274,12 @@ fun taskLabel(task: LocalAi.Task): Int = when (task) {
     LocalAi.Task.LANGUAGE -> R.string.ai_language
     LocalAi.Task.REBUTTAL -> R.string.ai_rebuttal
     LocalAi.Task.MESSAGES -> R.string.ai_messages
+    LocalAi.Task.MEETING -> R.string.ai_meeting
+    LocalAi.Task.REPLY -> R.string.ai_reply
+    LocalAi.Task.REMINDER -> R.string.ai_reminder
+    LocalAi.Task.RISK -> R.string.ai_risk
+    LocalAi.Task.PLAN -> R.string.ai_plan
+    LocalAi.Task.DIGEST, LocalAi.Task.DIGEST_JOIN -> R.string.ai_digest
 }
 
 /**

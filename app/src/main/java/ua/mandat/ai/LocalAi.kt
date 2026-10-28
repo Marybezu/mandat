@@ -23,6 +23,9 @@ import org.json.JSONObject
 /** One piece the model found in pasted text; the owner confirms each before anything is saved. */
 data class Found(val kind: String, val text: String, val person: String, val due: String)
 
+/** What a quick note most likely is; a role and a matter only when they match one exactly. */
+data class Hint(val kind: String, val role: String?, val matter: String?)
+
 /**
  * The optional on-device model (Gemma via LiteRT-LM). Nothing leaves the phone: no internet
  * permission, prompts and answers live in memory only, and the model only suggests — every
@@ -140,7 +143,8 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
     }
 
     /** A short free text from facts given (a brief, a week's summary, a shorter speech). */
-    suspend fun write(task: Task, facts: String): String = withEngine { e -> ask(e, task.system, facts.take(MAX_INPUT), task.maxTokens, 0.5) }
+    suspend fun write(task: Task, facts: String): String =
+        tidy(withEngine { e -> ask(e, task.system, facts.take(MAX_INPUT), task.maxTokens, 0.5) }, task.keepsMarks)
 
     /**
      * Sorts Inbox notes: for each note, what it most likely is. The index ties an answer back to
@@ -166,21 +170,53 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
         return parseSorted(raw, sent)
     }
 
-    enum class Task(val system: String, val maxTokens: Int) {
+    /** [keepsMarks]: the answer is a text whose line marks («# », «- ») are kept as they are. */
+    enum class Task(val system: String, val maxTokens: Int, val keepsMarks: Boolean = false) {
         BRIEF(SYSTEM_BRIEF, 450),
         WEEK(SYSTEM_WEEK, 500),
-        SHORTEN(SYSTEM_SHORTEN, 1200),
-        FILL(SYSTEM_FILL, 1500),
+        SHORTEN(SYSTEM_SHORTEN, 1200, true),
+        FILL(SYSTEM_FILL, 1500, true),
         ANSWER(SYSTEM_ANSWER, 500),
-        MORNING(SYSTEM_MORNING, 450),
+        MORNING(SYSTEM_MORNING, 500),
         EVENING(SYSTEM_EVENING, 450),
         NEXT_STEP(SYSTEM_NEXT, 120),
         MATTER_SUMMARY(SYSTEM_MATTER, 450),
-        FORMAL(SYSTEM_FORMAL, 1500),
-        SIMPLER(SYSTEM_SIMPLER, 1500),
+        FORMAL(SYSTEM_FORMAL, 1500, true),
+        SIMPLER(SYSTEM_SIMPLER, 1500, true),
         LANGUAGE(SYSTEM_LANGUAGE, 700),
         REBUTTAL(SYSTEM_REBUTTAL, 700),
         MESSAGES(SYSTEM_MESSAGES, 450),
+        MEETING(SYSTEM_MEETING, 600),
+        REPLY(SYSTEM_REPLY, 900, true),
+        REMINDER(SYSTEM_REMINDER, 200),
+        RISK(SYSTEM_RISK, 600),
+        PLAN(SYSTEM_PLAN, 500),
+        DIGEST(SYSTEM_DIGEST, 400),
+        DIGEST_JOIN(SYSTEM_DIGEST_JOIN, 700),
+    }
+
+    /**
+     * A long document in parts: each part is cut down to theses, then the theses are joined into
+     * one short summary. [onPart] tells how far it got.
+     */
+    suspend fun digest(text: String, onPart: (Int, Int) -> Unit = { _, _ -> }): String {
+        val parts = chunks(text, MAX_INPUT - 400).take(DIGEST_PARTS)
+        val theses = parts.mapIndexed { i, part ->
+            onPart(i + 1, parts.size)
+            write(Task.DIGEST, part)
+        }
+        return if (theses.size == 1) theses[0] else write(Task.DIGEST_JOIN, theses.mapIndexed { i, t -> "Частина ${i + 1}:\n$t" }.joinToString("\n\n"))
+    }
+
+    /** What a quick note most likely is, with a role and a matter picked only from the names given. */
+    suspend fun hint(note: String, roles: List<String>, matters: List<String>): Hint? {
+        val prompt = buildString {
+            if (roles.isNotEmpty()) append("Roles: ").append(roles.take(30).joinToString(" | ")).append("\n")
+            if (matters.isNotEmpty()) append("Matters: ").append(matters.take(80).joinToString(" | ").take(3500)).append("\n")
+            append("Note: ").append(note.take(NOTE_CHARS))
+        }
+        val raw = withEngine { e -> runCatching { ask(e, SYSTEM_HINT, prompt, 120, 0.1, HINT_SCHEMA) }.getOrElse { ask(e, SYSTEM_HINT, prompt, 120, 0.1) } }
+        return parseHint(raw, roles, matters)
     }
 
     companion object {
@@ -213,20 +249,29 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
 "properties":{"i":{"type":"integer"},"kind":{"type":"string","enum":["matter","delegation","promise","deadline","note"]},"text":{"type":"string"},"person":{"type":"string"},"due":{"type":"string"}},
 "required":["i","kind","text"]}}},"required":["items"]}"""
 
-        private const val SYSTEM_ANSWER = "Ти помічник, що відповідає на питання лише за записами, поданими нижче. Відповідай коротко: 1–5 речень або пунктів; після кожного твердження вкажи номер запису в квадратних дужках, наприклад [2]. " +
-            "Якщо в записах немає відповіді, так і скажи. Не додавай нічого поза записами. $UK"
+        /** How every answer reads: no opening line, no markup, each heading once. */
+        private const val FMT = "Пиши без вступу (не починай з «Ось») і без підсумкової фрази. Без розмітки: ні зірочок, ні решіток. " +
+            "Якщо є розділи, кожен заголовок пиши лише один раз окремим рядком із двокрапкою, а під ним пункти, що починаються з «• »; не повторюй заголовок у пунктах. " +
+            "Пропускай розділ, для якого немає фактів. Імена людей пиши так, як їх подано."
 
-        private const val SYSTEM_MORNING = "Ти помічник на початку дня. З наданих фактів назви три найважливіші речі на сьогодні, ризики (строки, обіцянки, зустрічі без підготовки) " +
-            "і з ким зустрічі та що ми їм обіцяли. До 6 пунктів, кожен одним реченням. $UK"
+        /** Whom it speaks to, and what the owner does at an event. */
+        private const val ROLE = "Звертайся до власника застосунку на «ви». Про подію пиши «провести», лише якщо у фактах сказано, що власник головує (посада «голова»); " +
+            "інакше пиши «взяти участь у…»."
 
-        private const val SYSTEM_EVENING = "Ти помічник для запису в щоденник. З наданих фактів про день напиши стислий запис від першої особи без зазначення роду: що зроблено, що зрушило, що лишилося. " +
-            "3–5 речень, без оцінок. $UK"
+        private const val SYSTEM_ANSWER = "Ти помічник, що відповідає на питання лише за записами, поданими нижче. Відповідай коротко: 1–5 речень або пунктів; " +
+            "після кожного твердження вкажи номер запису в квадратних дужках, наприклад [2]. Якщо в записах немає відповіді, так і скажи. Не додавай нічого поза записами. $FMT $UK"
+
+        private const val SYSTEM_MORNING = "Ти помічник на початку дня. З наданих фактів склади ранковий огляд із розділів «Головне сьогодні:» (до 3 пунктів), " +
+            "«Ризики:» (строки, обіцянки, зустрічі без підготовки; до 3 пунктів) і «Зустрічі:» (з ким і що ви обіцяли цим людям). Кожен пункт — одне речення. $ROLE $FMT $UK"
+
+        private const val SYSTEM_EVENING = "Ти помічник для запису в щоденник. З наданих фактів про день напиши стислий запис від першої особи без зазначення роду: " +
+            "що зроблено, що зрушило, що лишилося. 3–5 речень звичайним текстом, без оцінок. $FMT $UK"
 
         private const val SYSTEM_NEXT = "Ти помічник зі справами. З історії справи запропонуй один наступний конкретний крок: одне коротке речення, що починається з дієслова. " +
             "Відповідай лише цим реченням. $UK"
 
-        private const val SYSTEM_MATTER = "Ти помічник зі справами. З наданих фактів напиши стислий підсумок справи: де вона зараз, що зроблено, що заважає, що далі. " +
-            "3–5 пунктів, кожен одним реченням. $UK"
+        private const val SYSTEM_MATTER = "Ти помічник зі справами. З наданих фактів напиши стислий підсумок справи з розділів «Де зараз:», «Зроблено:», «Заважає:», «Далі:» — " +
+            "у кожному 1–2 пункти по одному реченню. $ROLE $FMT $UK"
 
         private const val SYSTEM_FORMAL = "Ти редактор. Перепиши поданий текст в офіційно-діловому стилі, зберігши зміст, факти й позначки рядків «# », «## », «- ». $UK Відповідай лише готовим текстом."
 
@@ -234,25 +279,119 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
             "$UK Відповідай лише готовим текстом."
 
         private const val SYSTEM_LANGUAGE = "Ти мовний редактор української. Знайди в поданому тексті русизми, суржик, кальки й помилки слововживання. " +
-            "Для кожного випадку напиши рядок: «було → як правильно — коротке пояснення». Якщо помилок немає, так і скажи. Не переписуй увесь текст. " +
-            "Відповідай лише українською мовою, без жодного російського слова."
+            "Для кожного випадку напиши рядок «• було → як правильно — коротке пояснення». Якщо помилок немає, так і скажи одним реченням. Не переписуй увесь текст. " +
+            "Без вступу й без розмітки. Відповідай лише українською мовою, без жодного російського слова."
 
-        private const val SYSTEM_REBUTTAL = "Ти помічник з комунікацій. З наданих фактів напиши чернетку спростування: спокійно, про дії, а не про особу, лише перевірені факти з поданого, " +
-            "без образ і без вигаданих цифр. 4–8 речень. $UK"
+        private const val SYSTEM_REBUTTAL = "Ти помічник з комунікацій. З наданих фактів напиши чернетку спростування звичайним текстом: спокійно, про дії, а не про особу, " +
+            "лише перевірені факти з поданого, без образ і без вигаданих цифр. 4–8 речень. $FMT $UK"
 
-        private const val SYSTEM_MESSAGES = "Ти помічник з комунікацій. З наданих фактів запропонуй 3 ключові меседжі: кожен — одне коротке речення й доказ із поданих фактів. $UK"
+        private const val SYSTEM_MESSAGES = "Ти помічник з комунікацій. З наданих фактів запропонуй 3 ключові меседжі, кожен окремим пунктом «• меседж — доказ із фактів». $FMT $UK"
 
-        private const val SYSTEM_BRIEF = "Ти помічник перед зустріччю. З наданих фактів про людину склади короткий бриф: 3–5 пунктів, кожен одним реченням — " +
-            "що важливо пам'ятати, що ми їй обіцяли, що вона має зробити, про що варто запитати. $UK"
+        private const val SYSTEM_BRIEF = "Ти помічник перед зустріччю власника застосунку з людиною, описаною у фактах. Бриф — для власника, а не для цієї людини. " +
+            "Розділи: «Пам'ятати:», «Ви обіцяли:», «Чекаєте від людини:» (доручення їй), «Запитати:». У кожному до 3 пунктів по одному реченню. $ROLE $FMT $UK"
 
-        private const val SYSTEM_WEEK = "Ти помічник з підсумку тижня. З наданих фактів напиши стислий підсумок: що зрушило, що застрягло, на що звернути увагу наступного тижня. " +
-            "4–6 пунктів, кожен одним реченням, без оцінок людини. $UK"
+        private const val SYSTEM_WEEK = "Ти помічник з підсумку тижня. З наданих фактів напиши підсумок із розділів «Зрушило:», «Застрягло:», «Увага наступного тижня:» — " +
+            "у кожному до 3 пунктів по одному реченню, без оцінок людей. $FMT $UK"
 
         private const val SYSTEM_SHORTEN = "Ти редактор виступів. Скороти поданий текст до вказаної кількості слів, зберігши головну думку, аргументи й заклик. " +
             "Зберігай позначки рядків «# », «## », «- ». $UK Відповідай лише готовим текстом."
 
         private const val SYSTEM_FILL = "Ти помічник з листів. У тексті є поля в квадратних дужках. Заповни ті, для яких є відомості в довідці; решту лиши як є, у дужках. " +
             "Не змінюй інших слів. $UK Відповідай лише готовим текстом."
+
+        private const val SYSTEM_MEETING = "Ти помічник перед зустріччю. З фактів про подію, її справу й учасників склади аркуш підготовки з розділів «Мета:», " +
+            "«Учасники:» (для кожного: позиція у справі й що ви обіцяли цій людині), «Що запитати:», «Ключові тези:». До 4 пунктів у розділі. $ROLE $FMT $UK"
+
+        private const val SYSTEM_REPLY = "Ти помічник з листування. Напиши чернетку відповіді на поданий вхідний лист від імені власника застосунку: ввічливо, по суті, " +
+            "лише з фактів справи. Чого не знаєш, лиши полем у квадратних дужках, наприклад [дата]. Не посилайся на закони чи норми, яких немає в листі чи фактах. " +
+            "$UK Відповідай лише текстом листа."
+
+        private const val SYSTEM_REMINDER = "Напиши коротке ввічливе нагадування людині про доручення, для месенджера: 2–3 речення без докору, з проханням повідомити, " +
+            "коли буде готово чи що заважає. Звертання на «ви». $UK Відповідай лише текстом повідомлення."
+
+        private const val SYSTEM_RISK = "Ти помічник з обіцянок. Для кожної обіцянки з фактів напиши пункт «• обіцянка — чому під загрозою — один крок, що зробити цього тижня». " +
+            "До 6 пунктів, найризиковіші першими. $FMT $UK"
+
+        private const val SYSTEM_PLAN = "Ти помічник з планування. З часу за ролями (бажана частка й факт) і справ у фокусі запропонуй, як розподілити увагу наступного тижня: " +
+            "розділи «Додати уваги:», «Тримати:», «Відкласти:», у кожному до 3 пунктів із конкретними справами з фактів. $FMT $UK"
+
+        private const val SYSTEM_DIGEST = "Стисни поданий фрагмент документа до тез: до 6 пунктів «• », лише те, що є в тексті; збережи числа, строки й назви. $FMT $UK"
+
+        private const val SYSTEM_DIGEST_JOIN = "З тез частин одного документа склади стислий виклад із розділів «Суть:» (2–3 речення), «Головні положення:» (до 8 пунктів) " +
+            "і «Строки й цифри:» (якщо є). Лише те, що є в тезах. $FMT $UK"
+
+        private const val SYSTEM_HINT = "You help sort a quick note. kind is one of: matter, delegation, promise, deadline, note. role is one of the given roles, copied exactly, or empty. " +
+            "matter is one of the given matters, copied exactly, only if the note is clearly about it, else empty. Answer with ONLY JSON: {\"kind\":\"note\",\"role\":\"\",\"matter\":\"\"}"
+
+        private const val HINT_SCHEMA = """{"type":"object","properties":{"kind":{"type":"string","enum":["matter","delegation","promise","deadline","note"]},
+"role":{"type":"string"},"matter":{"type":"string"}},"required":["kind"]}"""
+
+        /** How many parts of a long document are read at most (each about one model input). */
+        const val DIGEST_PARTS = 8
+
+        /** Cuts a long text into parts of at most [size] characters, at paragraph or sentence ends where possible. */
+        fun chunks(text: String, size: Int): List<String> {
+            val out = ArrayList<String>()
+            var rest = text.trim()
+            while (rest.length > size) {
+                val window = rest.substring(0, size)
+                // At a paragraph, a line, or just after a sentence's full stop
+                val cut = listOf(window.lastIndexOf("\n\n"), window.lastIndexOf('\n'), window.lastIndexOf(". ").let { if (it < 0) it else it + 1 })
+                    .firstOrNull { it > size / 2 } ?: size
+                out.add(rest.substring(0, cut).trim())
+                rest = rest.substring(cut).trim()
+            }
+            if (rest.isNotEmpty()) out.add(rest)
+            return out
+        }
+
+        /**
+         * Makes an answer plain: no opening "Here is…" line, no stars or hashes, bullets as «• »,
+         * no heading repeated at the start of each point, no runs of empty lines. A text meant to
+         * replace the owner's own ([keepMarks]) keeps its line marks.
+         */
+        fun tidy(raw: String, keepMarks: Boolean = false): String {
+            var lines = raw.replace("\r", "").lines()
+            if (!keepMarks) {
+                lines = lines.map { l ->
+                    var t = l.replace("**", "").replace("__", "")
+                    t = t.replace(Regex("^\\s*#{1,6}\\s+"), "")
+                    t = t.replace(Regex("^\\s*[*\\-–]\\s+"), "• ")
+                    t.trimEnd()
+                }
+                // An opening line like "Ось короткий бриф…:" says nothing
+                val first = lines.indexOfFirst { it.isNotBlank() }
+                if (first >= 0 && lines[first].trim().let { it.startsWith("Ось") && it.endsWith(":") && it.length < 120 }) lines = lines.drop(first + 1)
+                // "1. Heading: text" repeated in every point: the heading is said once, above its points
+                val out = ArrayList<String>()
+                var lastHead: String? = null
+                val numbered = Regex("^\\s*(?:\\d+[.)]|•)\\s*([^:]{2,60}):\\s+(.+)$")
+                val repeated = lines.mapNotNull { numbered.find(it)?.groupValues?.get(1)?.trim() }.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
+                for (l in lines) {
+                    val m = numbered.find(l)?.takeIf { it.groupValues[1].trim() in repeated }
+                    if (m != null) {
+                        val head = m.groupValues[1].trim()
+                        if (head != lastHead) { if (out.isNotEmpty() && out.last().isNotBlank()) out.add(""); out.add("$head:"); lastHead = head }
+                        out.add("• " + m.groupValues[2].trim())
+                    } else {
+                        if (l.isNotBlank() && !l.startsWith("•")) lastHead = null
+                        out.add(l)
+                    }
+                }
+                lines = out
+            }
+            return lines.joinToString("\n").replace(Regex("\n{3,}"), "\n\n").trim()
+        }
+
+        /** Reads a hint; a role or matter not among those given is dropped. */
+        fun parseHint(raw: String, roles: List<String>, matters: List<String>): Hint? = runCatching {
+            val text = raw.replace("```json", "").replace("```", "")
+            val o = JSONObject(text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1))
+            val kind = o.optString("kind").takeIf { it in KINDS } ?: return null
+            Hint(kind, o.optString("role").trim().takeIf { it in roles }, o.optString("matter").trim().takeIf { it in matters })
+        }.getOrNull()
+
+        private val KINDS = setOf("matter", "delegation", "promise", "deadline", "note")
 
         /** Items of a sorted Inbox: each with the number of its note; unknown numbers and kinds are dropped. */
         fun parseSorted(raw: String, count: Int): List<Pair<Int, Found>> {

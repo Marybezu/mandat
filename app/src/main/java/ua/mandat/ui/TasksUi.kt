@@ -361,6 +361,13 @@ fun DelegationDialog(db: MandatDb, session: Session, draft: DelegationDraft) {
         }
         if (!draft.isNew) SheetGroup {
             StatusChips(draft.status, TASK_STATUSES, { it.delegationLabel() }) { draft.status = it }
+            // A polite reminder to copy into a messenger (only a suggestion; nothing is sent from here)
+            val person = draft.personId?.let { id -> people.firstOrNull { it.id == id } }
+            if (person != null && draft.status == ua.mandat.data.TaskStatus.OPEN) AiAnswer(session, ua.mandat.ai.LocalAi.Task.REMINDER,
+                facts = {
+                    // Free text naming a hidden matter stays out while it is hidden
+                    session.withOpenDb { d -> if (draft.matterId in session.hiddenMatters.value || (draft.matterId == null && d.namesHidden(session)(draft.what + " " + draft.purpose))) "" else reminderText(draft.what, draft.due, person.name, draft.purpose) }.orEmpty()
+                }, key = draft.what to draft.due)
         }
         if (!draft.isNew) TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
     }

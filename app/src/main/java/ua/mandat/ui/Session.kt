@@ -113,6 +113,8 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     /** The search screen is open. */
     var searching by mutableStateOf(false)
+    /** A word to search for when the search screen opens (from the word cloud). */
+    var searchSeed by mutableStateOf<String?>(null)
 
     fun saveDeadlineDraft() {
         val d = deadlineDraft ?: return
@@ -688,6 +690,7 @@ class Session(app: Application) : AndroidViewModel(app) {
         showAiSplit = false
         aiSplitText = ""
         aiCenter = null
+        searchSeed = null
         showInboxSort = false
         aiTextHelp = false
         val current = state
