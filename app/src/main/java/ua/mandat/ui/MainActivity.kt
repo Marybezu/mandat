@@ -38,8 +38,9 @@ class MainActivity : AppCompatActivity() {
         val fromHistory = intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0
         if (savedInstanceState == null && !fromHistory) takeShared(intent)
         vault = KeyVault(this)
-        // A "PIN only" switch that stopped halfway may have left a spare key: it goes
-        vault.cleanUpOldKeys()
+        // A "PIN only" switch that stopped halfway may have left a spare key: it goes, but only on a
+        // fresh start, never while a switch is on screen (turning the phone recreates this screen)
+        if (savedInstanceState == null && !session.prompting) vault.cleanUpOldKeys((session.purpose as? PromptPurpose.Rewrap)?.alias)
         // Created here (not on tap) so the prompt keeps working after the screen turns
         prompt = BiometricPrompt(this, ContextCompat.getMainExecutor(this), callback)
         refreshState()
@@ -150,14 +151,26 @@ class MainActivity : AppCompatActivity() {
         if (session.prompting || session.state !is LockState.Open) return
         session.purpose = PromptPurpose.Confirm(action)
         session.prompting = true
-        // Leaving for the PIN screen does not lock Mandat (screen off still does)
-        session.pickingFile = true
+        // Leaving for the PIN screen does not lock Mandat (screen off still does); typing a long password may take a while
+        session.holdForPrompt()
         val info = BiometricPrompt.PromptInfo.Builder()
             .setTitle(title)
             .setAllowedAuthenticators(authenticators())
             .setConfirmationRequired(false)
             .build()
-        prompt.authenticate(info)
+        try {
+            prompt.authenticate(info)
+        } catch (e: Exception) {
+            endPrompt()
+        }
+    }
+
+    /** A prompt that could not be shown leaves nothing stuck. */
+    private fun endPrompt() {
+        (session.purpose as? PromptPurpose.Rewrap)?.let { vault.abandonRewrap(it.alias) }
+        session.purpose = PromptPurpose.Unlock
+        session.prompting = false
+        session.pickingFile = false
     }
 
     /**
@@ -170,13 +183,18 @@ class MainActivity : AppCompatActivity() {
         val (cipher, alias) = try { vault.cipherForRewrap(on) } catch (e: Exception) { return false }
         session.purpose = PromptPurpose.Rewrap(alias, on)
         session.prompting = true
-        session.pickingFile = true
+        session.holdForPrompt()
         val info = BiometricPrompt.PromptInfo.Builder()
             .setTitle(getString(if (on) R.string.pin_only_confirm_on else R.string.pin_only_confirm_off))
             .setAllowedAuthenticators(DEVICE_CREDENTIAL)
             .setConfirmationRequired(false)
             .build()
-        prompt.authenticate(info, BiometricPrompt.CryptoObject(cipher))
+        try {
+            prompt.authenticate(info, BiometricPrompt.CryptoObject(cipher))
+        } catch (e: Exception) {
+            endPrompt()
+            return false
+        }
         return true
     }
 

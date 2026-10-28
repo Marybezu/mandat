@@ -106,6 +106,30 @@ fun Options(session: Session, onBack: () -> Unit) {
         if (uri != null && pickedAt == session.generationNow()) askRestorePassword = uri
     }
 
+    // A copy holds everything: making, restoring or switching on copies always needs the phone's lock,
+    // so a moment with the phone unattended (or forced open) cannot set up a lasting leak.
+    // Each runs on the screen that shows when the answer comes (also after the phone was turned).
+    val guardTitle = stringResource(R.string.confirm_backup)
+    val askBackup = rememberConfirmed(session, "backup", guardTitle) { askNewPassword = true }
+    val askRestore = rememberConfirmed(session, "restore", guardTitle) {
+        session.pickingFile = true
+        pickedAt = session.generationNow()
+        try {
+            openFile.launch(arrayOf("*/*"))
+        } catch (e: Exception) {
+            session.pickingFile = false
+        }
+    }
+    val askAuto = rememberConfirmed(session, "auto", guardTitle) {
+        session.pickingFile = true
+        pickedAt = session.generationNow()
+        try {
+            pickFolder.launch(null)
+        } catch (e: Exception) {
+            session.pickingFile = false
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -143,13 +167,6 @@ fun Options(session: Session, onBack: () -> Unit) {
             }
 
             OptionGroup(stringResource(R.string.opt_data), stringResource(R.string.opt_data_hint), Sym.save) {
-                // A copy holds everything: making, restoring or switching on copies always needs the phone's lock,
-                // so a moment with the phone unattended (or forced open) cannot set up a lasting leak
-                val ctx = LocalContext.current
-                val guardTitle = stringResource(R.string.confirm_backup)
-                fun guarded(action: () -> Unit) {
-                    ctx.findActivity()?.let { a -> confirmWithPhoneLock(a, session, guardTitle, action) }
-                }
                 if (!session.demo) {
                     Section(stringResource(R.string.backup_title))
                     Text(stringResource(R.string.backup_text), style = MaterialTheme.typography.bodyLarge)
@@ -160,21 +177,11 @@ fun Options(session: Session, onBack: () -> Unit) {
                             Text(stringResource(R.string.backup_working))
                         }
                     } else {
-                        Button(onClick = { guarded { askNewPassword = true } }, modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = askBackup, modifier = Modifier.fillMaxWidth()) {
                             Text(stringResource(R.string.backup_make))
                         }
                         OutlinedButton(
-                            onClick = {
-                                guarded {
-                                    session.pickingFile = true
-                                    pickedAt = session.generationNow()
-                                    try {
-                                        openFile.launch(arrayOf("*/*"))
-                                    } catch (e: Exception) {
-                                        session.pickingFile = false
-                                    }
-                                }
-                            },
+                            onClick = askRestore,
                             modifier = Modifier.fillMaxWidth(),
                         ) { Text(stringResource(R.string.backup_restore)) }
                     }
@@ -190,15 +197,8 @@ fun Options(session: Session, onBack: () -> Unit) {
                             checked = auto?.enabled == true,
                             enabled = !backups.busy && auto != null,
                             onCheckedChange = { on ->
-                                if (on) guarded {
-                                    session.pickingFile = true
-                                    pickedAt = session.generationNow()
-                                    try {
-                                        pickFolder.launch(null)
-                                    } catch (e: Exception) {
-                                        session.pickingFile = false
-                                    }
-                                } else confirmAutoOff = true
+                                if (on) askAuto()
+                                else confirmAutoOff = true
                             },
                         )
                     }

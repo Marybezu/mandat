@@ -182,7 +182,8 @@ fun copyToClipboard(context: Context, text: String) {
 
 /** What Mandat put on the clipboard is taken off it again on lock. */
 object AiClipboard {
-    const val LABEL = "mandat"
+    // A neutral label: the clipboard does not name the app
+    const val LABEL = "text"
     /** Only a yes/no mark (never the text), kept on disk so a copy is cleared even after Android closed Mandat. */
     private const val PREFS = "clipboard"
     private const val KEY = "copied"

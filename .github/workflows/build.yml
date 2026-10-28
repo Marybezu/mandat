@@ -38,8 +38,10 @@ jobs:
           unzip -q "$RUNNER_TEMP/gradle.zip" -d "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/gradle-$V/bin" >> "$GITHUB_PATH"
 
-      # Only caching; the Gradle used is the one checked above
+      # Only caching, and only read here: nothing the tests run can change what the APK build uses
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+        with:
+          cache-read-only: true
 
       - name: Test
         shell: bash

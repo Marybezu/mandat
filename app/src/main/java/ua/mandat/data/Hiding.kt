@@ -23,7 +23,7 @@ class HiddenNames(titles: Collection<String>) {
             when {
                 s.all(Char::isDigit) -> w == s
                 // A short stem ("пар" from "Парк") matches only near forms ("парку"), never "партія"
-                s.length == 3 -> w.startsWith(s) && w.length <= 5
+                s.length == 3 -> w.startsWith(s) && w.length <= 6
                 else -> w.startsWith(s)
             }
         } } }

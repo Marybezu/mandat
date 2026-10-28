@@ -46,6 +46,9 @@ class LocalAi(private val context: Context, val models: ModelStore, private val 
     /** The conversation being answered, so locking can ask it to stop. */
     @Volatile private var current: com.google.ai.edge.litertlm.Conversation? = null
 
+    /** An answer is being written now. */
+    val busy: Boolean get() = current != null
+
     /** Set by lock: an answer still being written is thrown away and the engine closed right after. */
     @Volatile private var abandoned = false
 

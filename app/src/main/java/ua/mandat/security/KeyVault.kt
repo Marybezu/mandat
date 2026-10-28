@@ -83,7 +83,10 @@ class KeyVault(context: Context) {
      */
     fun finishRewrap(confirmed: Cipher, alias: String, pinOnly: Boolean, passphrase: ByteArray) {
         require(passphrase.size == PASSPHRASE_BYTES)
-        val old = currentAlias()
+        // The new key must really be there before anything points to it
+        require(keyStore.containsAlias(alias)) { "New key missing" }
+        // The key in use must be known for sure: on any doubt nothing changes
+        val old = readWrapped().alias
         try {
             writeWrapped(Wrapped(pinOnly, alias, confirmed.iv, confirmed.doFinal(passphrase)))
         } catch (e: Exception) {
@@ -97,12 +100,16 @@ class KeyVault(context: Context) {
         try { if (alias != currentAlias() && keyStore.containsAlias(alias)) keyStore.deleteEntry(alias) } catch (e: Exception) { }
     }
 
-    /** Keys left over from a switch that stopped halfway (the app was closed during the prompt). */
-    fun cleanUpOldKeys() {
+    /**
+     * Keys left over from a switch that stopped halfway (the app was closed during the prompt).
+     * Only when the key file was read without any doubt, and never [pending] (a switch on screen now).
+     */
+    fun cleanUpOldKeys(pending: String? = null) {
         try {
             if (!file.exists()) return
-            val keep = currentAlias()
-            ownAliases().filter { it != keep }.forEach { keyStore.deleteEntry(it) }
+            val keep = readWrapped().alias
+            if (!keyStore.containsAlias(keep)) return
+            ownAliases().filter { it != keep && it != pending }.forEach { keyStore.deleteEntry(it) }
         } catch (e: Exception) {
             // Best effort; an extra unused key is harmless
         }

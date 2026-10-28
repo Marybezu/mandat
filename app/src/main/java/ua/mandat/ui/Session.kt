@@ -571,12 +571,17 @@ class Session(app: Application) : AndroidViewModel(app) {
      */
     var pickingFile: Boolean
         get() = picking
-        set(value) {
+        set(value) = hold(value, PICKER_TIMEOUT_MS)
+
+    /** For a phone-lock prompt: typing a long password may take longer than picking a file. */
+    fun holdForPrompt() = hold(true, PROMPT_TIMEOUT_MS)
+
+    private fun hold(value: Boolean, timeout: Long) {
             picking = value
             pickerTimeout?.cancel()
             // Safety net: if the owner never comes back from the picker, lock anyway
             if (value) pickerTimeout = background.launch {
-                delay(PICKER_TIMEOUT_MS)
+                delay(timeout)
                 withContext(Dispatchers.Main) {
                     if (picking) {
                         picking = false
@@ -717,6 +722,15 @@ class Session(app: Application) : AndroidViewModel(app) {
     }
 
     private var idleJob: Job? = null
+
+    /** Work under way that an automatic lock must not cut off (an export being written). */
+    @Volatile var longWork = 0
+
+    /**
+     * A confirmed step waiting to be run by its screen ("export", "backup"…). Kept here, so a step
+     * confirmed while the phone was turned runs on the new screen, not on the one that is gone.
+     */
+    var confirmed by mutableStateOf<String?>(null)
     init { Idle.onTouch = { android.os.Handler(android.os.Looper.getMainLooper()).post { touched() } } }
 
     /**
@@ -732,8 +746,13 @@ class Session(app: Application) : AndroidViewModel(app) {
             delay(minutes * 60_000L)
             withContext(Dispatchers.Main) {
                 if (state !is LockState.Open) return@withContext
-                if (picking || prompting || modelImport != null) touched()
-                else if (lock()) autoPrompt = false
+                // Not in the middle of work that the lock would cut off (a copy, an export, an import, an AI answer)
+                if (picking || prompting || modelImport != null || longWork > 0 || backups.busy || vcfBusy || ai.busy) touched()
+                else {
+                    // What Mandat copied leaves the clipboard with the lock, as with the lock button
+                    AiClipboard.clearIfOurs(getApplication())
+                    if (lock()) autoPrompt = false
+                }
             }
         }
     }
@@ -1026,6 +1045,7 @@ class Session(app: Application) : AndroidViewModel(app) {
 
     companion object {
         private const val PICKER_TIMEOUT_MS = 30 * 1000L
+        private const val PROMPT_TIMEOUT_MS = 120 * 1000L
         private const val RESUME_WINDOW_MS = 15 * 60 * 1000L
         /** A larger .vcf is refused (6 000 contacts without photos are a few MB; with photos tens of MB). */
         const val MAX_VCF_BYTES = 50L * 1024 * 1024

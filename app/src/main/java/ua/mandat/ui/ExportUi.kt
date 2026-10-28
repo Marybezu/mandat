@@ -179,7 +179,8 @@ fun ExportScreen(db: MandatDb, session: Session) {
         password = ""; repeat = ""; suggested = false
         scope.launch {
             try {
-                val ok = withContext(Dispatchers.IO) { runExport(context, session, plan, uri, pass, own, tooBig = { tooBigForMandat = true }, existing = { existingFile = true }) }
+                session.longWork++
+                val ok = try { withContext(Dispatchers.IO) { runExport(context, session, plan, uri, pass, own, tooBig = { tooBigForMandat = true }, existing = { existingFile = true }) } } finally { session.longWork-- }
                 message = context.getString(when {
                     ok -> R.string.export_done
                     existingFile -> R.string.export_existing_file
@@ -227,17 +228,6 @@ fun ExportScreen(db: MandatDb, session: Session) {
             else -> "md"
         }
     }
-    val confirmTitle = stringResource(R.string.confirm_export)
-    fun startSave() {
-        // Anything leaving Mandat needs the phone's lock first: a moment with the phone unattended
-        // (or forced open) cannot carry data off
-        context.findActivity()?.let { a ->
-            confirmWithPhoneLock(a, session, confirmTitle) {
-                pickedAt = session.generationNow()
-                session.pickingFile = true
-                save.launch(fileName())
-            }
-        }
     }
     // Mandat's own file holds only what Mandat can take back in: contacts and the calendar
     val ownOnly = mode == PROTECT_MANDAT
@@ -246,6 +236,15 @@ fun ExportScreen(db: MandatDb, session: Session) {
     val minLength = if (mode == PROTECT_ZIP) MIN_ZIP_PASSWORD_LENGTH else ua.mandat.backup.BackupCrypto.MIN_PASSWORD_LENGTH
     fun weak(p: String) = ua.mandat.backup.BackupCrypto.isTooSimple(p) || p.length < minLength
     val passOk = !protect || (!weak(password) && password == repeat)
+    // Anything leaving Mandat needs the phone's lock first: a moment with the phone unattended
+    // (or forced open) cannot carry data off. It runs on the screen showing when the answer comes;
+    // if what was chosen is gone meanwhile (the phone was turned), nothing is written.
+    val startSave = rememberConfirmed(session, "export", stringResource(R.string.confirm_export)) {
+        if (anyChosen && passOk && !busy) {
+            pickedAt = session.generationNow()
+            session.pickingFile = true
+            try { save.launch(fileName()) } catch (e: Exception) { session.pickingFile = false }
+        }
 
     Scaffold(
         topBar = {
