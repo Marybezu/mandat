@@ -9,7 +9,7 @@ import org.json.JSONObject
  * so that the demo's "today" is the real today.
  */
 object DemoData {
-    const val ASSET = "demo.json.gz"
+    const val ASSET = "demo.bin" // gzip inside; a neutral name, so no build tool treats it specially
 
     /** Columns holding a calendar day, and columns holding a moment in milliseconds. */
     private val DAY_COLUMNS = setOf("day", "due", "endDay", "checkIn", "lastContact", "stanceSince", "untilDay")
