@@ -83,8 +83,34 @@ class ExportPlan {
     var briefId by mutableStateOf<Long?>(null)
     /** Notes for Obsidian: one per matter, person, event and diary day, with [[links]]. */
     var obsidian by mutableStateOf(false)
+    /** The basic vault, or everything (delegations, promises, deadlines, media, communities, texts…). */
+    var vaultScope by mutableStateOf(VaultScope.BASIC)
+    /** All people and the address book, not only the people tied to what is exported. */
+    var allPeople by mutableStateOf(false)
+    /** The period records are taken from (a whole backup is never cut by it). */
+    var period by mutableStateOf(ExportPeriod.ALL)
+    var periodFrom by mutableStateOf(Dates.today() - 30)
+    var periodTo by mutableStateOf(Dates.today())
+
+    /** The chosen period as days, or null for everything. */
+    fun span(today: Long, cadence: Long?): ua.mandat.data.Span? = when (period) {
+        ExportPeriod.ALL -> null
+        ExportPeriod.TODAY -> ua.mandat.data.Span(today, today)
+        ExportPeriod.WEEK -> ua.mandat.data.Span(today - 6, today)
+        ExportPeriod.MONTH -> ua.mandat.data.Span(java.time.LocalDate.ofEpochDay(today).minusMonths(1).plusDays(1).toEpochDay(), today)
+        ExportPeriod.QUARTER -> ua.mandat.data.Span(java.time.LocalDate.ofEpochDay(today).minusMonths(3).plusDays(1).toEpochDay(), today)
+        ExportPeriod.YEAR -> ua.mandat.data.Span(java.time.LocalDate.ofEpochDay(today).minusYears(1).plusDays(1).toEpochDay(), today)
+        ExportPeriod.CADENCE -> ua.mandat.data.Span(cadence ?: java.time.LocalDate.ofEpochDay(today).minusYears(1).toEpochDay(), today)
+        ExportPeriod.CUSTOM -> ua.mandat.data.Span(minOf(periodFrom, periodTo), maxOf(periodFrom, periodTo))
+    }
 
     fun any() = people || book || calendar || tables.isNotEmpty() || diary || matterId != null || everything || textId != null || briefId != null || obsidian
+}
+
+/** Periods offered for an export. */
+enum class ExportPeriod(val label: Int) {
+    ALL(R.string.period_all), TODAY(R.string.period_today), WEEK(R.string.period_week), MONTH(R.string.period_month),
+    QUARTER(R.string.period_quarter), YEAR(R.string.period_year), CADENCE(R.string.period_cadence), CUSTOM(R.string.period_custom),
 }
 
 private val TABLES = listOf("matters", "delegations", "promises", "deadlines", "events", "money", "people")
@@ -207,6 +233,17 @@ fun ExportScreen(db: MandatDb, session: Session) {
         ) {
             if (trip) Text(stringResource(R.string.export_trip_note), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
             else if (hidden.isNotEmpty()) Text(stringResource(R.string.export_lens_note), style = MaterialTheme.typography.labelMedium, color = Muted)
+            // One period for everything chosen below; each kind of record is taken by its own dates
+            SectionCard(Sym.calendar, stringResource(R.string.export_period)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ExportPeriod.entries.forEach { p -> QuickChip(stringResource(p.label), plan.period == p) { plan.period = p } }
+                }
+                if (plan.period == ExportPeriod.CUSTOM) {
+                    DueField(plan.periodFrom, allowClear = false, label = R.string.report_from) { if (it != null) plan.periodFrom = it }
+                    DueField(plan.periodTo, allowClear = false, label = R.string.report_to) { if (it != null) plan.periodTo = it }
+                }
+                if (plan.period != ExportPeriod.ALL) Text(stringResource(R.string.export_period_hint), style = MaterialTheme.typography.labelSmall, color = Muted)
+            }
             SectionCard(Sym.save, stringResource(R.string.export_what)) {
                 Check(stringResource(R.string.export_people), plan.people) { plan.people = it }
                 if (plan.people) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(start = 40.dp)) {
@@ -223,7 +260,7 @@ fun ExportScreen(db: MandatDb, session: Session) {
                     }
                 }
                 Check(stringResource(R.string.export_calendar), plan.calendar) { plan.calendar = it }
-                if (plan.calendar) Row(Modifier.padding(start = 40.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (plan.calendar && plan.period == ExportPeriod.ALL) Row(Modifier.padding(start = 40.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(R.string.export_span_all, R.string.export_span_future, R.string.export_span_year).forEachIndexed { i, l ->
                         QuickChip(stringResource(l), plan.calendarSpan == i) { plan.calendarSpan = i }
                     }
@@ -249,8 +286,17 @@ fun ExportScreen(db: MandatDb, session: Session) {
                 plan.briefId?.let { Check(stringResource(R.string.export_brief_one), true) { on -> if (!on) plan.briefId = null } }
                 if (plan.diary || plan.matterId != null || plan.textId != null || plan.briefId != null) Check(stringResource(R.string.export_pdf), plan.pdf) { plan.pdf = it }
                 Check(stringResource(R.string.export_obsidian), plan.obsidian) { plan.obsidian = it }
-                if (plan.obsidian) Text(stringResource(R.string.export_obsidian_hint), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(start = 12.dp))
-                if (hidden.isEmpty()) Check(stringResource(R.string.export_everything), plan.everything) { plan.everything = it }
+                if (plan.obsidian) Column(Modifier.padding(start = 40.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        QuickChip(stringResource(R.string.export_vault_basic), plan.vaultScope == VaultScope.BASIC) { plan.vaultScope = VaultScope.BASIC }
+                        QuickChip(stringResource(R.string.export_vault_full), plan.vaultScope == VaultScope.FULL) { plan.vaultScope = VaultScope.FULL }
+                    }
+                    Text(stringResource(if (plan.vaultScope == VaultScope.FULL) R.string.export_vault_full_hint else R.string.export_obsidian_hint),
+                        style = MaterialTheme.typography.labelSmall, color = if (plan.vaultScope == VaultScope.FULL) MaterialTheme.colorScheme.error else Muted)
+                    Check(stringResource(R.string.export_vault_all_people), plan.allPeople) { plan.allPeople = it }
+                }
+                if (hidden.isEmpty() && plan.period == ExportPeriod.ALL) Check(stringResource(R.string.export_everything), plan.everything) { plan.everything = it }
+                else if (hidden.isEmpty()) Text(stringResource(R.string.export_everything_period), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(start = 12.dp))
                 else Text(stringResource(R.string.export_everything_hidden), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(start = 12.dp))
                 }
             }
@@ -317,7 +363,8 @@ fun ExportScreen(db: MandatDb, session: Session) {
     if (warnOpen) AlertDialog(
         onDismissRequest = { warnOpen = false },
         title = { Text(stringResource(R.string.export_open)) },
-        text = { Text(stringResource(R.string.export_open_warning)) },
+        // The whole vault in the open is the whole base readable by anyone with the folder: said plainly
+        text = { Text(stringResource(R.string.export_open_warning) + if (plan.obsidian && plan.vaultScope == VaultScope.FULL) "\n\n" + stringResource(R.string.export_vault_open_warning) else "") },
         confirmButton = { TextButton(onClick = { warnOpen = false; startSave() }) { Text(stringResource(R.string.export_open_confirm)) } },
         dismissButton = { TextButton(onClick = { warnOpen = false }) { Text(stringResource(R.string.cancel)) } },
     )
@@ -555,9 +602,15 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
         add("address-book.vcf", Export.vcard(chosen.map(Export::contactToV)))
     }
     val today = Dates.today()
-    val events = db.events().observeAll().first().filter { visible(it.matterId) }
+    // The chosen period, applied to every kind of record by its own dates
+    val span = plan.span(today, db.settings().get(ua.mandat.data.SETTING_CADENCE_START)?.value?.toLongOrNull())
+    fun inSpan(day: Long?) = span == null || (day != null && day in span)
+    fun msIn(ms: Long?) = ms != null && inSpan(Dates.dayOf(ms))
+    fun taskIn(created: Long, closed: Long?, due: Long?) = span == null || msIn(created) || msIn(closed) || (due != null && inSpan(due))
+    val movedIds = if (span == null) emptySet() else db.history().observeAll().first().filter { it.day in span }.map { it.matterId }.toSet()
+    val events = db.events().observeAll().first().filter { visible(it.matterId) && (span == null || (it.day <= span.to && it.lastDay >= span.from)) }
     if (plan.calendar) {
-        val chosen = events.filter { e ->
+        val chosen = if (span != null) events else events.filter { e ->
             when (plan.calendarSpan) { 1 -> e.lastDay >= today; 2 -> e.day >= today - 365; else -> true }
         }
         add("calendar.ics", Export.ics(chosen, { k -> context.getString(ua.mandat.data.EventKind.of(k).label()) }))
@@ -566,7 +619,9 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
         val roles = db.roles().observeAll().first().associate { it.id to it.name }
         add("matters.csv", Export.csv(
             listOf("title", "type", "role", "attention", "status", "next_step", "goal", "description", "created", "updated"),
-            db.matters().observeAll().first().filter { visible(it.id) }.map { m ->
+            db.matters().observeAll().first().filter { m ->
+                visible(m.id) && (span == null || msIn(m.createdAt) || msIn(m.updatedAt) || m.id in movedIds)
+            }.map { m ->
                 listOf(m.title, context.getString(ua.mandat.data.MatterType.of(m.type).label()), m.roleId?.let(roles::get).orEmpty(),
                     context.getString(ua.mandat.data.Attention.of(m.attention).label()), context.getString(ua.mandat.data.MatterStatus.of(m.status).label()),
                     m.nextStep, m.goal, m.description, Export.moment(m.createdAt), Export.moment(m.updatedAt))
@@ -575,14 +630,14 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
     }
     if ("delegations" in plan.tables) add("delegations.csv", Export.csv(
         listOf("what", "to_whom", "matter", "due", "status", "purpose", "done_means", "created", "closed"),
-        db.delegations().observeAll().first().filter { visible(it.matterId) }.map { d ->
+        db.delegations().observeAll().first().filter { visible(it.matterId) && taskIn(it.createdAt, it.closedAt, it.due) }.map { d ->
             listOf(d.what, d.personId?.let(nameOf::get).orEmpty(), d.matterId?.let(titles::get).orEmpty(), Export.day(d.due),
                 context.getString(TaskStatus.of(d.status).delegationLabel()), d.purpose, d.doneMeans, Export.moment(d.createdAt), Export.moment(d.closedAt))
         },
     ))
     if ("promises" in plan.tables) add("promises.csv", Export.csv(
         listOf("what", "to_whom", "publicity", "origin", "risk", "matter", "due", "status", "promised", "closed", "source", "note"),
-        db.promises().observeAll().first().filter { visible(it.matterId) }.map { p ->
+        db.promises().observeAll().first().filter { visible(it.matterId) && taskIn(it.createdAt, it.closedAt, it.due) }.map { p ->
             listOf(p.what, if (p.personId != null) nameOf[p.personId].orEmpty() else p.toWhom, context.getString(p.level.label()),
                 ua.mandat.data.PromiseOrigin.of(p.origin)?.let { context.getString(it.label()) }.orEmpty(), p.risk?.toString().orEmpty(),
                 p.matterId?.let(titles::get).orEmpty(), Export.day(p.due), context.getString(TaskStatus.of(p.status).promiseLabel()),
@@ -591,7 +646,7 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
     ))
     if ("deadlines" in plan.tables) add("deadlines.csv", Export.csv(
         listOf("title", "day", "kind", "basis", "matter", "status"),
-        db.deadlines().observeAll().first().filter { visible(it.matterId) }.map { d ->
+        db.deadlines().observeAll().first().filter { visible(it.matterId) && taskIn(it.createdAt, it.closedAt, it.day) }.map { d ->
             listOf(d.title, Export.day(d.day), context.getString(if (ua.mandat.data.DeadlineKind.of(d.kind) == ua.mandat.data.DeadlineKind.HARD) R.string.deadline_hard else R.string.deadline_soft),
                 d.basis, d.matterId?.let(titles::get).orEmpty(), context.getString(TaskStatus.of(d.status).delegationLabel()))
         },
@@ -605,7 +660,7 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
     ))
     if ("money" in plan.tables) add("budget.csv", Export.csv(
         listOf("day", "kind", "category", "amount", "currency", "uah", "note", "charity", "to_whom", "awaiting_refund", "refunded"),
-        db.money().observeAll().first().filter { visible(it.matterId) }.map { m ->
+        db.money().observeAll().first().filter { visible(it.matterId) && inSpan(it.day) }.map { m ->
             listOf(Export.day(m.day), m.kind, m.category, Export.money(m.amount), m.currency, Export.money(m.uah), m.note, m.charityKind.orEmpty(), m.toWhom,
                 if (m.awaitingRefund) "1" else "0", if (m.refunded) "1" else "0")
         },
@@ -618,7 +673,7 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
     if (plan.diary) {
         val hiddenReviews = db.reviews().observeLinks().first()
             .filter { (it.kind == "matter" && it.refId in hidden) || (it.kind == "person" && it.refId in onlyHidden) }.map { it.reviewId }.toSet()
-        val reviews = db.reviews().observeAll().first().filter { it.id !in hiddenReviews }.sortedBy { it.day }
+        val reviews = db.reviews().observeAll().first().filter { it.id !in hiddenReviews && inSpan(it.day) }.sortedBy { it.day }
         addDoc("diary", buildString {
             append("# ").append(context.getString(R.string.diary_title)).append("\n\n")
             reviews.filter { it.progress.isNotBlank() || it.mood != null || it.energy != null }.forEach { r ->
@@ -648,8 +703,9 @@ private suspend fun buildFiles(context: Context, db: MandatDb, hidden: Set<Long>
         addDoc("text", md)
     }
     plan.briefId?.let { id -> people.firstOrNull { it.id == id } }?.let { p -> addDoc("brief", briefDocument(context, db, p, hidden, titles)) }
-    if (plan.obsidian) obsidianVault(context, db, hidden, onlyHidden).forEach { (name, text) -> add(name, text) }
-    if (plan.everything && hidden.isEmpty()) out += "everything.json" to ua.mandat.backup.BackupData.dump(db)
+    if (plan.obsidian) obsidianVault(context, db, hidden, onlyHidden, plan.vaultScope, span, plan.allPeople).forEach { (name, text) -> add(name, text) }
+    // A whole copy of everything is never cut by a period
+    if (plan.everything && hidden.isEmpty() && span == null) out += "everything.json" to ua.mandat.backup.BackupData.dump(db)
     return out
 }
 
@@ -951,3 +1007,4 @@ object PdfText {
 
 /** The folder Obsidian notes are written under in an export. */
 internal const val OBSIDIAN_ROOT = "Mandat/"
+

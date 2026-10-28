@@ -1236,7 +1236,7 @@
     <string name="retro_lifelines">Matters over time</string>
     <string name="retro_lifelines_hint">The most active matters of the period: the bar is how long it ran, ticks are deadlines. Tap to open.</string>
     <string name="export_obsidian">For Obsidian: linked notes</string>
-    <string name="export_obsidian_hint">A note for each matter, person, event (a year back and ahead) and diary day, linked with [[…]]: Obsidian shows them as a graph. Obsidian keeps notes as plain text — unpack the archive only on a protected device.</string>
+    <string name="export_obsidian_hint">Matters, people, events and diary days, linked with [[…]]: Obsidian shows them as a graph. Without a period, events a year back and ahead. Obsidian keeps notes as plain text — unpack the archive only on a protected device.</string>
     <string name="obs_matters">Matters</string>
     <string name="obs_people">People</string>
     <string name="obs_events">Events</string>
@@ -1266,4 +1266,32 @@
         <item quantity="one">day to finish</item>
         <item quantity="other">days to finish</item>
     </plurals>
+    <string name="export_period">Period</string>
+    <string name="export_period_hint">Events that took place in the period; delegations, promises and deadlines made, closed or due in it; matters that moved; diary, media and budget by date. Contacts and people are not limited by the period.</string>
+    <string name="period_all">All</string>
+    <string name="period_today">Today</string>
+    <string name="period_week">Week</string>
+    <string name="period_month">Month</string>
+    <string name="period_quarter">Quarter</string>
+    <string name="period_cadence">Cadence</string>
+    <string name="period_custom">Own dates</string>
+    <string name="export_everything_period">A full copy of everything is not cut by a period: choose “All” to make it.</string>
+    <string name="export_vault_basic">Basic</string>
+    <string name="export_vault_full">Full</string>
+    <string name="export_vault_full_hint">Everything: matters, people, all events, delegations, promises and deadlines as notes of their own, diary, media, alliances, communities, texts, budget, the Inbox, linked with [[…]]. This is your whole base as plain text once unpacked — only on a protected device.</string>
+    <string name="export_vault_all_people">All people and the address book (not only those tied to what is exported)</string>
+    <string name="export_vault_open_warning">A full export without a password is your whole base, readable by anyone with the file: matters, people with contacts, diary, budget. Better keep the password.</string>
+    <string name="obs_media">Media</string>
+    <string name="obs_alliances">Alliances</string>
+    <string name="obs_communities">Communities</string>
+    <string name="obs_budget">Budget</string>
+    <string name="obs_contacts">Contacts</string>
+    <string name="obs_messages">Key messages</string>
+    <string name="obs_to_whom">To whom</string>
+    <string name="obs_date">Date</string>
+    <string name="obs_category">Category</string>
+    <string name="obs_sum">Amount</string>
+    <string name="obs_note">Note</string>
+    <string name="obs_period">Period</string>
+    <string name="obs_period_all">All records</string>
 </resources>

@@ -1240,7 +1240,7 @@
     <string name="retro_lifelines">Стрічка справ</string>
     <string name="retro_lifelines_hint">Найактивніші справи періоду: смуга — скільки тривала, рисочки — строки. Торкніться, щоб відкрити.</string>
     <string name="export_obsidian">Для Obsidian: нотатки з посиланнями</string>
-    <string name="export_obsidian_hint">Окрема нотатка на кожну справу, людину, подію (рік назад і наперед) і день щоденника, з посиланнями [[…]]: в Obsidian видно граф зв\'язків. Obsidian зберігає нотатки відкритим текстом — розпаковуйте архів лише на захищеному пристрої.</string>
+    <string name="export_obsidian_hint">Справи, люди, події й дні щоденника, з посиланнями [[…]]: в Obsidian видно граф зв\'язків. Без періоду — події за рік назад і наперед. Obsidian зберігає нотатки відкритим текстом — розпаковуйте архів лише на захищеному пристрої.</string>
     <string name="obs_matters">Справи</string>
     <string name="obs_people">Люди</string>
     <string name="obs_events">Події</string>
@@ -1282,4 +1282,32 @@
         <item quantity="many">днів до кінця</item>
         <item quantity="other">дня до кінця</item>
     </plurals>
+    <string name="export_period">Період</string>
+    <string name="export_period_hint">Події — ті, що були в цей період; доручення, обіцянки й строки — створені, закриті або зі строком у цей період; справи — що рухалися; щоденник, медіа й бюджет — за датою. Контакти й люди — без обмеження періодом.</string>
+    <string name="period_all">Усе</string>
+    <string name="period_today">Сьогодні</string>
+    <string name="period_week">Тиждень</string>
+    <string name="period_month">Місяць</string>
+    <string name="period_quarter">Квартал</string>
+    <string name="period_cadence">Каденція</string>
+    <string name="period_custom">Свої дати</string>
+    <string name="export_everything_period">Повна копія всього не обмежується періодом: щоб її зробити, оберіть «Усе».</string>
+    <string name="export_vault_basic">Основа</string>
+    <string name="export_vault_full">Повний</string>
+    <string name="export_vault_full_hint">Усе: справи, люди, усі події, доручення, обіцянки й строки окремими нотатками, щоденник, медіа, союзи, громади, тексти, бюджет, «Вхідні», з посиланнями [[…]] між ними. Це вся ваша база відкритим текстом, щойно архів розпаковано — лише на захищеному пристрої.</string>
+    <string name="export_vault_all_people">Усі люди й адресна книга (а не лише пов\'язані з експортованим)</string>
+    <string name="export_vault_open_warning">Повний експорт без пароля — це вся ваша база, яку прочитає будь-хто з доступом до файлу: справи, люди з контактами, щоденник, бюджет. Краще залишити пароль.</string>
+    <string name="obs_media">Медіа</string>
+    <string name="obs_alliances">Союзи</string>
+    <string name="obs_communities">Громади</string>
+    <string name="obs_budget">Бюджет</string>
+    <string name="obs_contacts">Контакти</string>
+    <string name="obs_messages">Ключові меседжі</string>
+    <string name="obs_to_whom">Кому</string>
+    <string name="obs_date">Дата</string>
+    <string name="obs_category">Категорія</string>
+    <string name="obs_sum">Сума</string>
+    <string name="obs_note">Примітка</string>
+    <string name="obs_period">Період</string>
+    <string name="obs_period_all">Усі записи</string>
 </resources>
