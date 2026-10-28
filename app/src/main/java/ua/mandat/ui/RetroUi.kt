@@ -1,5 +1,6 @@
 package ua.mandat.ui
 
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -320,6 +321,45 @@ fun RetroScreen(db: MandatDb, session: Session) {
                 }
             }
 
+            // A year of activity, one square a day: the rhythm of the work, heavy weeks and quiet ones
+            item(key = "year") {
+                val perDay = remember(events, history, deadlines, delegations, promises, reviews) {
+                    val m = HashMap<Long, Int>()
+                    fun add(d: Long?) { if (d != null) m[d] = (m[d] ?: 0) + 1 }
+                    events.forEach { add(it.day) }
+                    history.forEach { add(it.day) }
+                    deadlines.forEach { it.closedAt?.let { c -> add(Dates.dayOf(c)) } }
+                    delegations.forEach { it.closedAt?.let { c -> add(Dates.dayOf(c)) } }
+                    promises.forEach { it.closedAt?.let { c -> add(Dates.dayOf(c)) } }
+                    reviews.forEach { add(it.day) }
+                    m
+                }
+                SectionCard(Sym.calendar, stringResource(R.string.retro_year_grid), foldKey = "retro:year", canvas = Tone.plan) {
+                    Text(stringResource(R.string.retro_year_hint), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(bottom = 6.dp))
+                    YearGrid(perDay, today)
+                }
+            }
+
+            // Matters as lifelines over the period: when each began, how long it ran, its deadlines
+            item(key = "lifelines") {
+                val lines = remember(span, matters, history, events, deadlines) {
+                    val byMatter = history.groupBy { it.matterId }
+                    val activity = HashMap<Long, Int>()
+                    history.filter { it.day in span }.forEach { activity[it.matterId] = (activity[it.matterId] ?: 0) + 1 }
+                    events.filter { it.day in span && it.matterId != null }.forEach { activity[it.matterId!!] = (activity[it.matterId] ?: 0) + 1 }
+                    matters.filter { (activity[it.id] ?: 0) > 0 }.sortedByDescending { activity[it.id] }.take(12).map { m ->
+                        val start = maxOf(Dates.dayOf(m.createdAt), span.from)
+                        val end = (Retro.finishedOn(m, byMatter[m.id].orEmpty()) ?: today).coerceIn(start, span.to)
+                        Lifeline(m.id, m.title, ua.mandat.data.MatterType.of(m.type).chartColor(), start, end,
+                            deadlines.filter { it.matterId == m.id && it.day in span }.map { it.day })
+                    }
+                }
+                if (lines.isNotEmpty()) SectionCard(Sym.layers, stringResource(R.string.retro_lifelines), foldKey = "retro:lines") {
+                    Text(stringResource(R.string.retro_lifelines_hint), style = MaterialTheme.typography.labelSmall, color = Muted, modifier = Modifier.padding(bottom = 6.dp))
+                    lines.forEach { l -> LifelineRow(l, span) { session.openMatter(l.id) } }
+                }
+            }
+
             // People: met most often, and who changed their stance
             val moved = links.filter { it.stanceSince != null && it.stanceSince in span && it.previousStance != null }
             if (d.topPeople.isNotEmpty() || moved.isNotEmpty()) item(key = "people") {
@@ -456,6 +496,59 @@ private fun WordCloud(words: List<Pair<String, Int>>, onPick: (String) -> Unit) 
                 fontSize = (13 + 15 * kotlin.math.sqrt(k)).sp,
                 fontWeight = if (k > 0.6f) androidx.compose.ui.text.font.FontWeight.SemiBold else androidx.compose.ui.text.font.FontWeight.Normal,
                 modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { onPick(w) }.padding(horizontal = 2.dp))
+        }
+    }
+}
+
+/** Fifty-three weeks of days as squares, Monday on top; a deeper colour, more happened that day. */
+@Composable
+private fun YearGrid(perDay: Map<Long, Int>, today: Long) {
+    val first = LocalDate.ofEpochDay(today).minusWeeks(52).with(java.time.DayOfWeek.MONDAY).toEpochDay()
+    val base = Tone.plan
+    val empty = MaterialTheme.colorScheme.surfaceVariant
+    fun level(n: Int) = when { n == 0 -> 0f; n <= 2 -> 0.25f; n <= 5 -> 0.5f; n <= 9 -> 0.75f; else -> 1f }
+    androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().aspectRatio(53f / 7f)) {
+        val cell = size.width / 53f
+        val gap = cell * 0.15f
+        for (w in 0 until 53) for (d in 0 until 7) {
+            val day = first + w * 7 + d
+            if (day > today) continue
+            val n = perDay[day] ?: 0
+            drawRoundRect(
+                if (n == 0) empty else base.copy(alpha = 0.15f + 0.85f * level(n)),
+                topLeft = androidx.compose.ui.geometry.Offset(w * cell + gap / 2, d * cell + gap / 2),
+                size = androidx.compose.ui.geometry.Size(cell - gap, cell - gap),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(cell * 0.2f),
+            )
+        }
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(top = 6.dp)) {
+        Text(stringResource(R.string.retro_less), style = MaterialTheme.typography.labelSmall, color = Muted)
+        listOf(0f, 0.25f, 0.5f, 0.75f, 1f).forEach { a ->
+            Box(Modifier.size(10.dp).clip(RoundedCornerShape(2.dp)).background(if (a == 0f) empty else base.copy(alpha = 0.15f + 0.85f * a)))
+        }
+        Text(stringResource(R.string.retro_more), style = MaterialTheme.typography.labelSmall, color = Muted)
+    }
+}
+
+private class Lifeline(val id: Long, val title: String, val color: androidx.compose.ui.graphics.Color, val from: Long, val to: Long, val deadlines: List<Long>)
+
+/** One matter as a bar across the period, with its deadlines as ticks; tapping opens the matter. */
+@Composable
+private fun LifelineRow(l: Lifeline, span: Span, onClick: () -> Unit) {
+    val total = (span.to - span.from).coerceAtLeast(1).toFloat()
+    val tick = MaterialTheme.colorScheme.onSurface
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).clickable(onClick = onClick).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(l.title, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.width(120.dp))
+        androidx.compose.foundation.Canvas(Modifier.weight(1f).height(14.dp)) {
+            val x0 = size.width * (l.from - span.from) / total
+            val x1 = maxOf(size.width * (l.to - span.from) / total, x0 + 4f)
+            drawRoundRect(l.color.copy(alpha = 0.7f), androidx.compose.ui.geometry.Offset(x0, size.height * 0.25f),
+                androidx.compose.ui.geometry.Size(x1 - x0, size.height * 0.5f), androidx.compose.ui.geometry.CornerRadius(size.height * 0.25f))
+            l.deadlines.forEach { d ->
+                val x = size.width * (d - span.from) / total
+                drawLine(tick, androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Offset(x, size.height), strokeWidth = 2f)
+            }
         }
     }
 }

@@ -1231,4 +1231,19 @@
     <string name="day_main_remove">Прибрати з головного</string>
     <string name="day_main_pick">Що головне сьогодні?</string>
     <string name="day_main_nothing">Немає строків на сьогодні-завтра й справ у фокусі.</string>
+    <string name="graph_title">Мапа зв\'язків</string>
+    <string name="graph_card_hint">Справи й люди: хто з\'єднує вашу роботу</string>
+    <string name="graph_focus">У фокусі</string>
+    <string name="graph_all">Усі активні</string>
+    <string name="graph_hint">Лінія — людина бере участь у справі. Більша точка — більше зв\'язків. Зведіть пальці, щоб наблизити; торкніться точки.</string>
+    <string name="graph_empty">Поки немає справ із пов\'язаними людьми.</string>
+    <string name="graph_people_n">людей у справі: %1$d</string>
+    <string name="graph_matters_n">справ: %1$d</string>
+    <string name="graph_open">Відкрити</string>
+    <string name="retro_year_grid">Рік активності</string>
+    <string name="retro_year_hint">Кожен квадратик — день: що темніший, то більше сталося (події, зміни справ, закриті строки, доручення й обіцянки, вечірні записи).</string>
+    <string name="retro_less">менше</string>
+    <string name="retro_more">більше</string>
+    <string name="retro_lifelines">Стрічка справ</string>
+    <string name="retro_lifelines_hint">Найактивніші справи періоду: смуга — скільки тривала, рисочки — строки. Торкніться, щоб відкрити.</string>
 </resources>

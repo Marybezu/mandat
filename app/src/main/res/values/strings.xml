@@ -1227,4 +1227,19 @@
     <string name="day_main_remove">Remove from main</string>
     <string name="day_main_pick">What is main today?</string>
     <string name="day_main_nothing">No deadlines for today or tomorrow and no matters in focus.</string>
+    <string name="graph_title">Map of links</string>
+    <string name="graph_card_hint">Matters and people: who connects your work</string>
+    <string name="graph_focus">In focus</string>
+    <string name="graph_all">All active</string>
+    <string name="graph_hint">A line means a person takes part in a matter. A bigger point has more links. Pinch to zoom; tap a point.</string>
+    <string name="graph_empty">No matters with linked people yet.</string>
+    <string name="graph_people_n">people in the matter: %1$d</string>
+    <string name="graph_matters_n">matters: %1$d</string>
+    <string name="graph_open">Open</string>
+    <string name="retro_year_grid">A year of activity</string>
+    <string name="retro_year_hint">Each square is a day: the deeper, the more happened (events, matter changes, closed deadlines, delegations and promises, evening entries).</string>
+    <string name="retro_less">less</string>
+    <string name="retro_more">more</string>
+    <string name="retro_lifelines">Matters over time</string>
+    <string name="retro_lifelines_hint">The most active matters of the period: the bar is how long it ran, ticks are deadlines. Tap to open.</string>
 </resources>
